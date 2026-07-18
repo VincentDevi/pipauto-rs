@@ -22,6 +22,12 @@ server:
   host: http://localhost
   # Out of the box middleware configuration. to disable middleware you can changed the `enable` field to `false` of comment the middleware block
   middlewares:
+    static:
+      enable: true
+      must_exist: false
+      folder:
+        uri: /static
+        path: assets/static
 
 # Automated tests use an isolated embedded database and do not require external credentials.
 settings:

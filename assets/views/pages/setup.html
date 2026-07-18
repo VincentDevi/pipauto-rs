@@ -1,0 +1,10 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<section class="setup-card" aria-labelledby="setup-heading">
+  <p class="eyebrow">Application status</p>
+  <h1 id="setup-heading">{{ heading }}</h1>
+  <p class="summary">{{ summary }}</p>
+  <p>{{ detail }}</p>
+</section>
+{% endblock content %}

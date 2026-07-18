@@ -45,11 +45,15 @@ impl Hooks for App {
     }
 
     async fn initializers(_ctx: &AppContext) -> Result<Vec<Box<dyn Initializer>>> {
-        Ok(vec![])
+        Ok(vec![Box::new(
+            crate::initializers::view_engine::ViewEngineInitializer,
+        )])
     }
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
-        AppRoutes::with_default_routes().add_route(crate::controllers::surrealdb_health::routes())
+        AppRoutes::with_default_routes()
+            .add_route(crate::controllers::setup::routes())
+            .add_route(crate::controllers::surrealdb_health::routes())
     }
 
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {

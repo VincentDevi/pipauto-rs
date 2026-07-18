@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-content">
+        <a class="brand" href="/" aria-label="Pipauto home">Pipauto</a>
+        <nav aria-label="Primary navigation">
+          <span aria-current="page">Setup</span>
+        </nav>
+      </div>
+    </header>
+    <main id="main-content" class="shell">
+      {% block content %}{% endblock content %}
+    </main>
+  </body>
+</html>
