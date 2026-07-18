@@ -2,6 +2,11 @@
 **/config/*.local.yaml
 **/config/production.yaml
 
+# Local environment values.
+.env
+.env.*
+!.env.example
+
 # Rust build output
 /target/
 debug/
@@ -18,3 +23,4 @@ debug/
 # Local database files.
 *.sqlite
 *.sqlite-*
+/.surrealdb/

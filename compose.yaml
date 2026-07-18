@@ -1,0 +1,25 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.1
+    working_dir: /home/nonroot
+    command: ["start", "--log", "info"]
+    environment:
+      SURREAL_USER: ${SURREALDB_ROOT_USERNAME:?SURREALDB_ROOT_USERNAME is required}
+      SURREAL_PASS: ${SURREALDB_ROOT_PASSWORD:?SURREALDB_ROOT_PASSWORD is required}
+      SURREAL_PATH: rocksdb://pipauto
+      SURREAL_DEFAULT_NAMESPACE: ${SURREALDB_NAMESPACE:?SURREALDB_NAMESPACE is required}
+      SURREAL_DEFAULT_DATABASE: ${SURREALDB_DATABASE:?SURREALDB_DATABASE is required}
+    ports:
+      - "8000:8000"
+    volumes:
+      - pipauto_surrealdb_development:/home/nonroot
+    healthcheck:
+      test: ["CMD", "/surreal", "isready", "--endpoint", "http://localhost:8000"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  pipauto_surrealdb_development:
+    name: pipauto_surrealdb_development
