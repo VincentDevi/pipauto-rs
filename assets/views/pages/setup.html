@@ -6,5 +6,24 @@
   <h1 id="setup-heading">{{ heading }}</h1>
   <p class="summary">{{ summary }}</p>
   <p>{{ detail }}</p>
+
+  <section class="status-check" aria-labelledby="status-heading">
+    <h2 id="status-heading">Database connection</h2>
+    <div id="setup-status" class="status-panel" role="status" aria-live="polite" aria-atomic="true">
+      <p class="status-label"><span class="status-marker" aria-hidden="true"></span>Not checked yet</p>
+      <p>Run the setup check to confirm that the application can reach its database.</p>
+    </div>
+    <button
+      class="status-button"
+      type="button"
+      hx-get="/setup/status"
+      hx-target="#setup-status"
+      hx-disabled-elt="this"
+    >
+      Check database connection
+      <span class="htmx-indicator" role="status">Checking…</span>
+    </button>
+    <noscript><p>The current status is not checked automatically because JavaScript is unavailable.</p></noscript>
+  </section>
 </section>
 {% endblock content %}

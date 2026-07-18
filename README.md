@@ -80,3 +80,29 @@ docker-compose down --volumes
 The application uses namespace `pipauto` and database `pipauto_development`. Database
 `pipauto_test` is reserved for tests that explicitly connect to this standalone server; ordinary
 tests should not use the persistent development database.
+
+## Vendored browser assets
+
+HTMX is served by Pipauto itself; the application has no runtime CDN dependency.
+
+- Version: `2.0.10`
+- Upstream URL: `https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js`
+- SHA-256: `71ea67185bfa8c98c39d31717c6fce5d852370fcdfd129db4543774d3145c0de`
+
+Download the pinned minified build with:
+
+```bash
+mkdir -p assets/static/vendor
+curl --fail --location --silent --show-error \
+  --output assets/static/vendor/htmx.min.js \
+  https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js
+```
+
+Before accepting an updated asset, replace the expected checksum only after confirming it from a
+trusted upstream source, then verify the downloaded bytes:
+
+```bash
+printf '%s  %s\n' \
+  '71ea67185bfa8c98c39d31717c6fce5d852370fcdfd129db4543774d3145c0de' \
+  'assets/static/vendor/htmx.min.js' | shasum -a 256 --check
+```
