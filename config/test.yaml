@@ -23,11 +23,13 @@ server:
   # Out of the box middleware configuration. to disable middleware you can changed the `enable` field to `false` of comment the middleware block
   middlewares:
 
-# Standalone-server tests use their reserved database through environment-backed settings.
+# Automated tests use an isolated embedded database and do not require external credentials.
 settings:
   surrealdb:
-    endpoint: '{{ get_env(name="SURREALDB_ENDPOINT") }}'
-    username: '{{ get_env(name="SURREALDB_ROOT_USERNAME") }}'
-    password: '{{ get_env(name="SURREALDB_ROOT_PASSWORD") }}'
-    namespace: '{{ get_env(name="SURREALDB_NAMESPACE") }}'
-    database: '{{ get_env(name="SURREALDB_TEST_DATABASE") }}'
+    endpoint: memory
+    username: test
+    password: test
+    namespace: pipauto
+    database: pipauto_test
+    connection_timeout_ms: 5000
+    engine: memory

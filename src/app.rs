@@ -39,12 +39,17 @@ impl Hooks for App {
         create_app::<Self>(mode, environment, config).await
     }
 
+    async fn after_context(ctx: AppContext) -> Result<AppContext> {
+        crate::initializers::surrealdb::install(&ctx).await?;
+        Ok(ctx)
+    }
+
     async fn initializers(_ctx: &AppContext) -> Result<Vec<Box<dyn Initializer>>> {
         Ok(vec![])
     }
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
-        AppRoutes::with_default_routes()
+        AppRoutes::with_default_routes().add_route(crate::controllers::surrealdb_health::routes())
     }
 
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {

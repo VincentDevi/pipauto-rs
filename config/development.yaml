@@ -33,3 +33,5 @@ settings:
     password: '{{ get_env(name="SURREALDB_ROOT_PASSWORD") }}'
     namespace: '{{ get_env(name="SURREALDB_NAMESPACE") }}'
     database: '{{ get_env(name="SURREALDB_DATABASE") }}'
+    connection_timeout_ms: 5000
+    engine: websocket
