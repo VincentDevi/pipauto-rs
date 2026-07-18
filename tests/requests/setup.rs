@@ -97,7 +97,9 @@ async fn vendored_htmx_is_served_from_static_assets() {
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_content_type(response.headers(), "text/javascript");
-    assert!(response_text(response).await.starts_with("var htmx=function()"));
+    assert!(response_text(response)
+        .await
+        .starts_with("var htmx=function()"));
 }
 
 #[tokio::test]
