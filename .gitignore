@@ -1,0 +1,20 @@
+**/config/local.yaml
+**/config/*.local.yaml
+**/config/production.yaml
+
+# Rust build output
+/target/
+debug/
+
+# Keep Cargo's reproducible lockfile.
+!Cargo.lock
+
+# Backup files created by rustfmt.
+**/*.rs.bk
+
+# MSVC debug information.
+*.pdb
+
+# Local database files.
+*.sqlite
+*.sqlite-*
