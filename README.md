@@ -103,6 +103,38 @@ cargo loco routes
 cargo loco task
 ```
 
+## Authentication boundary
+
+Pipauto uses administrator-provisioned email/password accounts. A successful login creates a
+signed JWT cookie and a matching revocable SurrealDB registry row with the same fixed 12-hour
+expiry. Both must remain valid and the user must remain active on every private request. There is
+no public registration, refresh token, remember-me behavior, password recovery, role system, or
+browser-side token storage.
+
+The login page, static assets, and non-sensitive health endpoints are public. The workshop shell
+and every other application route are protected on the server. Unsafe browser requests require an
+origin-, action-, expiry-, and session-bound CSRF token; standard forms and HTMX use the same
+checks. Logout revokes the registry row before clearing the cookie, so replaying the old JWT fails.
+
+Development cookies are named `pipauto_session` and `pipauto_login_csrf`. Production cookies use
+the `__Host-pipauto_session` and `__Host-pipauto_login_csrf` names and require HTTPS. See the
+[authentication operations guide](docs/authentication.md) for exact cookie attributes, account
+deactivation, session cleanup and revocation, proxy requirements, end-to-end verification, and
+authentication troubleshooting.
+
+### Production authentication checklist
+
+- Generate fresh, independent JWT and CSRF secrets with the two `openssl rand -base64 32`
+  commands above; store them in the deployment secret manager rather than the repository.
+- Set `PIPAUTO_CANONICAL_ORIGIN` to the exact externally visible HTTPS origin and keep
+  `PIPAUTO_SESSION_LIFETIME_SECONDS=43200`.
+- Terminate HTTPS at a protected deployment boundary and preserve `Set-Cookie`, `Origin`, and
+  security headers through the reverse proxy.
+- Do not trust or derive client identity from forwarding headers. This release intentionally uses
+  the direct socket address; trusted-proxy support has not been configured.
+- Apply the authentication schema explicitly before starting the application. Server startup does
+  not apply schema changes.
+
 For subsequent development sessions, the complete startup sequence can also be run as one
 command:
 

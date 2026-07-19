@@ -5,6 +5,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use loco_rs::auth::jwt::JWT;
+use serde::{
+    de::{IgnoredAny, MapAccess, Visitor},
+    Deserialize, Deserializer,
+};
 use serde_json::{Map, Value};
 
 use crate::{
@@ -79,6 +83,7 @@ impl LocoJwtCodec {
             .jwt
             .validate(encoded)
             .map_err(|_| AuthError::Unauthenticated)?;
+        validate_required_claim_occurrences(encoded)?;
         let serialized = serde_json::to_value(&token.claims).map_err(|_| AuthError::Unavailable)?;
         let exp = serialized
             .get("exp")
@@ -97,11 +102,74 @@ impl LocoJwtCodec {
             0,
         )
         .ok_or(AuthError::Unauthenticated)?;
+        let pid = UserId::parse(token.claims.pid).map_err(|_| AuthError::Unauthenticated)?;
         Ok(ValidatedJwt {
-            pid: token.claims.pid,
+            pid: pid.as_str().to_owned(),
             jti,
             expires_at,
         })
+    }
+}
+
+fn validate_required_claim_occurrences(encoded: &str) -> Result<(), AuthError> {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+    let mut segments = encoded.split('.');
+    let _header = segments.next().ok_or(AuthError::Unauthenticated)?;
+    let payload = segments.next().ok_or(AuthError::Unauthenticated)?;
+    let _signature = segments.next().ok_or(AuthError::Unauthenticated)?;
+    if segments.next().is_some() {
+        return Err(AuthError::Unauthenticated);
+    }
+    let payload = URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|_| AuthError::Unauthenticated)?;
+    let occurrences =
+        RequiredClaimOccurrences::deserialize(&mut serde_json::Deserializer::from_slice(&payload))
+            .map_err(|_| AuthError::Unauthenticated)?;
+    if occurrences.pid != 1 || occurrences.jti != 1 {
+        return Err(AuthError::Unauthenticated);
+    }
+    Ok(())
+}
+
+struct RequiredClaimOccurrences {
+    pid: usize,
+    jti: usize,
+}
+
+impl<'de> Deserialize<'de> for RequiredClaimOccurrences {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ClaimsVisitor;
+
+        impl<'de> Visitor<'de> for ClaimsVisitor {
+            type Value = RequiredClaimOccurrences;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a JWT claims object")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut occurrences = RequiredClaimOccurrences { pid: 0, jti: 0 };
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "pid" => occurrences.pid += 1,
+                        "jti" => occurrences.jti += 1,
+                        _ => {}
+                    }
+                    map.next_value::<IgnoredAny>()?;
+                }
+                Ok(occurrences)
+            }
+        }
+
+        deserializer.deserialize_map(ClaimsVisitor)
     }
 }
 
@@ -160,7 +228,33 @@ pub fn adapters(secret: &str) -> (Arc<dyn Clock>, Arc<dyn RandomSource>, Arc<dyn
 
 #[cfg(test)]
 mod tests {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use hmac::{Hmac, Mac};
+    use sha2::Sha512;
+
     use super::*;
+
+    const TEST_PID: &str = "user:verification";
+    const TEST_JTI: &str = "UVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVE";
+
+    fn test_secret() -> String {
+        STANDARD.encode([0x51; 32])
+    }
+
+    fn signed_token(payload: &str) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+        let header = URL_SAFE_NO_PAD.encode(r#"{"alg":"HS512","typ":"JWT"}"#);
+        let payload = URL_SAFE_NO_PAD.encode(payload);
+        let signing_input = format!("{header}.{payload}");
+        let key = STANDARD
+            .decode(test_secret())
+            .expect("test secret should decode");
+        let mut mac = Hmac::<Sha512>::new_from_slice(&key).expect("test key should be valid");
+        mac.update(signing_input.as_bytes());
+        let signature = URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
+        format!("{signing_input}.{signature}")
+    }
 
     #[tokio::test]
     async fn password_authentication_loco_argon2id_hash_round_trip() {
@@ -179,5 +273,53 @@ mod tests {
             .verify("wrong horse workshop staple", &hash)
             .await
             .expect("wrong password should not verify"));
+    }
+
+    #[test]
+    fn jwt_accepts_valid_claims_and_rejects_tampering_and_expiry() {
+        let codec = LocoJwtCodec::new(&test_secret());
+        let valid = signed_token(&format!(
+            r#"{{"pid":"{TEST_PID}","exp":4102444800,"jti":"{TEST_JTI}"}}"#
+        ));
+        let claims = codec.validate(&valid).expect("valid token should verify");
+        assert_eq!(claims.pid, TEST_PID);
+        assert_eq!(claims.jti, TEST_JTI);
+
+        let mut tampered = valid;
+        tampered.push('x');
+        assert!(matches!(
+            codec.validate(&tampered),
+            Err(AuthError::Unauthenticated)
+        ));
+
+        let expired = signed_token(&format!(
+            r#"{{"pid":"{TEST_PID}","exp":1,"jti":"{TEST_JTI}"}}"#
+        ));
+        assert!(matches!(
+            codec.validate(&expired),
+            Err(AuthError::Unauthenticated)
+        ));
+    }
+
+    #[test]
+    fn jwt_rejects_missing_malformed_and_duplicate_required_claims() {
+        let codec = LocoJwtCodec::new(&test_secret());
+        for payload in [
+            format!(r#"{{"exp":4102444800,"jti":"{TEST_JTI}"}}"#),
+            format!(r#"{{"pid":"vehicle:not-a-user","exp":4102444800,"jti":"{TEST_JTI}"}}"#),
+            format!(r#"{{"pid":"{TEST_PID}","exp":4102444800}}"#),
+            format!(r#"{{"pid":"{TEST_PID}","exp":4102444800,"jti":42}}"#),
+            format!(
+                r#"{{"pid":"{TEST_PID}","exp":4102444800,"jti":"{TEST_JTI}","jti":"{TEST_JTI}"}}"#
+            ),
+        ] {
+            assert!(
+                matches!(
+                    codec.validate(&signed_token(&payload)),
+                    Err(AuthError::Unauthenticated)
+                ),
+                "payload should be rejected: {payload}"
+            );
+        }
     }
 }

@@ -73,23 +73,43 @@ impl AuthCookies {
 
 #[cfg(test)]
 mod tests {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use loco_rs::environment::Environment;
 
     use super::*;
 
-    #[test]
-    fn auth_cookie_session_and_deletion_share_security_attributes() {
-        let settings = AuthSettings::from_environment(&Environment::Test)
-            .expect("test settings should be valid");
-        let cookies = AuthCookies::new(settings);
+    fn assert_cookie_policy(environment: &Environment, name: &str, secure: bool) {
+        let settings = AuthSettings::from_values(
+            environment,
+            STANDARD.encode([1; 32]),
+            STANDARD.encode([2; 32]),
+            if environment == &Environment::Production {
+                "https://pipauto.example"
+            } else {
+                "http://localhost:5150"
+            }
+            .to_owned(),
+            43_200,
+        )
+        .expect("cookie settings should be valid");
+        let cookies = AuthCookies::new(settings.clone());
         let session = cookies.session("secret-token".to_owned());
-        assert_eq!(session.name(), "pipauto_session");
+        assert_eq!(session.name(), name);
         assert_eq!(session.value(), "secret-token");
         assert_eq!(session.http_only(), Some(true));
-        assert_eq!(session.secure(), Some(false));
+        assert_eq!(session.secure(), Some(secure));
         assert_eq!(session.same_site(), Some(SameSite::Lax));
         assert_eq!(session.path(), Some("/"));
         assert!(session.domain().is_none());
+        assert_eq!(session.max_age(), Some(CookieDuration::seconds(43_200)));
+
+        let login_csrf = cookies.login_csrf("nonce".to_owned(), Utc::now());
+        assert_eq!(login_csrf.http_only(), session.http_only());
+        assert_eq!(login_csrf.secure(), session.secure());
+        assert_eq!(login_csrf.same_site(), session.same_site());
+        assert_eq!(login_csrf.path(), session.path());
+        assert!(login_csrf.domain().is_none());
+        assert_eq!(login_csrf.max_age(), Some(CookieDuration::seconds(600)));
 
         let removal = cookies.clear_session();
         assert_eq!(removal.name(), session.name());
@@ -97,6 +117,13 @@ mod tests {
         assert_eq!(removal.secure(), session.secure());
         assert_eq!(removal.same_site(), session.same_site());
         assert_eq!(removal.path(), session.path());
+        assert_eq!(removal.domain(), session.domain());
         assert_eq!(removal.max_age(), Some(CookieDuration::ZERO));
+    }
+
+    #[test]
+    fn auth_cookies_enforce_exact_development_and_production_policies() {
+        assert_cookie_policy(&Environment::Development, "pipauto_session", false);
+        assert_cookie_policy(&Environment::Production, "__Host-pipauto_session", true);
     }
 }

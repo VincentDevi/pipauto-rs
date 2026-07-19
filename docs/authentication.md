@@ -108,12 +108,75 @@ the direct socket IP and deliberately ignores forwarding headers. Trusted proxy 
 must be an explicit later configuration change; do not enable arbitrary `X-Forwarded-For` trust.
 Keep system clocks synchronized because JWT and CSRF expiry checks are time based.
 
-## Verification
+## Clean-checkout end-to-end verification
 
-From a clean checkout, perform setup above, create a user, start `cargo loco start`, and verify wrong
-credentials, normal and JavaScript-disabled login/logout, cookie flags, protected-route redirects,
-and replay rejection after logout. Stop SurrealDB temporarily and confirm authentication returns a
-safe unavailable response instead of granting access. Inspect logs for secrets and credentials.
+Run this procedure from a fresh checkout with no existing `.env` or SurrealDB volume. Credential
+entry is deliberately performed in the browser or non-echoing terminal prompt, never in a shell
+argument or environment variable.
+
+1. Copy `.env.example`, generate the two independent secrets with the commands under
+   [Configuration](#configuration), fill in `.env`, then load it:
+
+   ```bash
+   cp .env.example .env
+   set -a && source .env && set +a
+   ```
+
+2. Start and health-check SurrealDB, then apply the schema:
+
+   ```bash
+   docker-compose up -d --wait surrealdb
+   docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
+   cargo loco task apply_auth_schema
+   ```
+
+3. Create the first user. Enter and confirm the password only at the two non-echoing prompts:
+
+   ```bash
+   cargo loco task create_user email:filippo@example.com display_name:Filippo
+   ```
+
+4. Start Pipauto and leave its terminal visible for log inspection:
+
+   ```bash
+   cargo loco start
+   ```
+
+5. In a private browser window, open <http://localhost:5150/> and confirm navigation ends at
+   `/login?next=/`. Submit an incorrect password and confirm only `Invalid credentials.` appears;
+   the submitted password must not appear in the page, response, application output, or logs.
+6. Sign in with the provisioned account. Confirm `/` renders the workshop shell. In browser
+   developer tools, inspect `pipauto_session`: it must have `HttpOnly`, `SameSite=Lax`, `Path=/`,
+   no `Domain`, a 43,200-second `Max-Age`, and no `Secure` attribute in development. Copy the cookie
+   value temporarily inside developer tools for the replay check; do not paste it into a terminal
+   or log.
+7. Sign out. Confirm navigation reaches `/login`, the cookie is deleted with the same attributes,
+   and restoring the copied old value in developer tools still cannot open `/`.
+8. Disable JavaScript for `localhost` (which disables HTMX), reload `/login`, and repeat a normal
+   login and logout. Confirm the standard forms have the same result, then re-enable JavaScript.
+9. Sign in once more, stop SurrealDB from a second terminal, and request `/` again:
+
+   ```bash
+   docker-compose stop surrealdb
+   ```
+
+   Confirm Pipauto returns the safe authentication-unavailable response with HTTP `503`; it must
+   not render the protected shell or expose database details. Restore the database afterward:
+
+   ```bash
+   docker-compose start surrealdb
+   docker-compose up -d --wait surrealdb
+   ```
+
+10. Review the complete Pipauto output from steps 3–9. It may contain safe correlation identifiers
+    and throttle timing, but must contain no configured secret, password, JWT, CSRF token, session
+    identifier, submitted email, or database password.
+
+For a production deployment, repeat the browser checks against the HTTPS origin. Cookie names must
+be `__Host-pipauto_session` and `__Host-pipauto_login_csrf`, and both cookies must additionally have
+`Secure`.
+
+## Automated verification
 
 Run the automated gate:
 
@@ -141,6 +204,11 @@ cargo loco task
 - **Missing template/static response:** run from the repository root and confirm `assets/views` and `assets/static` are present in the deployment artifact.
 - **Bad proxy headers:** this milestone ignores forwarding headers. Correct the direct backend topology; do not trust client-supplied forwarding headers.
 
-Framework references: [Loco authentication](https://loco.rs/docs/the-app/authentication/),
-[Loco tasks](https://loco.rs/docs/the-app/tasks/), and
-[Loco middleware](https://loco.rs/docs/the-app/middleware/).
+Resolved framework version: `loco-rs` 0.16.4. The application adapters use the versioned
+[`JWT` API](https://docs.rs/loco-rs/0.16.4/loco_rs/auth/jwt/struct.JWT.html),
+[`hash_password` API](https://docs.rs/loco-rs/0.16.4/loco_rs/hash/fn.hash_password.html),
+[`verify_password` API](https://docs.rs/loco-rs/0.16.4/loco_rs/hash/fn.verify_password.html), and
+[`Task` API](https://docs.rs/loco-rs/0.16.4/loco_rs/task/trait.Task.html). Framework guides:
+[authentication](https://loco.rs/docs/the-app/authentication/),
+[task variables](https://loco.rs/docs/the-app/tasks/), and
+[middleware](https://loco.rs/docs/the-app/middleware/).

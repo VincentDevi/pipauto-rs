@@ -68,7 +68,7 @@ impl AuthSettings {
         )
     }
 
-    fn from_values(
+    pub(super) fn from_values(
         environment: &Environment,
         jwt_secret: String,
         csrf_secret: String,
@@ -361,6 +361,29 @@ mod tests {
             )
             .expect_err("origin path must fail"),
             AuthSettingsError::InvalidCanonicalOrigin
+        );
+        assert_eq!(
+            AuthSettings::from_values(
+                &Environment::Development,
+                secret(1),
+                secret(2),
+                "http://localhost:5150".to_owned(),
+                DEFAULT_SESSION_SECONDS - 1,
+            )
+            .expect_err("non-standard session lifetime must fail"),
+            AuthSettingsError::SessionLifetimeMustBeTwelveHours
+        );
+    }
+
+    #[test]
+    fn missing_required_authentication_settings_are_named_without_values() {
+        const MISSING_TEST_ENV: &str = "PIPAUTO_AUTH_TEST_DELIBERATELY_MISSING";
+        std::env::remove_var(MISSING_TEST_ENV);
+        assert_eq!(
+            required_env(MISSING_TEST_ENV),
+            Err(AuthSettingsError::Missing {
+                setting: MISSING_TEST_ENV
+            })
         );
     }
 }
