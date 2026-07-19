@@ -33,14 +33,36 @@ There are no refresh tokens, sliding expiry, remember-me sessions, or browser-si
 
 ## Setup and routine tasks
 
-Load `.env`, start SurrealDB, and explicitly apply the idempotent schema. Normal server startup does
-not mutate production or development schemas:
+Load `.env`, start SurrealDB, install the pinned SurrealKit CLI, and sync a new development
+database. Normal server startup does not mutate production or development schemas:
 
 ```bash
 set -a && source .env && set +a
 docker-compose up -d --wait surrealdb
-cargo loco task apply_auth_schema
+cargo install surrealkit --version 0.7.0 --locked
+surrealkit --version
+./scripts/surrealkit sync
 ```
+
+Pipauto pins SurrealKit `0.7.0` with SurrealDB server and Rust SDK `3.2.1`. SurrealKit is developer
+and CI tooling, not an application dependency. `scripts/surrealkit` maps the existing
+`SURREALDB_*` settings to SurrealKit's HTTP connection variables in process memory; it never puts
+credentials in `surrealkit.toml` or command arguments.
+
+For an existing database, do not run `sync`: it can prune definitions. Run the read-first adoption
+gate instead:
+
+```bash
+./scripts/surrealkit baseline-authentication
+```
+
+The gate queries `INFO FOR DB` and each authentication table, compares the normalized live catalog
+with `database/tests/fixtures/authentication_catalog.json`, and stops on a missing, extra, or changed
+definition before SurrealKit writes metadata. Only a complete match may invoke `rollout baseline`.
+It fingerprints all logical fields of every user, session, and throttle record before and after the
+baseline, and fails if row contents, record IDs, timestamps, hashes, active states, expiries, or
+throttle state change. Output names only the failed phase/table and never prints catalog exports,
+credentials, password hashes, sessions, or tokens.
 
 Provision users interactively. The two password prompts do not echo; never put a password in a
 shell argument or environment variable:
@@ -122,12 +144,13 @@ argument or environment variable.
    set -a && source .env && set +a
    ```
 
-2. Start and health-check SurrealDB, then apply the schema:
+2. Start and health-check SurrealDB, install the pinned CLI, then sync the clean database:
 
    ```bash
    docker-compose up -d --wait surrealdb
    docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
-   cargo loco task apply_auth_schema
+   cargo install surrealkit --version 0.7.0 --locked
+   ./scripts/surrealkit sync
    ```
 
 3. Create the first user. Enter and confirm the password only at the two non-echoing prompts:
@@ -181,6 +204,9 @@ be `__Host-pipauto_session` and `__Host-pipauto_login_csrf`, and both cookies mu
 Run the automated gate:
 
 ```bash
+cargo install surrealkit --version 0.7.0 --locked
+surrealkit --version
+./scripts/surrealkit test --suite 'authentication*'
 cargo fmt --check
 cargo check
 cargo clippy --all-targets --all-features -- -D warnings
@@ -195,7 +221,12 @@ cargo loco task
 - **Production refuses an HTTP origin:** configure the externally visible `https://` origin. HTTP is development-only.
 - **Cookie name mismatch or immediate sign-out:** do not manually rename cookies; ensure production reaches the app over HTTPS and the client accepts `__Host-` cookies.
 - **Tokens expire too early or CSRF suddenly fails:** synchronize the application host's system clock and verify the configured 12-hour lifetime.
-- **User creation fails:** apply the schema, confirm SurrealDB settings/health, use an interactive terminal, satisfy password boundaries, and check for an existing normalized email.
+- **SurrealKit is missing or rejected:** install exactly `0.7.0`; the wrapper fails before any
+  schema operation when the CLI is absent or has a different version.
+- **Authentication baseline reports catalog drift:** do not retry with `sync` and do not edit the
+  snapshots. Compare the named table with the committed schema and reconcile the database through
+  a reviewed rollout before attempting the baseline again.
+- **User creation fails:** sync a clean database (or complete the existing-database baseline), confirm SurrealDB settings/health, use an interactive terminal, satisfy password boundaries, and check for an existing normalized email.
 - **Invalid credentials:** email, password, inactive users, and unknown users intentionally share one generic response.
 - **Too many attempts:** wait for the 15-minute temporary block. The limit is five failures in 15 minutes per normalized-email and direct-socket-IP digest.
 - **Revoked or expired session:** sign in again; a valid JWT cannot override registry revocation or fixed expiry.

@@ -11,7 +11,7 @@ use crate::{
         csrf::CsrfService,
         settings::AuthSettings,
     },
-    database::{client::AppDatabase, schema::apply_auth_schema},
+    database::client::AppDatabase,
     repositories::surreal::auth::SurrealAuthRepository,
     services::auth::{AuthService, PasswordEngine},
 };
@@ -29,7 +29,19 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         .ok_or_else(|| Error::string("application database is not installed"))?;
     let client = database.client().map_err(Error::msg)?;
     if ctx.environment == Environment::Test {
-        apply_auth_schema(&client).await.map_err(Error::msg)?;
+        let schema = [
+            include_str!("../../database/schema/authentication/user.surql"),
+            include_str!("../../database/schema/authentication/auth_session.surql"),
+            include_str!("../../database/schema/authentication/login_throttle.surql"),
+        ]
+        .join("\n");
+        let response = client
+            .query(schema)
+            .await
+            .map_err(|_| Error::string("test authentication schema application failed"))?;
+        response
+            .check()
+            .map_err(|_| Error::string("test authentication schema application failed"))?;
     }
 
     let repository = Arc::new(SurrealAuthRepository::new(client));

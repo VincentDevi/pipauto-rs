@@ -1,0 +1,1 @@
+-- Authentication tests create their own non-sensitive fixtures.

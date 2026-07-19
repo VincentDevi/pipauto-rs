@@ -1,0 +1,237 @@
+{
+  "version": 2,
+  "entities": [
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "created_ip_digest",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "db80cc2a78e14bb9f4b04bf2a10e7e78fe6d19c0749c26b8273d54e843ce6e11",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "expires_at",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "4990878bb7a604d6bbb18166a324c2aed7bd186e04303e1a526782c952be0722",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "issued_at",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "d5eae9d4f1f8bd8efffc0f7e00f319306eaa5b484522c7cc54c607c860d34257",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "jti_digest",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "ee402dcbf25dea95b19d382c232fd838f0551932ff9d941324c41913292dd3bc",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "last_seen_at",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "130bd5afe3b5d45f49d67c34a323931b90753044c57b84efd1b6e8c28d14a8f4",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "revoked_at",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "e7f90d58f8cdc96137d0ddefe66d25a3a9843703b79b74dde12ecd7b54cd4d7d",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "user",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "7fbf49099122ee0873f3da4a96929d3b41fa0f768776a14d4a4023101347407b",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "auth_session",
+      "name": "user_agent_summary",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "783d62ba3b720932742308d610adfe0a2beca9e393756513a0deee271dbcb7d9",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "field",
+      "scope": "login_throttle",
+      "name": "blocked_until",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "a6201917cbf53e69941574b08f31c5a2079e885597a1f5b242125c71a583e45d",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "login_throttle",
+      "name": "failed_attempts",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "48651c2bdedbef79e1e2c549d8d7403313f5f0d2ef28d8cb7cd7c6860a05474b",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "login_throttle",
+      "name": "identifier_digest",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "7da2184265592695bb2d41fc692d36effa13c93c7d0f90d6df7f0bdd37f08c66",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "login_throttle",
+      "name": "network_digest",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "f6546e2b84df907fb24cde8efbe96fdbde3c18c471f105fa9a13a23661c15f3d",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "login_throttle",
+      "name": "window_started_at",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "67667f83bae3764d852ea05dc6f6e1ac6362cc690881be6b881af3988485653c",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "active",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "33a92e4c1029b41c07429d530944203979e37ae765240630ba54ab18cacef150",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "created_at",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "5110a61bb2bb6fe9e870605dbfdef49060ea231f2912d35624c34b721e7de5dc",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "display_name",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "cde8f8f3982d2bcba3ebe52f29cb851ab25cab9faafd8f3d7c4220d79e6feb82",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "email",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "1eea9d4ee5c14cece53047ebd8fff5c58863b15a7b0bee121d6ecd1da3ae21c0",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "email_normalized",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "c25805b7eb03e90bfa12764a24cb64749ef02e17c850c29f0622f9718652007e",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "password_hash",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "ec74104f8901005b2009b20cab809368bc6ac5c08bca7f0c93346f7952e77f5a",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "field",
+      "scope": "user",
+      "name": "updated_at",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "049b4bfc8812518bea9155cd33a2c9da2ee1b1573688dc2d5d00e2008b8c7425",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "index",
+      "scope": "auth_session",
+      "name": "auth_session_expires_at",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "9d1e0872b7b7b3a4043b6514291933705e96e98aa74271e33b12e4a48721e86c",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "index",
+      "scope": "auth_session",
+      "name": "auth_session_jti_unique",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "93c207022b7783df3e23bb07447c5e4c41c8a1919a053b56c6a614cc0d584edb",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "index",
+      "scope": "auth_session",
+      "name": "auth_session_user",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "d81d0815912dae5ae83e02834d56822162a80f67a77d2d53f6afdf3d817076f7",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "index",
+      "scope": "login_throttle",
+      "name": "login_throttle_blocked_until",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "2067b21d38b1ed740d174dd9ccd229c6a5d38481120d432e66fdc30fa59d9779",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "index",
+      "scope": "login_throttle",
+      "name": "login_throttle_key_unique",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "7ef3a7d288c6e051eb34e893aea84273c8098566af5c0c1a976c15d438cb5d1a",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "index",
+      "scope": "user",
+      "name": "user_email_normalized_unique",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "65a2c07baf3b20cc4035eeceaf5d153f7b3273a63f9a16bc265d10f48e1ef8cc",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "auth_session",
+      "source_path": "database/schema/authentication/auth_session.surql",
+      "statement_hash": "4fb24a5858e4afd4c7857ff29d4bc5b4c48dda1648f030f9725290a8f2576d62",
+      "file_hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "login_throttle",
+      "source_path": "database/schema/authentication/login_throttle.surql",
+      "statement_hash": "73781ea7585c0902fe74a4aa37a666be22bbd2c93cc52a6d7f7c77ea121870f9",
+      "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "user",
+      "source_path": "database/schema/authentication/user.surql",
+      "statement_hash": "5baf1783f24861bd523cea0e82f3bda0bd8521744d73767905d513368567b54f",
+      "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""Secret-safe SurrealKit wrapper and authentication baseline gate."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+PINNED_VERSION = "0.7.0"
+AUTH_TABLES = ("auth_session", "login_throttle", "user")
+ROOT = Path(__file__).resolve().parent.parent
+EXPECTED_CATALOG = ROOT / "database/tests/fixtures/authentication_catalog.json"
+
+
+class SafeFailure(Exception):
+    """An operational failure whose message contains no configured values."""
+
+
+def required_environment() -> dict[str, str]:
+    names = (
+        "SURREALDB_ENDPOINT",
+        "SURREALDB_ROOT_USERNAME",
+        "SURREALDB_ROOT_PASSWORD",
+        "SURREALDB_NAMESPACE",
+        "SURREALDB_DATABASE",
+    )
+    values: dict[str, str] = {}
+    missing: list[str] = []
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            values[name] = value
+        else:
+            missing.append(name)
+    if missing:
+        raise SafeFailure(f"incomplete SurrealKit configuration: missing {', '.join(missing)}")
+    return values
+
+
+def mapped_environment(values: dict[str, str]) -> dict[str, str]:
+    endpoint = values["SURREALDB_ENDPOINT"]
+    if endpoint.startswith("ws://"):
+        endpoint = "http://" + endpoint.removeprefix("ws://")
+    elif endpoint.startswith("wss://"):
+        endpoint = "https://" + endpoint.removeprefix("wss://")
+    elif not endpoint.startswith(("http://", "https://")):
+        raise SafeFailure("SURREALDB_ENDPOINT is unsupported by SurrealKit")
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "SURREALDB_HOST": endpoint,
+            "SURREALDB_USER": values["SURREALDB_ROOT_USERNAME"],
+            "SURREALDB_PASSWORD": values["SURREALDB_ROOT_PASSWORD"],
+            "SURREALDB_NAME": values["SURREALDB_DATABASE"],
+            "SURREALDB_AUTH_LEVEL": "root",
+            "SURREALDB_FOLDER": str(ROOT / "database"),
+        }
+    )
+    return environment
+
+
+def verify_cli() -> None:
+    try:
+        result = subprocess.run(
+            ["surrealkit", "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise SafeFailure("SurrealKit is required; install pinned version 0.7.0") from error
+    if result.returncode != 0:
+        raise SafeFailure("SurrealKit version check failed")
+    words = result.stdout.strip().split()
+    if PINNED_VERSION not in words:
+        raise SafeFailure(f"unsupported SurrealKit version; expected {PINNED_VERSION}")
+
+
+def query(environment: dict[str, str], sql: str) -> list[object]:
+    credentials = (
+        f"{environment['SURREALDB_USER']}:{environment['SURREALDB_PASSWORD']}".encode()
+    )
+    request = urllib.request.Request(
+        environment["SURREALDB_HOST"].rstrip("/") + "/sql",
+        data=sql.encode(),
+        headers={
+            "Accept": "application/json",
+            "Authorization": "Basic " + base64.b64encode(credentials).decode(),
+            "Content-Type": "text/plain",
+            "Surreal-DB": environment["SURREALDB_NAME"],
+            "Surreal-NS": environment["SURREALDB_NAMESPACE"],
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.load(response)
+    except (OSError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        raise SafeFailure("SurrealDB catalog query failed") from error
+
+    results: list[object] = []
+    for statement in payload:
+        if statement.get("status") != "OK":
+            raise SafeFailure("SurrealDB catalog query failed")
+        results.append(statement.get("result"))
+    return results
+
+
+def live_catalog(environment: dict[str, str], allow_metadata: bool) -> dict[str, object]:
+    statements = ["INFO FOR DB"] + [f"INFO FOR TABLE {table}" for table in AUTH_TABLES]
+    database_info, *table_info = query(environment, ";".join(statements) + ";")
+    expected_names = set(AUTH_TABLES)
+    if allow_metadata:
+        expected_names.update(("__entity", "__rollout"))
+    live_names = set(database_info["tables"])
+    if live_names != expected_names:
+        raise SafeFailure("catalog drift detected during database table comparison")
+
+    return {
+        table: {
+            "table": database_info["tables"][table],
+            "fields": info["fields"],
+            "indexes": info["indexes"],
+        }
+        for table, info in zip(AUTH_TABLES, table_info, strict=True)
+    }
+
+
+def record_fingerprint(environment: dict[str, str]) -> str:
+    statements = [f"SELECT * FROM {table} ORDER BY id" for table in AUTH_TABLES]
+    records = query(environment, ";".join(statements) + ";")
+    logical = json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(logical.encode()).hexdigest()
+
+
+def verify_catalog(environment: dict[str, str], allow_metadata: bool) -> None:
+    expected = json.loads(EXPECTED_CATALOG.read_text())
+    actual = live_catalog(environment, allow_metadata)
+    if actual != expected:
+        for table in AUTH_TABLES:
+            if actual.get(table) != expected.get(table):
+                raise SafeFailure(f"catalog drift detected for authentication table {table}")
+        raise SafeFailure("authentication catalog drift detected")
+
+
+def run_cli(arguments: list[str], environment: dict[str, str]) -> int:
+    return subprocess.run(["surrealkit", *arguments], env=environment, check=False).returncode
+
+
+def baseline_authentication(environment: dict[str, str]) -> int:
+    verify_catalog(environment, allow_metadata=False)
+    before = record_fingerprint(environment)
+    result = run_cli(["rollout", "baseline"], environment)
+    if result != 0:
+        raise SafeFailure("SurrealKit authentication baseline failed")
+    verify_catalog(environment, allow_metadata=True)
+    after = record_fingerprint(environment)
+    if before != after:
+        raise SafeFailure("authentication records changed during baseline")
+    print("authentication catalog and records verified; baseline captured")
+    return 0
+
+
+def main() -> int:
+    verify_cli()
+    values = required_environment()
+    environment = mapped_environment(values)
+    arguments = sys.argv[1:]
+    if arguments == ["baseline-authentication"]:
+        return baseline_authentication(environment)
+    if not arguments:
+        raise SafeFailure("a SurrealKit command is required")
+    return run_cli(arguments, environment)
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except SafeFailure as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1) from None

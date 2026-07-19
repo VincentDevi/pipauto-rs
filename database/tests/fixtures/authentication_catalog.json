@@ -1,0 +1,49 @@
+{
+  "auth_session": {
+    "table": "DEFINE TABLE auth_session TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "fields": {
+      "created_ip_digest": "DEFINE FIELD created_ip_digest ON auth_session TYPE none | string ASSERT $value = NONE OR string::len($value) = 43 PERMISSIONS FULL",
+      "expires_at": "DEFINE FIELD expires_at ON auth_session TYPE datetime PERMISSIONS FULL",
+      "issued_at": "DEFINE FIELD issued_at ON auth_session TYPE datetime PERMISSIONS FULL",
+      "jti_digest": "DEFINE FIELD jti_digest ON auth_session TYPE string PERMISSIONS FULL",
+      "last_seen_at": "DEFINE FIELD last_seen_at ON auth_session TYPE none | datetime PERMISSIONS FULL",
+      "revoked_at": "DEFINE FIELD revoked_at ON auth_session TYPE none | datetime PERMISSIONS FULL",
+      "user": "DEFINE FIELD user ON auth_session TYPE record<user> PERMISSIONS FULL",
+      "user_agent_summary": "DEFINE FIELD user_agent_summary ON auth_session TYPE none | string ASSERT $value = NONE OR string::len($value) <= 256 AND !$value.contains('\\\\n') AND !$value.contains('\\\\r') PERMISSIONS FULL"
+    },
+    "indexes": {
+      "auth_session_expires_at": "DEFINE INDEX auth_session_expires_at ON auth_session FIELDS expires_at",
+      "auth_session_jti_unique": "DEFINE INDEX auth_session_jti_unique ON auth_session FIELDS jti_digest UNIQUE",
+      "auth_session_user": "DEFINE INDEX auth_session_user ON auth_session FIELDS user"
+    }
+  },
+  "login_throttle": {
+    "table": "DEFINE TABLE login_throttle TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "fields": {
+      "blocked_until": "DEFINE FIELD blocked_until ON login_throttle TYPE none | datetime PERMISSIONS FULL",
+      "failed_attempts": "DEFINE FIELD failed_attempts ON login_throttle TYPE int DEFAULT 0 PERMISSIONS FULL",
+      "identifier_digest": "DEFINE FIELD identifier_digest ON login_throttle TYPE string ASSERT string::len($value) = 43 PERMISSIONS FULL",
+      "network_digest": "DEFINE FIELD network_digest ON login_throttle TYPE string ASSERT string::len($value) = 43 PERMISSIONS FULL",
+      "window_started_at": "DEFINE FIELD window_started_at ON login_throttle TYPE datetime PERMISSIONS FULL"
+    },
+    "indexes": {
+      "login_throttle_blocked_until": "DEFINE INDEX login_throttle_blocked_until ON login_throttle FIELDS blocked_until",
+      "login_throttle_key_unique": "DEFINE INDEX login_throttle_key_unique ON login_throttle FIELDS identifier_digest, network_digest UNIQUE"
+    }
+  },
+  "user": {
+    "table": "DEFINE TABLE user TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "fields": {
+      "active": "DEFINE FIELD active ON user TYPE bool DEFAULT true PERMISSIONS FULL",
+      "created_at": "DEFINE FIELD created_at ON user TYPE datetime DEFAULT time::now() READONLY PERMISSIONS FULL",
+      "display_name": "DEFINE FIELD display_name ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 120 PERMISSIONS FULL",
+      "email": "DEFINE FIELD email ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 254 PERMISSIONS FULL",
+      "email_normalized": "DEFINE FIELD email_normalized ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 254 PERMISSIONS FULL",
+      "password_hash": "DEFINE FIELD password_hash ON user TYPE string ASSERT string::starts_with($value, '$argon2id$') PERMISSIONS FULL",
+      "updated_at": "DEFINE FIELD updated_at ON user TYPE datetime DEFAULT ALWAYS time::now() PERMISSIONS FULL"
+    },
+    "indexes": {
+      "user_email_normalized_unique": "DEFINE INDEX user_email_normalized_unique ON user FIELDS email_normalized UNIQUE"
+    }
+  }
+}

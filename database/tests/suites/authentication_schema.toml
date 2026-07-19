@@ -1,0 +1,57 @@
+name = "authentication_schema"
+tags = ["authentication"]
+
+[[cases]]
+name = "user_catalog_is_complete"
+kind = "schema_metadata"
+table = "user"
+contains = [
+    "email_normalized",
+    "string::len($value) <= 254",
+    "string::starts_with($value, '$argon2id$')",
+    "READONLY",
+    "DEFAULT ALWAYS time::now()",
+    "user_email_normalized_unique",
+    "UNIQUE",
+]
+
+[[cases]]
+name = "auth_session_catalog_is_complete"
+kind = "schema_metadata"
+table = "auth_session"
+contains = [
+    "record<user>",
+    "created_ip_digest",
+    "string::len($value) = 43",
+    "user_agent_summary",
+    "string::len($value) <= 256",
+    "auth_session_jti_unique",
+    "auth_session_user",
+    "auth_session_expires_at",
+]
+
+[[cases]]
+name = "login_throttle_catalog_is_complete"
+kind = "schema_metadata"
+table = "login_throttle"
+contains = [
+    "identifier_digest",
+    "network_digest",
+    "string::len($value) = 43",
+    "failed_attempts",
+    "DEFAULT 0",
+    "login_throttle_key_unique",
+    "login_throttle_blocked_until",
+]
+
+[[cases]]
+name = "invalid_user_is_rejected"
+kind = "sql_expect"
+sql = "CREATE user:invalid CONTENT { email: '', email_normalized: '', display_name: '', password_hash: 'plaintext' };"
+allow = false
+
+[[cases]]
+name = "invalid_throttle_digest_is_rejected"
+kind = "sql_expect"
+sql = "CREATE login_throttle:invalid CONTENT { identifier_digest: 'short', network_digest: 'short', window_started_at: time::now() };"
+allow = false

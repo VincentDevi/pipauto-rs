@@ -1,0 +1,3 @@
+# Pipauto uses SurrealKit 0.7.0 with SurrealDB server and Rust SDK 3.2.1.
+# Connection values are mapped from the application's SURREALDB_* variables by
+# scripts/surrealkit. Credentials must never be added to this file.

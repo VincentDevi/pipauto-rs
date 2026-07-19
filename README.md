@@ -74,11 +74,13 @@ docker-compose ps
 docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
 ```
 
-Apply the authentication schema explicitly, then create the first user. Passwords are requested
-twice through non-echoing terminal prompts and never belong in the command or environment:
+Install the pinned schema CLI, apply the committed authentication schema through the secret-safe
+wrapper, then create the first user. Passwords are requested twice through non-echoing terminal
+prompts and never belong in the command or environment:
 
 ```bash
-cargo loco task apply_auth_schema
+cargo install surrealkit --version 0.7.0 --locked
+./scripts/surrealkit sync
 cargo loco task create_user email:filippo@example.com display_name:Filippo
 ```
 
@@ -132,8 +134,9 @@ authentication troubleshooting.
   security headers through the reverse proxy.
 - Do not trust or derive client identity from forwarding headers. This release intentionally uses
   the direct socket address; trusted-proxy support has not been configured.
-- Apply the authentication schema explicitly before starting the application. Server startup does
-  not apply schema changes.
+- Run `./scripts/surrealkit sync` for a new development database before starting the application.
+  Server startup does not apply schema changes. Existing or shared databases must use the
+  catalog-gated baseline/rollout workflow in the authentication operations guide.
 
 For subsequent development sessions, the complete startup sequence can also be run as one
 command:
@@ -191,6 +194,8 @@ Automated tests use an isolated in-memory SurrealDB engine and do not require Do
 Run the complete milestone gate from the repository root:
 
 ```bash
+surrealkit --version
+./scripts/surrealkit test --suite 'authentication*'
 cargo fmt --check
 cargo check
 cargo clippy --all-targets --all-features -- -D warnings
@@ -198,6 +203,12 @@ cargo test
 cargo loco routes
 cargo loco task
 ```
+
+SurrealKit is pinned at `0.7.0` and verified with the SurrealDB `3.2.1` server image and Rust SDK.
+The wrapper maps `SURREALDB_ENDPOINT`, `SURREALDB_ROOT_USERNAME`,
+`SURREALDB_ROOT_PASSWORD`, `SURREALDB_NAMESPACE`, and `SURREALDB_DATABASE` to SurrealKit's
+connection variables without writing credentials to configuration or command arguments. It rejects
+a missing/different CLI version or incomplete settings before contacting the database.
 
 To apply Rust formatting instead of checking it:
 

@@ -5,7 +5,6 @@ use loco_rs::task::Vars;
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
-    database::schema::apply_auth_schema,
     models::auth::{NewAuthSession, NewUserRecord, NormalizedEmail, SessionDigest, ThrottleDigest},
     repositories::{
         auth::{
@@ -19,6 +18,8 @@ use pipauto::{
 };
 use surrealdb::engine::any;
 
+use crate::support::apply_authentication_schema;
+
 async fn repository() -> SurrealAuthRepository {
     let client = any::connect("memory")
         .await
@@ -28,12 +29,8 @@ async fn repository() -> SurrealAuthRepository {
         .use_db("authentication")
         .await
         .expect("test namespace and database should select");
-    apply_auth_schema(&client)
-        .await
-        .expect("authentication schema should apply to a fresh database");
-    apply_auth_schema(&client)
-        .await
-        .expect("authentication schema should apply idempotently");
+    apply_authentication_schema(&client).await;
+    apply_authentication_schema(&client).await;
     SurrealAuthRepository::new(client)
 }
 

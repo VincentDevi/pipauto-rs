@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "database/schema/authentication/auth_session.surql",
+      "hash": "a1599f440ef7add96a16d5e3bc9a8a1d53f1722ee4eb852a7c3397f861ab24cd"
+    },
+    {
+      "path": "database/schema/authentication/login_throttle.surql",
+      "hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "path": "database/schema/authentication/user.surql",
+      "hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    }
+  ]
+}
