@@ -1,9 +1,18 @@
 //! Server-rendered login and logout browser flow.
 
+use crate::{
+    auth::{
+        cookies::AuthCookies,
+        csrf::{AuthenticatedCsrfForm, CsrfService, LoginCsrfForm},
+        extractors::{append_vary_hx_request, safe_next_destination, OptionalCurrentUser},
+    },
+    services::auth::{AuthService, LoginCommand, LoginError},
+    views::auth::LoginView,
+};
 use axum::{
-    extract::{ConnectInfo, Extension, Form, Query},
+    extract::{ConnectInfo, Extension, Query},
     http::{
-        header::{CACHE_CONTROL, LOCATION, ORIGIN, REFERER, RETRY_AFTER, VARY},
+        header::{CACHE_CONTROL, LOCATION, RETRY_AFTER},
         HeaderMap, HeaderValue, StatusCode,
     },
     response::{IntoResponse, Response},
@@ -18,18 +27,6 @@ use loco_rs::{
 };
 use serde::Deserialize;
 use std::net::SocketAddr;
-use url::Url;
-
-use crate::{
-    auth::{
-        cookies::AuthCookies,
-        csrf::CsrfService,
-        extractors::{CurrentUser, OptionalCurrentUser},
-        settings::AuthSettings,
-    },
-    services::auth::{AuthError, AuthService, LoginCommand, LoginError},
-    views::auth::LoginView,
-};
 
 #[derive(Default, Deserialize)]
 struct LoginQuery {
@@ -40,30 +37,29 @@ struct LoginQuery {
 struct LoginForm {
     email: String,
     password: String,
-    #[serde(rename = "_csrf")]
-    csrf: String,
     next: String,
 }
 
 #[derive(Deserialize)]
-struct LogoutForm {
-    #[serde(rename = "_csrf")]
-    csrf: String,
-}
+struct LogoutForm {}
 
 async fn show_login(
     optional_user: OptionalCurrentUser,
     Query(query): Query<LoginQuery>,
+    headers: HeaderMap,
     jar: CookieJar,
     SharedStore(csrf): SharedStore<CsrfService>,
     SharedStore(cookies): SharedStore<AuthCookies>,
     ViewEngine(engine): ViewEngine<TeraView>,
 ) -> Result<Response> {
-    let next = safe_next(query.next.as_deref());
+    let next = safe_next_destination(query.next.as_deref());
     if matches!(optional_user, OptionalCurrentUser::Authenticated(_)) {
-        return Ok(redirect(&next, false));
+        return Ok(with_no_store(redirect(&next, is_htmx(&headers))));
     }
-    let state = csrf.issue_login(Utc::now()).map_err(loco_rs::Error::msg)?;
+    let state = match csrf.issue_login(Utc::now()) {
+        Ok(state) => state,
+        Err(_) => return Ok(unavailable()),
+    };
     let view = LoginView::new("", &next, &state.token, None, None, None);
     let response = format::html(&view.render_page(&engine)?)?;
     let mut jar = jar.add(cookies.login_csrf(state.nonce, state.expires_at));
@@ -78,33 +74,15 @@ async fn login(
     headers: HeaderMap,
     jar: CookieJar,
     connect_info: Option<Extension<ConnectInfo<SocketAddr>>>,
-    SharedStore(settings): SharedStore<AuthSettings>,
-    SharedStore(csrf): SharedStore<CsrfService>,
     SharedStore(cookies): SharedStore<AuthCookies>,
     SharedStore(service): SharedStore<AuthService>,
     ViewEngine(engine): ViewEngine<TeraView>,
-    Form(form): Form<LoginForm>,
+    validated: LoginCsrfForm<LoginForm>,
 ) -> Result<Response> {
     let htmx = is_htmx(&headers);
-    let next = safe_next(Some(&form.next));
-    let Some(request_origin) = request_origin(&headers, &settings) else {
-        return Ok(forbidden_login());
-    };
-    let Some(submitted_token) = submitted_csrf(&headers, &form.csrf) else {
-        return Ok(forbidden_login());
-    };
-    let Some(nonce) = jar
-        .get(settings.login_csrf_cookie_name())
-        .map(axum_extra::extract::cookie::Cookie::value)
-    else {
-        return Ok(forbidden_login());
-    };
-    if csrf
-        .validate_login(submitted_token, nonce, &request_origin, Utc::now())
-        .is_err()
-    {
-        return Ok(forbidden_login());
-    }
+    let submitted_token = validated.token().expose().to_owned();
+    let form = validated.fields;
+    let next = safe_next_destination(Some(&form.next));
 
     let client_network = connect_info.map_or_else(
         || "socket:unknown".to_owned(),
@@ -128,7 +106,7 @@ async fn login(
             &engine,
             &form.email,
             &next,
-            submitted_token,
+            &submitted_token,
             "Check the highlighted fields and try again.",
             Some("Enter a valid email address."),
             Some("Use a password of at least 12 characters."),
@@ -139,7 +117,7 @@ async fn login(
             &engine,
             &form.email,
             &next,
-            submitted_token,
+            &submitted_token,
             "Invalid credentials.",
             None,
             None,
@@ -152,7 +130,7 @@ async fn login(
                 &engine,
                 &form.email,
                 &next,
-                submitted_token,
+                &submitted_token,
                 "Too many attempts. Wait briefly and try again.",
                 None,
                 None,
@@ -169,7 +147,7 @@ async fn login(
             &engine,
             &form.email,
             &next,
-            submitted_token,
+            &submitted_token,
             "Authentication is temporarily unavailable. Try again shortly.",
             None,
             None,
@@ -181,36 +159,14 @@ async fn login(
 
 #[allow(clippy::too_many_arguments)]
 async fn logout(
-    CurrentUser(_user): CurrentUser,
     headers: HeaderMap,
     jar: CookieJar,
-    SharedStore(settings): SharedStore<AuthSettings>,
-    SharedStore(csrf): SharedStore<CsrfService>,
     SharedStore(cookies): SharedStore<AuthCookies>,
     SharedStore(service): SharedStore<AuthService>,
-    Form(form): Form<LogoutForm>,
+    validated: AuthenticatedCsrfForm<LogoutForm>,
 ) -> Result<Response> {
     let htmx = is_htmx(&headers);
-    let token = jar
-        .get(settings.session_cookie_name())
-        .map(axum_extra::extract::cookie::Cookie::value);
-    let request_origin = request_origin(&headers, &settings);
-    let session = match token {
-        Some(token) => service.authenticate_session(token).await,
-        None => Err(AuthError::Unauthenticated),
-    };
-    let valid_csrf = match (&session, request_origin) {
-        (Ok(session), Some(origin)) => csrf
-            .validate_authenticated(&form.csrf, &session.jti, &origin, Utc::now())
-            .is_ok(),
-        _ => false,
-    };
-    if !valid_csrf {
-        return Ok(with_no_store(
-            (StatusCode::FORBIDDEN, "Invalid logout request.").into_response(),
-        ));
-    }
-    let outcome = service.logout(token).await;
+    let outcome = service.logout(Some(validated.encoded_jwt())).await;
     let jar = jar.add(cookies.clear_session());
     match outcome {
         Ok(_) => Ok(with_no_store(
@@ -246,55 +202,8 @@ fn render_login_error(
         view.render_page(engine)?
     };
     let mut response = (status, format::html(&html)?).into_response();
-    response
-        .headers_mut()
-        .insert(VARY, HeaderValue::from_static("HX-Request"));
+    append_vary_hx_request(response.headers_mut());
     Ok(with_no_store(response))
-}
-
-/// Reject open redirects and authentication loops.
-#[must_use]
-pub fn safe_next(value: Option<&str>) -> String {
-    let Some(value) = value else {
-        return "/".to_owned();
-    };
-    let valid = value.starts_with('/')
-        && !value.starts_with("//")
-        && !value.contains('\\')
-        && !value.chars().any(char::is_control)
-        && !matches!(value, "/login" | "/logout")
-        && !value.starts_with("/login?")
-        && !value.starts_with("/logout?");
-    if valid {
-        value.to_owned()
-    } else {
-        "/".to_owned()
-    }
-}
-
-fn submitted_csrf<'request>(
-    headers: &'request HeaderMap,
-    form: &'request str,
-) -> Option<&'request str> {
-    let header = headers
-        .get("X-CSRF-Token")
-        .and_then(|value| value.to_str().ok());
-    match header {
-        Some(header) if header != form => None,
-        Some(header) => Some(header),
-        None if !form.is_empty() => Some(form),
-        None => None,
-    }
-}
-
-fn request_origin(headers: &HeaderMap, settings: &AuthSettings) -> Option<String> {
-    if let Some(origin) = headers.get(ORIGIN).and_then(|value| value.to_str().ok()) {
-        return Some(origin.trim_end_matches('/').to_owned());
-    }
-    let referer = headers.get(REFERER)?.to_str().ok()?;
-    let referer = Url::parse(referer).ok()?;
-    let origin = referer.origin().ascii_serialization();
-    (origin == settings.canonical_origin().origin().ascii_serialization()).then_some(origin)
 }
 
 fn is_htmx(headers: &HeaderMap) -> bool {
@@ -309,12 +218,12 @@ fn redirect(destination: &str, htmx: bool) -> Response {
         if let Ok(value) = HeaderValue::from_str(destination) {
             response.headers_mut().insert("HX-Redirect", value);
         }
-        response
-            .headers_mut()
-            .insert(VARY, HeaderValue::from_static("HX-Request"));
+        append_vary_hx_request(response.headers_mut());
         response
     } else {
-        (StatusCode::SEE_OTHER, [(LOCATION, destination)]).into_response()
+        let mut response = (StatusCode::SEE_OTHER, [(LOCATION, destination)]).into_response();
+        append_vary_hx_request(response.headers_mut());
+        response
     }
 }
 
@@ -335,16 +244,6 @@ fn unavailable() -> Response {
     )
 }
 
-fn forbidden_login() -> Response {
-    with_no_store(
-        (
-            StatusCode::FORBIDDEN,
-            "The form expired. Reload the login page and try again.",
-        )
-            .into_response(),
-    )
-}
-
 /// Authentication routes.
 #[must_use]
 pub fn routes() -> Routes {
@@ -359,9 +258,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn safe_next_allows_local_paths_and_rejects_redirect_attacks() {
+    fn safe_next_destination_allows_local_paths_and_rejects_redirect_attacks() {
         assert_eq!(
-            safe_next(Some("/vehicles?recent=true")),
+            safe_next_destination(Some("/vehicles?recent=true")),
             "/vehicles?recent=true"
         );
         for unsafe_value in [
@@ -372,7 +271,7 @@ mod tests {
             "/logout?next=/",
             "/bad\nheader",
         ] {
-            assert_eq!(safe_next(Some(unsafe_value)), "/");
+            assert_eq!(safe_next_destination(Some(unsafe_value)), "/");
         }
     }
 }

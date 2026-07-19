@@ -10,7 +10,7 @@ use pipauto::app::App;
 use tower::ServiceExt;
 
 #[tokio::test]
-async fn setup_page_redirects_guests_to_login_with_a_safe_return_path() {
+async fn current_user_extractor_redirects_guests_to_login_with_a_safe_return_path() {
     let boot = boot_test::<App>()
         .await
         .expect("test application should boot");
@@ -28,6 +28,13 @@ async fn setup_page_redirects_guests_to_login_with_a_safe_return_path() {
             .get(LOCATION)
             .and_then(|value| value.to_str().ok()),
         Some("/login?next=/")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::VARY)
+            .and_then(|value| value.to_str().ok()),
+        Some("HX-Request")
     );
 }
 
@@ -70,7 +77,7 @@ async fn vendored_htmx_is_served_from_static_assets() {
 }
 
 #[tokio::test]
-async fn setup_status_redirects_htmx_guests_without_leaking_database_state() {
+async fn auth_redirects_htmx_guests_without_leaking_database_state() {
     let boot = boot_test::<App>()
         .await
         .expect("test application should boot");
@@ -87,6 +94,13 @@ async fn setup_status_redirects_htmx_guests_without_leaking_database_state() {
             .get("HX-Redirect")
             .and_then(|value| value.to_str().ok()),
         Some("/login?next=/setup/status")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::VARY)
+            .and_then(|value| value.to_str().ok()),
+        Some("HX-Request")
     );
 }
 
