@@ -108,6 +108,27 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /` | Authenticated | Workshop shell; guests are redirected to login with a safe local `next`. |
 | `GET /setup/status` | Authenticated | HTMX database-status fragment. |
 | `POST /logout` | Authenticated + session CSRF | Idempotently revokes the registry session and clears the cookie. |
+| `GET /customers` | Authenticated | Planned customer list; safe `501` until its owning issue implements it. |
+| `GET /customers/new` | Authenticated | Planned customer creation page; safe `501` placeholder. |
+| `GET /customers/{id}` | Authenticated | Planned customer detail page; safe `501` placeholder. |
+| `GET /customers/{id}/edit` | Authenticated | Planned customer edit page; safe `501` placeholder. |
+| `GET /customers/{id}/vehicles/new` | Authenticated | Planned nested vehicle registration page; safe `501` placeholder. |
+| `GET /vehicles` | Authenticated | Planned vehicle list; safe `501` placeholder. |
+| `GET /vehicles/{id}` | Authenticated | Planned vehicle detail page; safe `501` placeholder. |
+| `GET /vehicles/{id}/edit` | Authenticated | Planned vehicle edit page; safe `501` placeholder. |
+| `GET /vehicles/{id}/history` | Authenticated | Planned complete service-history page; safe `501` placeholder. |
+| `GET /vehicles/{id}/interventions/new` | Authenticated | Planned intervention creation page; safe `501` placeholder. |
+| `GET /interventions` | Authenticated | Planned intervention list; safe `501` placeholder. |
+| `GET /interventions/{id}` | Authenticated | Planned intervention detail page; safe `501` placeholder. |
+| `GET /interventions/{id}/edit` | Authenticated | Planned intervention edit page; safe `501` placeholder. |
+| `GET /knowledge` | Authenticated | Planned technical-note list; safe `501` placeholder. |
+| `GET /knowledge/new` | Authenticated | Planned technical-note creation page; safe `501` placeholder. |
+| `GET /knowledge/{id}` | Authenticated | Planned technical-note detail page; safe `501` placeholder. |
+| `GET /knowledge/{id}/edit` | Authenticated | Planned technical-note edit page; safe `501` placeholder. |
+| `GET /invoices` | Authenticated | Planned invoice list; safe `501` placeholder. |
+| `GET /invoices/new` | Authenticated | Planned draft-invoice creation page; safe `501` placeholder. |
+| `GET /invoices/{id}` | Authenticated | Planned invoice detail page; safe `501` placeholder. |
+| `GET /invoices/{id}/edit` | Authenticated | Planned draft-invoice edit page; safe `501` placeholder. |
 | `GET /api/v1/customers` | Authenticated | Search and page through customers. |
 | `POST /api/v1/customers` | Authenticated + session CSRF | Create a customer. |
 | `GET /api/v1/customers/{id}` | Authenticated | Read a customer, including archived records. |
@@ -168,8 +189,10 @@ upload and storage behavior.
 
 Authentication routes and authenticated application routes apply `Cache-Control: no-store` in a
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.
-Responses use a restrictive same-origin CSP, no-referrer,
+Responses use a restrictive same-origin CSP, same-origin referrer policy,
 anti-framing, MIME-sniffing protection, and disabled camera, microphone, and geolocation policies.
+The planned browser routes above are registered for access-policy auditing but intentionally do
+not appear in active navigation until their owning frontend issue replaces each `501` placeholder.
 
 ## Production deployment
 

@@ -125,7 +125,7 @@ and requires choosing a currently valid combination.
 
 | Property | Specification |
 | --- | --- |
-| Routes | `GET /invoices/:id`, `GET /invoices/:id/edit` for Draft |
+| Routes | `GET /invoices/{id}`, `GET /invoices/{id}/edit` for Draft |
 | Data | Customer/current related-record references, currency, due date, notes, ordered lines, subtotal/total |
 | Primary action | Issue invoice once valid and non-empty |
 | Secondary | Edit header, Add/edit/remove/reorder line, Void only if backend permits Draft voiding, return to source intervention |
@@ -200,7 +200,7 @@ concurrent `409` reloads authoritative lifecycle/total and never repeats issue-n
 
 | Property | Specification |
 | --- | --- |
-| Route | `GET /invoices/:id` |
+| Route | `GET /invoices/{id}` |
 | Data | Final number, issued/customer/billing snapshots, lines, subtotal/total, paid, outstanding, derived status, immutable relations, payments |
 | Primary action | Record payment while outstanding and non-void |
 | Secondary | Void when allowed; open source records; export unavailable explanation |

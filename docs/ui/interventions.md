@@ -9,7 +9,7 @@
 | Entry/exit | Sidebar/bottom Jobs, dashboard queues, vehicle history; opens detail or create flow |
 | Filters | Text where supported, vehicle, customer where supported, status, service-date range |
 | Result data | Service date, vehicle/registration, customer when supplied, mileage, short work/problem summary, status, financial total |
-| Primary action | New intervention; select an active vehicle, then use `/vehicles/:id/interventions/new` |
+| Primary action | New intervention; select an active vehicle, then use `/vehicles/{id}/interventions/new` |
 | Backend | Stable cursor list ordered by documented service-date tuple; cancelled entries visible when requested/default contract supplies them |
 
 ### Desktop wireframe
@@ -62,7 +62,7 @@ for a first intervention. Cursor pagination preserves deterministic server order
 
 | Property | Specification |
 | --- | --- |
-| Routes | `GET /vehicles/:id/interventions/new`, `GET /interventions/:id/edit` |
+| Routes | `GET /vehicles/{id}/interventions/new`, `GET /interventions/{id}/edit` |
 | Required | Active vehicle, service date, backend-required workshop content before completion |
 | Optional | Mileage, customer-reported problem, diagnostics, performed work, recommendations, general notes |
 | Actions | Save draft; Cancel navigation; lines are managed after initial draft creation |
@@ -125,7 +125,7 @@ another record. An archived-vehicle conflict sends the user back to read-only ve
 
 | Property | Specification |
 | --- | --- |
-| Route | `GET /interventions/:id` |
+| Route | `GET /interventions/{id}` |
 | Data | Vehicle/owner, date, mileage, narrative fields, ordered lines, totals, metadata attachments, state timestamps |
 | Primary action | Complete intervention |
 | Secondary actions | Edit details, Add line item, Add attachment metadata, Create technical note, Create invoice draft, Cancel intervention |
@@ -271,7 +271,7 @@ creation as a primary next step.
 
 | Property | Specification |
 | --- | --- |
-| Route | `GET /vehicles/:id/history` |
+| Route | `GET /vehicles/{id}/history` |
 | Order | `service_date DESC`, `created_at DESC`, `id DESC`; never resort client-side |
 | Filters | Status and date range only when backend route documents them |
 | Rows/cards | Date, status, recorded mileage, concise work/problem, financial summary, detail link |

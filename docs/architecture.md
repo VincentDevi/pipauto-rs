@@ -55,6 +55,14 @@ the `/api/v1` prefix and `no-store` response policy. Every handler explicitly ex
 `CurrentUser`; unsafe JSON handlers additionally use `AuthenticatedCsrfJson<T>`, with a per-route
 `DefaultBodyLimit`. Controllers parse DTOs and select responses only.
 
+Server-rendered controllers are composed separately through `controllers::browser`. HTML
+controllers call application services directly; they do not call the JSON API over loopback HTTP.
+Their shared request context contains only a display-safe user, CSRF token, current path, validated
+local return path, and full-page/HTMX preference. URL-encoded unsafe forms use the typed
+`AuthenticatedForm<T>` extractor and an explicit body limit; JSON routes keep their existing JSON
+extractor. Browser views receive typed presentation models, never database rows, credentials, or
+session records.
+
 Money is stored as checked, non-negative minor units plus an assigned uppercase ISO 4217 code.
 Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.
 Business settings default to EUR, 25 records per collection, and a hard maximum of 200 records.
@@ -105,3 +113,6 @@ ownership and recovery are defined in [the migration runbook](migrations.md).
 - `tests/requests` verifies public HTTP behavior.
 - `tests/integration` verifies infrastructure behavior such as database connectivity.
 - `tests/support` contains reusable test bootstrapping, settings, and fixtures.
+- `tests/browser` contains Playwright/Axe smoke coverage against a disposable isolated database;
+  screenshots, traces, and video are disabled so authentication values are not retained as
+  artifacts.

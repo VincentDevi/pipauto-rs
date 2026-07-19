@@ -60,7 +60,7 @@ the interface provides no relevance-sort control unless the API documents one.
 
 | Property | Specification |
 | --- | --- |
-| Routes | `GET /knowledge/new`, `GET /knowledge/:id/edit` |
+| Routes | `GET /knowledge/new`, `GET /knowledge/{id}/edit` |
 | Required | Title and body |
 | Optional | Normalized tags, make, model, engine, vehicle, source intervention |
 | Prefill | From an intervention: its source ID and vehicle; from a vehicle: vehicle and make/model/engine context when supplied |
@@ -121,7 +121,7 @@ the matching vehicle selection. The backend, not browser inference, validates co
 
 | Property | Specification |
 | --- | --- |
-| Route | `GET /knowledge/:id` |
+| Route | `GET /knowledge/{id}` |
 | Data | Title/body, tags, structured context, linked vehicle/source intervention, status, dates |
 | Primary action | Edit when active |
 | Secondary | Archive or Restore; open related records; back to preserved search |

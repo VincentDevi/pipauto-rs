@@ -321,9 +321,6 @@ pub fn routes() -> Routes {
             "/logout",
             post(logout).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
         )
-        .layer(axum::middleware::from_fn(
-            crate::auth::responses::no_store_layer,
-        ))
 }
 
 #[cfg(test)]

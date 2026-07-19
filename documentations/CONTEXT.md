@@ -216,3 +216,16 @@ contract phases, while its status is `ready_to_complete`, and only after compati
 Smoke tests precede the contract phase. Rollout rollback is available before completion; after a
 rollout is terminal, recovery uses a new forward rollout or a backup restored into an isolated
 database. Restore rehearsals never overwrite the live production database.
+
+## Approved browser architecture boundary
+
+Server-rendered browser controllers are mounted independently from `/api/v1` and call application
+services directly rather than making loopback HTTP requests. Authenticated HTML requests share one
+presentation-safe context containing the displayed user name, CSRF token, current path, validated
+local return path, and HTMX/full-page preference. Unsafe HTML forms are URL-encoded, session-CSRF
+protected, and body-limited; API routes retain their JSON extractor and response contract.
+
+All planned first-release browser routes are authenticated and auditable before their pages are
+implemented. Unowned pages may return safe unavailable placeholders and must not appear as active
+navigation. Full-page and HTMX responses share authentication, CSRF, and `no-store` rules. Browser
+views receive presentation models only, never persistence rows, credentials, or session records.

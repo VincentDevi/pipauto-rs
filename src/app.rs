@@ -83,6 +83,111 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/customers",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/customers/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/customers/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/customers/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/customers/{id}/vehicles/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/history",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/interventions/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/knowledge",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/knowledge/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/knowledge/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/knowledge/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/api/v1/customers",
         class: AccessClass::Authenticated,
     },
@@ -394,8 +499,7 @@ impl Hooks for App {
 #[must_use]
 pub fn app_routes() -> AppRoutes {
     AppRoutes::with_default_routes()
-        .add_route(crate::controllers::auth::routes())
-        .add_route(crate::controllers::setup::routes())
+        .add_routes(crate::controllers::browser::routes())
         .add_route(crate::controllers::surrealdb_health::routes())
         .add_routes(crate::controllers::api_v1::routes())
 }

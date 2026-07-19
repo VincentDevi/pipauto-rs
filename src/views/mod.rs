@@ -4,5 +4,6 @@
 //! parse HTTP requests, implement business rules, or query repositories and databases.
 
 pub mod auth;
+pub mod context;
 pub mod layout;
 pub mod setup;

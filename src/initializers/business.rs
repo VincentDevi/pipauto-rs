@@ -10,18 +10,20 @@ use crate::{
     repositories::{
         attachment::AttachmentRepository,
         customer::CustomerRepository,
+        health::HealthRepository,
         intervention::InterventionRepository,
         invoice::InvoiceRepository,
         surreal::{
             attachment::SurrealAttachmentRepository, customer::SurrealCustomerRepository,
-            intervention::SurrealInterventionRepository, invoice::SurrealInvoiceRepository,
-            technical_note::SurrealTechnicalNoteRepository, vehicle::SurrealVehicleRepository,
+            health::SurrealHealthRepository, intervention::SurrealInterventionRepository,
+            invoice::SurrealInvoiceRepository, technical_note::SurrealTechnicalNoteRepository,
+            vehicle::SurrealVehicleRepository,
         },
         technical_note::TechnicalNoteRepository,
         vehicle::VehicleRepository,
     },
     services::{
-        attachment::AttachmentService, customer::CustomerService,
+        attachment::AttachmentService, customer::CustomerService, health::HealthService,
         intervention::InterventionService, invoice::InvoiceService,
         technical_note::TechnicalNoteService, vehicle::VehicleService,
     },
@@ -33,6 +35,8 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         .get::<AppDatabase>()
         .ok_or_else(|| Error::string("application database is not installed"))?;
     let client = database.client().map_err(Error::msg)?;
+    let health: Arc<dyn HealthRepository> =
+        Arc::new(SurrealHealthRepository::new(database.clone()));
     if ctx.environment == Environment::Test {
         let schema = [
             include_str!("../../database/schema/business/customer.surql"),
@@ -71,6 +75,7 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         Arc::new(SurrealAttachmentRepository::new(client));
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
+    ctx.shared_store.insert(HealthService::new(health));
     ctx.shared_store.insert(VehicleService::new(
         vehicles.clone(),
         customers.clone(),

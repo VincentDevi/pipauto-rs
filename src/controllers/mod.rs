@@ -6,6 +6,7 @@
 pub mod api_v1;
 pub mod attachments;
 pub mod auth;
+pub mod browser;
 pub mod customers;
 pub mod interventions;
 pub mod invoices;

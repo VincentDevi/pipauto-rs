@@ -25,7 +25,6 @@ use super::settings::AuthSettings;
 use crate::{
     auth::{cookies::AuthCookies, extractors::append_vary_hx_request},
     errors::AppError,
-    models::auth::AuthenticatedUser,
     services::auth::{AuthError, AuthService},
 };
 
@@ -224,7 +223,8 @@ impl fmt::Debug for LoginCsrfState {
 }
 
 /// HTML-renderable token whose debug output is redacted.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
+#[serde(transparent)]
 pub struct SecretCsrfToken(String);
 
 impl SecretCsrfToken {
@@ -403,17 +403,6 @@ where
 pub struct AuthenticatedCsrfForm<T> {
     /// Controller-specific form fields.
     pub fields: T,
-    /// Presentation-safe authenticated user.
-    pub user: AuthenticatedUser,
-    encoded_jwt: String,
-}
-
-impl<T> AuthenticatedCsrfForm<T> {
-    /// Return the already-authenticated JWT for a logout revocation workflow.
-    #[must_use]
-    pub fn encoded_jwt(&self) -> &str {
-        &self.encoded_jwt
-    }
 }
 
 impl<S, T> FromRequest<S> for AuthenticatedCsrfForm<T>
@@ -449,8 +438,6 @@ where
             .map_err(csrf_rejection)?;
         Ok(Self {
             fields: envelope.fields,
-            user: session.user,
-            encoded_jwt,
         })
     }
 }
@@ -552,7 +539,10 @@ fn same_origin(headers: &HeaderMap, settings: &AuthSettings) -> Option<String> {
         if origins.next().is_some() {
             return None;
         }
-        return (origin.to_str().ok()? == canonical).then_some(canonical);
+        let origin = origin.to_str().ok()?;
+        if origin != "null" {
+            return (origin == canonical).then_some(canonical);
+        }
     }
     let mut referers = headers.get_all(REFERER).iter();
     let referer = referers.next()?.to_str().ok()?;
@@ -682,6 +672,28 @@ mod tests {
             ),
             Err(CsrfError::Invalid)
         );
+    }
+
+    #[test]
+    fn null_origin_standard_forms_require_a_same_origin_referer() {
+        let settings = AuthSettings::from_environment(&Environment::Test)
+            .expect("test settings should be valid");
+        let mut headers = HeaderMap::new();
+        headers.insert(ORIGIN, HeaderValue::from_static("null"));
+        headers.insert(
+            REFERER,
+            HeaderValue::from_static("http://localhost:5150/login"),
+        );
+        assert_eq!(
+            same_origin(&headers, &settings),
+            Some("http://localhost:5150".to_owned())
+        );
+
+        headers.insert(
+            REFERER,
+            HeaderValue::from_static("https://attacker.example/login"),
+        );
+        assert_eq!(same_origin(&headers, &settings), None);
     }
 
     #[test]

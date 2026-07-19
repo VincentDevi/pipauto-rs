@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+project="pipauto-browser-smoke"
+compose_file="compose.browser.yaml"
+
+cleanup() {
+  docker-compose --project-name "$project" --file "$compose_file" down --volumes >/dev/null 2>&1 || true
+}
+trap cleanup EXIT HUP INT TERM
+
+cleanup
+docker-compose --project-name "$project" --file "$compose_file" up --detach --wait surrealdb >/dev/null
+
+for schema in \
+  database/schema/authentication/user.surql \
+  database/schema/authentication/auth_session.surql \
+  database/schema/authentication/login_throttle.surql
+do
+  docker-compose --project-name "$project" --file "$compose_file" exec -T surrealdb \
+    /surreal sql --endpoint http://localhost:8000 --username root \
+    --password browser-smoke-only --namespace pipauto_browser --database browser_smoke \
+    --hide-welcome --multi < "$schema" >/dev/null
+done
+
+docker-compose --project-name "$project" --file "$compose_file" exec -T surrealdb \
+  /surreal sql --endpoint http://localhost:8000 --username root \
+  --password browser-smoke-only --namespace pipauto_browser --database browser_smoke \
+  --hide-welcome --multi >/dev/null <<'SQL'
+CREATE user:browser_smoke CONTENT {
+  email: 'browser-smoke@example.invalid',
+  email_normalized: 'browser-smoke@example.invalid',
+  display_name: 'Browser Smoke',
+  password_hash: crypto::argon2::generate('Browser smoke password 123!'),
+  active: true
+};
+SQL
+
+PIPAUTO_JWT_SECRET=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+PIPAUTO_CSRF_SECRET=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= \
+PIPAUTO_CANONICAL_ORIGIN=http://localhost:5150 \
+PIPAUTO_SESSION_LIFETIME_SECONDS=43200 \
+SURREALDB_ROOT_USERNAME=root \
+SURREALDB_ROOT_PASSWORD=browser-smoke-only \
+SURREALDB_ENDPOINT=ws://127.0.0.1:18000 \
+SURREALDB_NAMESPACE=pipauto_browser \
+SURREALDB_DATABASE=browser_smoke \
+cargo loco start

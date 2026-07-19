@@ -49,7 +49,7 @@ async fn security_headers_are_compatible_with_the_self_hosted_login_page() {
             .headers()
             .get("referrer-policy")
             .and_then(header_text),
-        Some("no-referrer")
+        Some("same-origin")
     );
     assert_eq!(
         response

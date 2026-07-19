@@ -61,7 +61,7 @@ A failed search leaves filters visible and replaces only results with Retry.
 
 | Property | Specification |
 | --- | --- |
-| Routes | `GET /customers/new`, `GET /customers/:id/edit` |
+| Routes | `GET /customers/new`, `GET /customers/{id}/edit` |
 | Required | Display name, trimmed, 1–160 characters |
 | Optional | Email, phone, address line 1/2, postal code, city, two-letter country, workshop notes |
 | Actions | Save customer; Cancel to customer detail or list |
@@ -121,9 +121,9 @@ preserve every field. `404` uses the customer-not-found page. Successful create/
 
 | Property | Specification |
 | --- | --- |
-| Route | `GET /customers/:id` |
+| Route | `GET /customers/{id}` |
 | Data | Contact, address, notes, status, timestamps where useful, current vehicles |
-| Primary action | Register vehicle → `/customers/:id/vehicles/new` when active |
+| Primary action | Register vehicle → `/customers/{id}/vehicles/new` when active |
 | Secondary actions | Edit; Archive or Restore; open vehicle |
 | Restrictions | Archived customer cannot receive a new/reassigned vehicle |
 
@@ -228,7 +228,7 @@ offers Register vehicle when active; archived customers get a read-only empty me
 
 | Property | Specification |
 | --- | --- |
-| Routes | `GET /customers/:id/vehicles/new`, `GET /vehicles/:id/edit` |
+| Routes | `GET /customers/{id}/vehicles/new`, `GET /vehicles/{id}/edit` |
 | Required | Active customer, make, model |
 | Optional | Year, registration, VIN, current mileage, engine type, notes |
 | Validation | Year no later than next year; valid VIN when present; non-negative mileage; unique normalized VIN/registration |
@@ -283,7 +283,7 @@ separate read-only section; changing owner uses the confirmation flow below.
 ## Vehicle detail and service-history page
 
 The vehicle detail default section is Overview followed by recent service history. The dedicated
-`/vehicles/:id/history` route focuses the full paginated history and is the target of **View complete
+`/vehicles/{id}/history` route focuses the full paginated history and is the target of **View complete
 history**. Both share the same vehicle identity header.
 
 | Property | Specification |
