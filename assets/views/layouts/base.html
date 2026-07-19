@@ -11,9 +11,10 @@
     <header class="site-header">
       <div class="shell header-content">
         <a class="brand" href="/" aria-label="Pipauto home">Pipauto</a>
-        {% if display_name is defined and display_name %}
+        {% if current_user is defined and current_user %}
           <nav aria-label="Primary navigation" class="account-navigation">
-            <span>{{ display_name }}</span>
+            <a href="/"{% if current_path == "/" %} aria-current="page"{% endif %}>Workshop</a>
+            <span>{{ current_user.display_name }}</span>
             <form method="post" action="/logout" hx-post="/logout">
               <input type="hidden" name="_csrf" value="{{ csrf_token }}">
               <button type="submit" class="button-link">Sign out</button>

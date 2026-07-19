@@ -77,13 +77,16 @@ sessions. Restore `active = true` only after the account is safe.
 
 | Route | Access | Behavior |
 | --- | --- | --- |
-| `GET /login` | Guest | Complete sign-in page; authenticated users return to `/`. |
-| `POST /login` | Guest + login CSRF | Generic invalid-credentials response; success creates a 12-hour session. |
+| `GET /login` | Guest-only | Complete sign-in page; authenticated users return to `/`. |
+| `POST /login` | Guest-only + login CSRF | Generic invalid-credentials response; success creates a 12-hour session. |
 | `GET /` | Authenticated | Workshop shell; guests are redirected to login with a safe local `next`. |
 | `GET /setup/status` | Authenticated | HTMX database-status fragment. |
 | `POST /logout` | Authenticated + session CSRF | Idempotently revokes the registry session and clears the cookie. |
 | `/static/*` | Public | Committed same-origin CSS, JavaScript, and vendored HTMX. |
-| `/_health/*` | Public | Non-sensitive machine health only. |
+| `GET /_health` | Public | Loco liveness response with no application data. |
+| `GET /_health/surrealdb` | Public | Non-sensitive database availability state only. |
+| `GET /_ping` | Public | Loco process ping response with no application data. |
+| `GET /_readiness` | Public | Loco readiness response with no application data. |
 
 Normal browser redirects use `303`; HTMX requests use `HX-Redirect`. Login forms use a short-lived
 10-minute nonce cookie and signed token. Authenticated CSRF tokens are HMAC-signed and bound to the
@@ -91,7 +94,9 @@ session `jti`, canonical origin, action, and expiry. Unsafe requests accept one 
 `X-CSRF-Token`; if both exist they must match. The same-origin JavaScript adds the header to HTMX
 unsafe requests, while forms remain fully usable without JavaScript.
 
-Authentication responses use `Cache-Control: no-store`, a restrictive same-origin CSP, no-referrer,
+Authentication routes and authenticated application routes apply `Cache-Control: no-store` in a
+route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.
+Responses use a restrictive same-origin CSP, no-referrer,
 anti-framing, MIME-sniffing protection, and disabled camera, microphone, and geolocation policies.
 
 ## Production deployment

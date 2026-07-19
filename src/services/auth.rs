@@ -105,9 +105,9 @@ impl fmt::Debug for LoginCommand {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("LoginCommand")
-            .field("email", &self.email)
+            .field("email", &"[REDACTED]")
             .field("password", &"[REDACTED]")
-            .field("client_network", &self.client_network)
+            .field("client_network", &"[REDACTED]")
             .finish()
     }
 }
@@ -236,6 +236,7 @@ impl AuthService {
             .await
             .map_err(|_| LoginError::Unavailable)?
         {
+            record_login_throttle_event(until, "active_block");
             return Err(LoginError::Throttled { until });
         }
 
@@ -262,7 +263,10 @@ impl AuthService {
                 .map_err(|_| LoginError::Unavailable)?;
             return match state {
                 ThrottleState::Allowed => Err(LoginError::InvalidCredentials),
-                ThrottleState::BlockedUntil(until) => Err(LoginError::Throttled { until }),
+                ThrottleState::BlockedUntil(until) => {
+                    record_login_throttle_event(until, "failure_limit_reached");
+                    Err(LoginError::Throttled { until })
+                }
             };
         }
         if let Err(error) = credentials {
@@ -448,6 +452,16 @@ impl AuthService {
     }
 }
 
+fn record_login_throttle_event(until: DateTime<Utc>, reason: &'static str) {
+    tracing::warn!(
+        security_event = "login_temporarily_throttled",
+        throttle_key = "keyed_identifier_and_direct_socket",
+        reason,
+        blocked_until = %until.to_rfc3339(),
+        "temporary login block enforced"
+    );
+}
+
 async fn verify_user_credentials(
     users: &dyn UserRepository,
     passwords: &dyn PasswordEngine,
@@ -589,7 +603,7 @@ mod tests {
 
     struct RecordingPasswords {
         expected_password: String,
-        verified_hashes: Mutex<Vec<String>>,
+        verified_hashes: Arc<Mutex<Vec<String>>>,
     }
 
     struct FixedClock(DateTime<Utc>);
@@ -634,6 +648,7 @@ mod tests {
     struct WorkflowRepository {
         credentials: UserCredentials,
         events: Arc<Mutex<Vec<&'static str>>>,
+        throttle_state: ThrottleState,
     }
 
     #[async_trait]
@@ -714,7 +729,7 @@ mod tests {
             _network_digest: &ThrottleDigest,
             _now: DateTime<Utc>,
         ) -> Result<ThrottleState, RepositoryError> {
-            Ok(ThrottleState::Allowed)
+            Ok(self.throttle_state)
         }
 
         async fn record_failure(
@@ -773,7 +788,7 @@ mod tests {
         let repository = CredentialRepository { credentials: None };
         let passwords = RecordingPasswords {
             expected_password: "correct workshop password".to_owned(),
-            verified_hashes: Mutex::new(Vec::new()),
+            verified_hashes: Arc::new(Mutex::new(Vec::new())),
         };
         let email = NormalizedEmail::parse("filippo@example.com").expect("email should parse");
 
@@ -808,7 +823,7 @@ mod tests {
             };
             let passwords = RecordingPasswords {
                 expected_password: "correct workshop password".to_owned(),
-                verified_hashes: Mutex::new(Vec::new()),
+                verified_hashes: Arc::new(Mutex::new(Vec::new())),
             };
             assert!(matches!(
                 verify_user_credentials(
@@ -830,6 +845,7 @@ mod tests {
         let repository = Arc::new(WorkflowRepository {
             credentials: credentials(true),
             events: events.clone(),
+            throttle_state: ThrottleState::Allowed,
         });
         let now =
             DateTime::from_timestamp(1_800_000_000, 0).expect("fixture timestamp should be valid");
@@ -842,7 +858,7 @@ mod tests {
             repository,
             Arc::new(RecordingPasswords {
                 expected_password: "correct workshop password".to_owned(),
-                verified_hashes: Mutex::new(Vec::new()),
+                verified_hashes: Arc::new(Mutex::new(Vec::new())),
             }),
             Arc::new(FailingJwt {
                 events: events.clone(),
@@ -865,6 +881,56 @@ mod tests {
         assert_eq!(
             *events.lock().expect("event record should lock"),
             ["session:create", "jwt:issue", "session:revoke"]
+        );
+    }
+
+    #[tokio::test]
+    async fn login_throttling_skips_password_verification_during_an_active_block() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let until =
+            DateTime::from_timestamp(1_800_000_300, 0).expect("fixture timestamp should be valid");
+        let now = until - chrono::TimeDelta::minutes(1);
+        let repository = Arc::new(WorkflowRepository {
+            credentials: credentials(true),
+            events,
+            throttle_state: ThrottleState::BlockedUntil(until),
+        });
+        let verified_hashes = Arc::new(Mutex::new(Vec::new()));
+        let settings = AuthSettings::from_environment(&Environment::Test)
+            .expect("test settings should be valid");
+        let service = AuthService::new(
+            settings,
+            repository.clone(),
+            repository.clone(),
+            repository,
+            Arc::new(RecordingPasswords {
+                expected_password: "correct workshop password".to_owned(),
+                verified_hashes: verified_hashes.clone(),
+            }),
+            Arc::new(FailingJwt {
+                events: Arc::new(Mutex::new(Vec::new())),
+            }),
+            Arc::new(FixedClock(now)),
+            Arc::new(FixedRandom),
+            "$argon2id$dummy".to_owned(),
+        );
+
+        assert!(matches!(
+            service
+                .login(LoginCommand {
+                    email: "filippo@example.com".to_owned(),
+                    password: "correct workshop password".to_owned(),
+                    client_network: "socket:127.0.0.1".to_owned(),
+                })
+                .await,
+            Err(LoginError::Throttled { until: actual_until }) if actual_until == until
+        ));
+        assert!(
+            verified_hashes
+                .lock()
+                .expect("verification record should lock")
+                .is_empty(),
+            "an active throttle must short-circuit before Argon2 verification"
         );
     }
 }

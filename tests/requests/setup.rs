@@ -10,7 +10,7 @@ use pipauto::app::App;
 use tower::ServiceExt;
 
 #[tokio::test]
-async fn current_user_extractor_redirects_guests_to_login_with_a_safe_return_path() {
+async fn protected_routes_redirect_guests_to_login_with_a_safe_return_path() {
     let boot = boot_test::<App>()
         .await
         .expect("test application should boot");

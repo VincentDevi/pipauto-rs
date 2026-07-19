@@ -12,6 +12,77 @@ use loco_rs::{
     Result,
 };
 
+/// Server-enforced access class declared for every registered application route.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AccessClass {
+    /// Non-sensitive infrastructure response available without a session.
+    Public,
+    /// Sign-in workflow available only before authentication.
+    GuestOnly,
+    /// Workshop workflow requiring an active session.
+    Authenticated,
+}
+
+/// Auditable route declaration paired with its access class.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RouteAccess {
+    /// HTTP method emitted by Loco's route registry.
+    pub method: &'static str,
+    /// Exact registered path.
+    pub path: &'static str,
+    /// Required access boundary.
+    pub class: AccessClass,
+}
+
+/// Complete access policy for Loco-managed routes. Static assets are middleware-managed and public.
+pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
+    RouteAccess {
+        method: "GET",
+        path: "/",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/_health",
+        class: AccessClass::Public,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/_health/surrealdb",
+        class: AccessClass::Public,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/_ping",
+        class: AccessClass::Public,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/_readiness",
+        class: AccessClass::Public,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/login",
+        class: AccessClass::GuestOnly,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/login",
+        class: AccessClass::GuestOnly,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/logout",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/setup/status",
+        class: AccessClass::Authenticated,
+    },
+];
+
 /// Pipauto's Loco application definition.
 pub struct App;
 
@@ -52,10 +123,7 @@ impl Hooks for App {
     }
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
-        AppRoutes::with_default_routes()
-            .add_route(crate::controllers::auth::routes())
-            .add_route(crate::controllers::setup::routes())
-            .add_route(crate::controllers::surrealdb_health::routes())
+        app_routes()
     }
 
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
@@ -66,5 +134,53 @@ impl Hooks for App {
         tasks.register(crate::tasks::auth::CreateUser);
         tasks.register(crate::tasks::auth_persistence::ApplyAuthSchema);
         tasks.register(crate::tasks::auth_persistence::PurgeExpiredAuthSessions);
+    }
+}
+
+/// Compose the route registry used by both Loco and the access-policy regression test.
+#[must_use]
+pub fn app_routes() -> AppRoutes {
+    AppRoutes::with_default_routes()
+        .add_route(crate::controllers::auth::routes())
+        .add_route(crate::controllers::setup::routes())
+        .add_route(crate::controllers::surrealdb_health::routes())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+
+    #[test]
+    fn protected_routes_require_an_access_class_for_every_registered_route() {
+        let registered = app_routes()
+            .collect()
+            .into_iter()
+            .flat_map(|route| {
+                route
+                    .actions
+                    .into_iter()
+                    .map(move |method| (method.to_string(), route.uri.clone()))
+            })
+            .collect::<BTreeSet<_>>();
+        let declared = ROUTE_ACCESS_POLICY
+            .iter()
+            .map(|route| (route.method.to_owned(), route.path.to_owned()))
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            registered, declared,
+            "update ROUTE_ACCESS_POLICY for every route"
+        );
+
+        let documentation = include_str!("../docs/authentication.md");
+        for route in ROUTE_ACCESS_POLICY {
+            let signature = format!("`{} {}`", route.method, route.path);
+            assert!(
+                documentation.contains(&signature),
+                "docs/authentication.md must classify {signature}"
+            );
+        }
     }
 }

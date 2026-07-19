@@ -6,18 +6,20 @@ use loco_rs::{
 };
 use serde::Serialize;
 
+use super::layout::AuthenticatedLayout;
+
 const TEMPLATE: &str = "pages/setup.html";
 const STATUS_TEMPLATE: &str = "fragments/setup_status.html";
 
 /// Typed data supplied to the setup page template.
 #[derive(Debug, Serialize)]
 pub struct SetupPage<'page> {
+    #[serde(flatten)]
+    layout: AuthenticatedLayout<'page>,
     title: &'page str,
     heading: &'page str,
     summary: &'page str,
     detail: &'page str,
-    display_name: &'page str,
-    csrf_token: &'page str,
 }
 
 /// Database-status presentation data supplied to the setup-status fragment.
@@ -64,21 +66,19 @@ impl SetupStatus<'_> {
 impl<'page> SetupPage<'page> {
     /// Creates setup-page presentation data without application workflow concerns.
     #[must_use]
-    pub const fn new(
+    pub fn new(
+        layout: AuthenticatedLayout<'page>,
         title: &'page str,
         heading: &'page str,
         summary: &'page str,
         detail: &'page str,
-        display_name: &'page str,
-        csrf_token: &'page str,
     ) -> Self {
         Self {
+            layout,
             title,
             heading,
             summary,
             detail,
-            display_name,
-            csrf_token,
         }
     }
 

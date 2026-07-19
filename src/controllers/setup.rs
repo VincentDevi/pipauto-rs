@@ -1,6 +1,7 @@
 //! Server-rendered application setup page and database-status fragment.
 
 use axum::{
+    extract::OriginalUri,
     http::{
         header::{CACHE_CONTROL, VARY},
         HeaderValue,
@@ -19,11 +20,15 @@ use crate::{
     auth::{csrf::CsrfService, extractors::CurrentUser, settings::AuthSettings},
     database::client::AppDatabase,
     services::auth::AuthService,
-    views::setup::{SetupPage, SetupStatus},
+    views::{
+        layout::AuthenticatedLayout,
+        setup::{SetupPage, SetupStatus},
+    },
 };
 
 async fn show(
     CurrentUser(user): CurrentUser,
+    OriginalUri(uri): OriginalUri,
     jar: CookieJar,
     SharedStore(settings): SharedStore<AuthSettings>,
     SharedStore(service): SharedStore<AuthService>,
@@ -42,12 +47,11 @@ async fn show(
         .issue_authenticated(&session.jti, user.session_expires_at)
         .map_err(loco_rs::Error::msg)?;
     let page = SetupPage::new(
+        AuthenticatedLayout::new(&user, csrf_token.expose(), uri.path()),
         "Pipauto workshop",
         "Pipauto workshop",
         "Your authenticated workshop workspace is ready.",
         "Customer, vehicle, and intervention workflows will be added in the next milestones.",
-        &user.display_name,
-        csrf_token.expose(),
     );
     let mut response = format::html(&page.render(&engine)?)?;
     response
@@ -81,4 +85,7 @@ pub fn routes() -> Routes {
     Routes::new()
         .add("/", get(show))
         .add("/setup/status", get(status))
+        .layer(axum::middleware::from_fn(
+            crate::auth::responses::no_store_layer,
+        ))
 }

@@ -10,7 +10,7 @@ const ORIGIN: &str = "http://localhost:5150";
 const PASSWORD: &str = "Workshop-password-123";
 
 #[tokio::test]
-async fn login_requests_page_is_public_no_store_and_hardened() {
+async fn security_headers_are_compatible_with_the_self_hosted_login_page() {
     let boot = boot_test::<App>().await.expect("application should boot");
     let response = boot
         .router
@@ -35,6 +35,36 @@ async fn login_requests_page_is_public_no_store_and_hardened() {
         Some("DENY")
     );
     assert!(response.headers().contains_key("content-security-policy"));
+    let csp = response
+        .headers()
+        .get("content-security-policy")
+        .and_then(header_text)
+        .expect("CSP should be text");
+    assert!(csp.contains("script-src 'self'"));
+    assert!(csp.contains("style-src 'self'"));
+    assert!(csp.contains("frame-ancestors 'none'"));
+    assert!(!csp.contains("'unsafe-inline'"));
+    assert_eq!(
+        response
+            .headers()
+            .get("referrer-policy")
+            .and_then(header_text),
+        Some("no-referrer")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("x-content-type-options")
+            .and_then(header_text),
+        Some("nosniff")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("permissions-policy")
+            .and_then(header_text),
+        Some("camera=(), microphone=(), geolocation=()")
+    );
     assert!(response
         .headers()
         .get_all(header::SET_COOKIE)
@@ -57,7 +87,7 @@ async fn login_requests_page_is_public_no_store_and_hardened() {
 }
 
 #[tokio::test]
-async fn current_user_extractor_accepts_a_complete_active_session() {
+async fn authenticated_layout_contains_only_safe_shell_identity_csrf_and_path() {
     let boot = boot_test::<App>().await.expect("application should boot");
     let service = boot
         .app_context
@@ -76,10 +106,22 @@ async fn current_user_extractor_accepts_a_complete_active_session() {
         .await
         .expect("private request should complete");
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(header_text),
+        Some("no-store")
+    );
     let html = body_text(response).await;
     assert!(html.contains("Filippo"));
+    assert!(!html.contains("filippo@example.com"));
+    assert!(!html.contains("user:"));
+    assert!(!html.contains("pipauto_session"));
+    assert!(html.contains("href=\"/\" aria-current=\"page\">Workshop</a>"));
     assert!(html.contains("<meta name=\"csrf-token\""));
     assert!(html.contains("name=\"_csrf\""));
+    assert!(html.contains("method=\"post\" action=\"/logout\""));
 }
 
 #[tokio::test]
@@ -262,6 +304,13 @@ async fn login_requests_reject_missing_origin_cookie_and_conflicting_csrf_inputs
         .await
         .expect("request should complete");
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(header_text),
+        Some("no-store")
+    );
 
     let mut referer_request = post_login(&cookie, &csrf, "wrong-password", false);
     referer_request.headers_mut().remove(header::ORIGIN);
@@ -395,6 +444,13 @@ async fn login_requests_render_typed_field_errors_and_enforce_small_form_limit()
         .await
         .expect("oversized form should complete");
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(header_text),
+        Some("no-store")
+    );
 
     let response = router
         .oneshot(
@@ -410,10 +466,17 @@ async fn login_requests_render_typed_field_errors_and_enforce_small_form_limit()
         .await
         .expect("unsupported form should complete");
     assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(header_text),
+        Some("no-store")
+    );
 }
 
 #[tokio::test]
-async fn login_requests_htmx_success_redirects_and_throttle_is_bounded() {
+async fn login_throttling_is_temporary_bounded_and_preserves_htmx_behavior() {
     let boot = boot_test::<App>().await.expect("application should boot");
     let service = boot
         .app_context
@@ -433,9 +496,8 @@ async fn login_requests_htmx_success_redirects_and_throttle_is_bounded() {
         .expect("login page should load");
     let cookie = cookie_pair(&page, "pipauto_login_csrf");
     let csrf = hidden_value(&body_text(page).await, "_csrf");
-    let body = format!(
-        "email=filippo%40example.com&password={PASSWORD}&_csrf={csrf}&next=%2Fvehicles"
-    );
+    let body =
+        format!("email=filippo%40example.com&password={PASSWORD}&_csrf={csrf}&next=%2Fvehicles");
     let response = router
         .clone()
         .oneshot(form_request("/login", &cookie, &body, true))
@@ -525,10 +587,9 @@ async fn logout_requests_are_post_only_idempotent_and_htmx_equivalent() {
     request
         .headers_mut()
         .insert("HX-Request", "true".parse().expect("header should parse"));
-    request.headers_mut().insert(
-        "X-CSRF-Token",
-        csrf.parse().expect("header should parse"),
-    );
+    request
+        .headers_mut()
+        .insert("X-CSRF-Token", csrf.parse().expect("header should parse"));
     let response = router
         .clone()
         .oneshot(request)
