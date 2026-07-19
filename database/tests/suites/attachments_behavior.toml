@@ -1,0 +1,72 @@
+name = "attachments_behavior"
+tags = ["attachments", "behavior"]
+
+[[cases]]
+name = "vehicle_owner_is_accepted_as_metadata_only"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:attachment_owner CONTENT { display_name: 'Attachment Owner', display_name_normalized: 'attachment owner' };",
+    "CREATE vehicle:attachment_vehicle CONTENT { customer: customer:attachment_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE attachment:vehicle_photo CONTENT { vehicle: vehicle:attachment_vehicle, display_name: 'Water pump.jpg', media_type: 'image/jpeg', byte_size: 24512, caption: 'Before replacement' };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM attachment WHERE id = attachment:vehicle_photo AND vehicle = vehicle:attachment_vehicle AND intervention IS NONE AND storage_state = 'metadata_only');"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "intervention_owner_is_accepted_as_metadata_only"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:job_attachment_owner CONTENT { display_name: 'Job Attachment Owner', display_name_normalized: 'job attachment owner' };",
+    "CREATE vehicle:job_attachment_vehicle CONTENT { customer: customer:job_attachment_owner, make: 'Peugeot', make_normalized: 'peugeot', model: '208', model_normalized: '208' };",
+    "CREATE intervention:attachment_job CONTENT { vehicle: vehicle:job_attachment_vehicle, service_date: d'2026-07-19' };",
+]
+action_sql = "CREATE attachment:job_pdf CONTENT { intervention: intervention:attachment_job, display_name: 'Diagnostic report.pdf', media_type: 'application/pdf' };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM attachment WHERE id = attachment:job_pdf AND vehicle IS NONE AND intervention = intervention:attachment_job AND storage_state = 'metadata_only');"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "attachment_rejects_no_owner"
+kind = "schema_behavior"
+setup_sql = []
+action_sql = "CREATE attachment:no_owner CONTENT { display_name: 'Photo.jpg', media_type: 'image/jpeg' };"
+expect_success = false
+
+[[cases]]
+name = "attachment_rejects_two_owners"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:two_owner_customer CONTENT { display_name: 'Two Owner', display_name_normalized: 'two owner' };",
+    "CREATE vehicle:two_owner_vehicle CONTENT { customer: customer:two_owner_customer, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:two_owner_job CONTENT { vehicle: vehicle:two_owner_vehicle, service_date: d'2026-07-19' };",
+]
+action_sql = "CREATE attachment:two_owners CONTENT { vehicle: vehicle:two_owner_vehicle, intervention: intervention:two_owner_job, display_name: 'Photo.jpg', media_type: 'image/jpeg' };"
+expect_success = false
+
+[[cases]]
+name = "attachment_rejects_fabricated_storage_state"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:stored_owner CONTENT { display_name: 'Stored Owner', display_name_normalized: 'stored owner' };",
+    "CREATE vehicle:stored_vehicle CONTENT { customer: customer:stored_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE attachment:claimed_upload CONTENT { vehicle: vehicle:stored_vehicle, display_name: 'Photo.jpg', media_type: 'image/jpeg', storage_state: 'uploaded' };"
+expect_success = false
+
+[[cases]]
+name = "attachment_owner_rejects_parent_deletion"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:delete_attachment_owner CONTENT { display_name: 'Delete Owner', display_name_normalized: 'delete owner' };",
+    "CREATE vehicle:delete_attachment_vehicle CONTENT { customer: customer:delete_attachment_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE attachment:delete_attachment CONTENT { vehicle: vehicle:delete_attachment_vehicle, display_name: 'Photo.jpg', media_type: 'image/jpeg' };",
+]
+action_sql = "DELETE vehicle:delete_attachment_vehicle;"
+expect_success = false

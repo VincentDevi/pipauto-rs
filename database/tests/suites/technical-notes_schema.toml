@@ -1,0 +1,53 @@
+name = "technical-notes_schema"
+tags = ["technical-notes", "metadata"]
+
+[[cases]]
+name = "workshop_analyzer_is_case_insensitive"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE ANALYZER workshop_terms TOKENIZERS BLANK,CLASS FILTERS LOWERCASE",
+]
+
+[[cases]]
+name = "technical_note_fields_and_search_indexes_match"
+kind = "schema_metadata"
+table = "technical_note"
+contains = [
+    "DEFINE FIELD archived_at ON technical_note TYPE none | datetime",
+    "DEFINE FIELD body ON technical_note TYPE string",
+    "DEFINE FIELD created_at ON technical_note TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD engine ON technical_note TYPE none | string",
+    "DEFINE FIELD engine_normalized ON technical_note TYPE none | string",
+    "DEFINE FIELD make ON technical_note TYPE none | string",
+    "DEFINE FIELD make_normalized ON technical_note TYPE none | string",
+    "DEFINE FIELD model ON technical_note TYPE none | string",
+    "DEFINE FIELD model_normalized ON technical_note TYPE none | string",
+    "DEFINE FIELD source_intervention ON technical_note TYPE none | record<intervention>",
+    "DEFINE FIELD tags ON technical_note TYPE array<string> DEFAULT []",
+    "DEFINE FIELD title ON technical_note TYPE string",
+    "DEFINE FIELD updated_at ON technical_note TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE FIELD vehicle ON technical_note TYPE none | record<vehicle>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE INDEX technical_note_archived_at ON technical_note FIELDS archived_at",
+    "DEFINE INDEX technical_note_body_search ON technical_note FIELDS body FULLTEXT ANALYZER workshop_terms BM25",
+    "DEFINE INDEX technical_note_engine_normalized ON technical_note FIELDS engine_normalized",
+    "DEFINE INDEX technical_note_make_normalized ON technical_note FIELDS make_normalized",
+    "DEFINE INDEX technical_note_model_normalized ON technical_note FIELDS model_normalized",
+    "DEFINE INDEX technical_note_source_intervention ON technical_note FIELDS source_intervention",
+    "DEFINE INDEX technical_note_tags ON technical_note FIELDS tags",
+    "DEFINE INDEX technical_note_title_search ON technical_note FIELDS title FULLTEXT ANALYZER workshop_terms BM25",
+    "DEFINE INDEX technical_note_vehicle ON technical_note FIELDS vehicle",
+]
+
+[[cases]]
+name = "technical_note_requires_bounded_title_and_body"
+kind = "sql_expect"
+sql = "CREATE technical_note:invalid CONTENT { title: '', body: 'Body' };"
+allow = false
+
+[[cases]]
+name = "technical_note_rejects_too_many_tags"
+kind = "sql_expect"
+sql = "CREATE technical_note:too_many CONTENT { title: 'Title', body: 'Body', tags: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'] };"
+allow = false

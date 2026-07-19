@@ -105,6 +105,20 @@ Pipauto should preserve the practical knowledge Filippo develops through his wor
 
 Technical knowledge may originate from an intervention, but it should be useful beyond a single customer's service history when the same knowledge applies elsewhere.
 
+Technical notes use a required title of up to 200 characters and a required body of up to 50,000
+characters. They accept at most 20 normalized, unique tags of up to 64 characters each and may
+independently reference a vehicle and/or their source intervention. Optional make, model, and
+engine context preserves display text alongside normalized exact-search values. Title and body use
+separate case-insensitive full-text indexes; tags and vehicle context remain exact structured
+filters. Notes archive without losing their knowledge or source relationships.
+
+Attachment records in this milestone describe metadata only. Each belongs to exactly one vehicle
+or intervention and stores a display name of up to 255 characters, one of the supported PDF or
+JPEG/PNG/WebP/HEIC/HEIF media types, an optional non-negative byte size, and an optional caption of
+up to 1,000 characters. Their storage state is always `metadata_only`; no binary content, object
+location, checksum, or upload claim exists before the later storage milestone defines that
+lifecycle.
+
 ### Finances and invoices
 
 The initial product should provide a straightforward view of the financial side of the work. It should support:

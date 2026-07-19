@@ -1,0 +1,65 @@
+name = "technical-notes_behavior"
+tags = ["technical-notes", "behavior"]
+
+[[cases]]
+name = "full_text_and_structured_filters_combine"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE technical_note:matching CONTENT { title: 'WATER pump replacement', body: 'Use the locking tool before removing the pulley.', tags: ['cooling'], make: 'Volkswagen', make_normalized: 'volkswagen' };",
+    "CREATE technical_note:wrong_make CONTENT { title: 'Water pump replacement', body: 'Bleed the cooling circuit.', tags: ['cooling'], make: 'Peugeot', make_normalized: 'peugeot' };",
+    "CREATE technical_note:wrong_tag CONTENT { title: 'Water pump replacement', body: 'Inspect the belt tensioner.', tags: ['timing'], make: 'Volkswagen', make_normalized: 'volkswagen' };",
+]
+action_sql = "RETURN count(SELECT * FROM technical_note WHERE (title @@ 'water' OR body @@ 'water') AND tags CONTAINS 'cooling' AND make_normalized = 'volkswagen' AND archived_at IS NONE);"
+expect_success = true
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "note_may_reference_vehicle_and_intervention_independently"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:note_owner CONTENT { display_name: 'Note Owner', display_name_normalized: 'note owner' };",
+    "CREATE vehicle:note_vehicle CONTENT { customer: customer:note_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE technical_note:vehicle_only CONTENT { title: 'Vehicle note', body: 'Reusable diagnosis', vehicle: vehicle:note_vehicle }; CREATE technical_note:standalone CONTENT { title: 'Standalone note', body: 'General workshop procedure' };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM technical_note WHERE id IN [technical_note:vehicle_only, technical_note:standalone]);"
+
+[[cases.assertions]]
+path = ""
+equals = 2
+
+[[cases]]
+name = "note_references_reject_parent_deletion"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:reference_owner CONTENT { display_name: 'Reference Owner', display_name_normalized: 'reference owner' };",
+    "CREATE vehicle:reference_vehicle CONTENT { customer: customer:reference_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:reference_job CONTENT { vehicle: vehicle:reference_vehicle, service_date: d'2026-07-19' };",
+    "CREATE technical_note:referenced CONTENT { title: 'Reference note', body: 'Source details', vehicle: vehicle:reference_vehicle, source_intervention: intervention:reference_job };",
+]
+action_sql = "DELETE intervention:reference_job;"
+expect_success = false
+
+[[cases]]
+name = "archiving_preserves_note_and_search_context"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE technical_note:archive CONTENT { title: 'Archived procedure', body: 'Keep this workshop knowledge.', tags: ['procedure'], engine: '1.4 TSI', engine_normalized: '1.4 tsi' };",
+]
+action_sql = "UPDATE technical_note:archive SET archived_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM technical_note WHERE id = technical_note:archive AND archived_at IS NOT NONE AND tags CONTAINS 'procedure' AND engine_normalized = '1.4 tsi');"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "display_and_normalized_context_are_paired"
+kind = "schema_behavior"
+setup_sql = []
+action_sql = "CREATE technical_note:unpaired CONTENT { title: 'Unpaired', body: 'Invalid context', make: 'Volkswagen' };"
+expect_success = false
