@@ -3,17 +3,20 @@
 Pipauto is a workshop-oriented Loco application for managing customers, vehicles, and accurate
 vehicle service histories.
 
-The Project Setup foundation and password-based user authentication are implemented. Workshop
-business features begin in later milestones. See the [architecture](docs/architecture.md),
-[authentication guide](docs/authentication.md),
-[database operations runbook](docs/database-operations.md), and milestone specifications for their
-boundaries.
+The initial core backend is implemented: password authentication, customers, vehicles,
+interventions and deterministic service history, searchable technical notes, attachment metadata,
+invoices, and append-only payments. See the [architecture](docs/architecture.md),
+[JSON API v1](docs/api-v1.md), [authentication guide](docs/authentication.md), and
+[migration and recovery runbook](docs/migrations.md).
 
 ## Requirements
 
-- Rust 1.89 or newer, including Cargo and rustfmt. Install the stable toolchain with
+- Rust 1.89 or newer, including Cargo, rustfmt, and Clippy. Install the stable toolchain with
   [rustup](https://rustup.rs/).
-- Docker Engine (or Docker Desktop) with the `docker-compose` command.
+- Docker Engine (or Docker Desktop) with `docker compose` or `docker-compose`.
+- Loco CLI compatible with the pinned `loco-rs 0.16.4` application dependency.
+- SurrealKit `0.7.0`; the wrapper rejects every other version.
+- SurrealDB `3.2.1`, supplied by the pinned Compose image.
 - `curl` and `shasum` to refresh and verify the vendored HTMX file.
 
 Confirm the installed versions:
@@ -21,20 +24,24 @@ Confirm the installed versions:
 ```bash
 rustc --version
 cargo --version
+rustfmt --version
+cargo clippy --version
 docker-compose version
 curl --version
 ```
 
-Install the Loco command-line tool:
+Install the Loco and pinned SurrealKit command-line tools:
 
 ```bash
 cargo install loco --locked
+cargo install surrealkit --version 0.7.0 --locked
 ```
 
 Confirm that Cargo can run the project CLI:
 
 ```bash
 cargo loco --version
+surrealkit --version
 ```
 
 ## First-time setup
@@ -76,13 +83,13 @@ docker-compose ps
 docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
 ```
 
-Install the pinned schema CLI, apply the committed authentication schema through the secret-safe
-wrapper, then create the first user. Passwords are requested twice through non-echoing terminal
+Apply the complete committed desired schema through the secret-safe wrapper, then create the first
+user. Passwords are requested twice through non-echoing terminal
 prompts and never belong in the command or environment:
 
 ```bash
-cargo install surrealkit --version 0.7.0 --locked
 ./scripts/surrealkit sync
+./scripts/surrealkit sync --dry-run
 cargo loco task create_user email:filippo@example.com display_name:Filippo
 ```
 
@@ -138,7 +145,7 @@ authentication troubleshooting.
   the direct socket address; trusted-proxy support has not been configured.
 - Run `./scripts/surrealkit sync` for a new development database before starting the application.
   Server startup does not apply schema changes. Existing or shared databases must use the
-  catalog-gated baseline or phased rollout workflow in the database operations runbook.
+  catalog-gated baseline or phased rollout workflow in the migration and recovery runbook.
 
 For subsequent development sessions, the complete startup sequence can also be run as one
 command:
@@ -201,8 +208,9 @@ and removes the container even when a check fails:
 ./scripts/ci-check
 ```
 
-The gate runs formatting and checking, every isolated SurrealKit suite, lint for every committed
-rollout manifest, the Rust migration integration tests, and the complete Rust suite. SurrealKit's
+The gate runs formatting, checking, Clippy with warnings denied, every isolated SurrealKit suite,
+lint for every committed rollout manifest, the Rust migration integration tests, the complete Rust
+suite, and the Loco route/task inventories. SurrealKit's
 machine-readable result is sanitized to `artifacts/migration-report.json`: it includes suite/case
 names and pass/fail state, but omits connection settings, database names, error payloads, and rows.
 CI uploads that report only when the gate fails.

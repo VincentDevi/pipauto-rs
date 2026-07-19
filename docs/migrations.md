@@ -1,9 +1,16 @@
 # Database migration and recovery operations
 
+## Architecture decision and schema ownership
+
 Pipauto uses SurrealKit `0.7.0` for schema management and SurrealDB `3.2.1` for the
 verified deployment baseline. Schema execution is always a separate operator action. Running
 `cargo loco start`, restarting the web server, or calling a health endpoint only connects to and
 reads the selected database; none of them runs `sync`, `rollout start`, or `rollout complete`.
+
+The committed files under `database/schema/` are the desired-schema source of truth. SurrealKit
+owns catalog inspection, schema snapshots, rollout planning, manifest checksums, phased execution,
+and rollout metadata. Pipauto's runtime owns repository queries only. A committed rollout is an
+immutable deployment artifact once it has started; use a new forward rollout for later changes.
 
 Run every command from the repository root. Load connection settings from an environment-specific
 secret source first. The committed `scripts/surrealkit` wrapper maps these application variables to
@@ -89,6 +96,22 @@ Review every proposed change, then explicitly apply and recheck it:
 Do not use this procedure if anyone else relies on the database. An existing pre-SurrealKit
 authentication database must first pass the catalog-gated procedure in
 [Authentication operations](authentication.md#setup-and-routine-tasks).
+
+## Baseline adoption for an authentication-only database
+
+Adoption is read-first and must not use `sync`. Run the catalog-gated baseline, then inspect its
+status before taking a backup or planning a rollout:
+
+```bash
+./scripts/surrealkit baseline-authentication
+./scripts/surrealkit rollout status
+```
+
+The wrapper compares `INFO FOR DB` and every authentication table with the committed fixture,
+fingerprints all authentication records before and after `rollout baseline`, and prints no rows or
+sensitive values. Any extra, missing, or changed definition blocks adoption before metadata is
+written. Successful adoption adds only SurrealKit metadata and leaves user, session, and throttle
+projections unchanged. Export and checksum the database before starting the core rollout.
 
 ## Read-only inspection
 
@@ -381,9 +404,10 @@ cargo loco task create_user email:recovery-fixture@example.com display_name:'Rec
 cargo loco start
 ```
 
-Enter the fixture password only at the non-echoing prompts. For the current authentication-only
-schema, verify login, an authenticated page, logout, and rejection of the revoked cookie as
-described in [Authentication operations](authentication.md#clean-checkout-end-to-end-verification).
+Enter the fixture password only at the non-echoing prompts. Verify login, customer → vehicle →
+intervention/line → deterministic service history, technical-note search, attachment metadata,
+invoice issue, partial/final payment status, logout, and rejection of the revoked cookie as
+described in [Authentication operations](authentication.md) and [JSON API v1](api-v1.md).
 Stop the isolated app after the checks and restore `SURREALDB_DATABASE="$SOURCE_DATABASE"` before
 running any other operator command.
 

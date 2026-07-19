@@ -16,6 +16,10 @@ export SURREALDB_ROOT_USERNAME="root"
 export SURREALDB_ROOT_PASSWORD="local-ci-only"
 export SURREALDB_NAMESPACE="pipauto_ci"
 export SURREALDB_DATABASE="pipauto_ci"
+export PIPAUTO_JWT_SECRET="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+export PIPAUTO_CSRF_SECRET="AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+export PIPAUTO_CANONICAL_ORIGIN="http://localhost:5150"
+export PIPAUTO_SESSION_LIFETIME_SECONDS="43200"
 export PIPAUTO_MIGRATION_REPORT="$ROOT/artifacts/migration-report.json"
 
 case "$SURREALDB_DATABASE" in
@@ -34,6 +38,7 @@ trap cleanup EXIT
 cd "$ROOT"
 cargo fmt --check
 cargo check
+cargo clippy --all-targets --all-features -- -D warnings
 
 "${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
   up --detach --wait
@@ -50,5 +55,14 @@ if rg -n 'local-ci-only|SURREALDB_ROOT_PASSWORD|password_hash|jti_digest|identif
   exit 1
 fi
 
+if rg -n \
+  'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|\$argon2(id|i|d)\$v=' \
+  README.md docs database/tests database/snapshots src tests; then
+  echo "error: tracked documentation, fixtures, snapshots, errors, or tests contain secret-shaped data" >&2
+  exit 1
+fi
+
 cargo test migration
 cargo test
+cargo loco routes
+cargo loco task

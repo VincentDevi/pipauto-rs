@@ -428,7 +428,8 @@ mod tests {
             "update ROUTE_ACCESS_POLICY for every route"
         );
 
-        let documentation = include_str!("../docs/authentication.md");
+        let authentication_documentation = include_str!("../docs/authentication.md");
+        let api_documentation = include_str!("../docs/api-v1.md");
         for route in ROUTE_ACCESS_POLICY {
             if route.path == "/api/v1" || route.path.starts_with("/api/v1/") {
                 assert_eq!(
@@ -438,9 +439,14 @@ mod tests {
                 );
             }
             let signature = format!("`{} {}`", route.method, route.path);
+            let documentation = if route.path.starts_with("/api/v1/") {
+                api_documentation
+            } else {
+                authentication_documentation
+            };
             assert!(
                 documentation.contains(&signature),
-                "docs/authentication.md must classify {signature}"
+                "the route documentation must classify {signature}"
             );
         }
     }

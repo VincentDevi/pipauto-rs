@@ -26,7 +26,7 @@ the rest of the application does not need to.
 | `app` | Route, initializer, middleware, and shared-service composition | Business rules or persistence behavior |
 | `controllers` | HTTP input parsing and response selection | Business rules or database queries |
 | `domain` | Shared IDs, money, quantity, normalization, archive chronology, validation, and pagination invariants | Loco, Axum, Tera, SurrealDB, HTTP query strings, or row structs |
-| `models` | Feature-specific database-independent models, currently authentication | Loco, Axum, Tera, or SurrealDB concerns |
+| `models` | Database-independent authentication, customer, vehicle, intervention, line, technical-note, attachment, invoice, and payment models | Loco, Axum, Tera, or SurrealDB concerns |
 | `api` | Explicit IDs, timestamps, money, quantity, pagination, and error DTOs | SurrealDB rows, repository errors, or business decisions |
 | `services` | Application workflows across models and repository contracts | HTTP, templates, or concrete databases |
 | `repositories` | Persistence-neutral errors and contracts using typed domain filters and cursors | HTTP query strings, SurrealDB types, templates, or workflow policy |
@@ -59,6 +59,42 @@ Money is stored as checked, non-negative minor units plus an assigned uppercase 
 Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.
 Business settings default to EUR, 25 records per collection, and a hard maximum of 200 records.
 Startup rejects invalid settings before serving requests.
+
+## Domain modules and workflow dependencies
+
+Each business area follows the same inward dependency direction:
+
+```text
+HTTP controller -> service -> repository contract <- SurrealDB adapter
+                         -> domain/model invariants
+HTTP DTOs       <- controller mapping <- domain/model values
+```
+
+Customer and vehicle services own archive and current-owner workflows. Intervention services own
+draft transitions, mileage chronology, line mutations, totals, and deterministic service history.
+Technical-note and attachment services own reusable-knowledge validation and the temporary
+metadata-only attachment lifecycle. Invoice services own draft lines, atomic totals, issued
+snapshots and numbering, and append-only payments. Cross-feature checks call repository contracts;
+controllers never join records or encode workflow policy.
+
+## Transaction boundary
+
+A service method is the application workflow boundary. When a command must validate related rows
+and mutate state atomically, its repository adapter executes one SurrealQL transaction. This
+includes intervention-line totals, terminal intervention transitions, invoice-line totals,
+issuance and number allocation, and payment balance checks. Controllers perform parsing and DTO
+mapping outside that transaction. A workflow never holds a transaction open across an HTTP
+response, template render, or another external system.
+
+## Schema and SurrealKit ownership
+
+Committed desired definitions under `database/schema/` are the schema source of truth. SurrealKit
+owns schema diffing, catalog snapshots, rollout manifests and state, linting, synchronization of
+disposable databases, and phased rollout execution for preserved databases. The application owns
+runtime queries through repository adapters but does not execute schema changes during boot,
+health checks, or ordinary requests. `scripts/surrealkit` owns the secret-safe environment mapping,
+authentication-baseline gate, deployment gate, sanitized reports, and rollout lock. Operational
+ownership and recovery are defined in [the migration runbook](migrations.md).
 
 ## Assets and tests
 

@@ -11,18 +11,25 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use chrono::{TimeDelta, Utc};
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     api::DataEnvelope,
-    app::App,
-    auth::{csrf::AuthenticatedCsrfJson, extractors::CurrentUser},
+    app::{AccessClass, App, ROUTE_ACCESS_POLICY},
+    auth::{
+        csrf::{AuthenticatedCsrfJson, CsrfService},
+        extractors::CurrentUser,
+    },
     services::auth::AuthService,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
-use crate::support::{authenticated_csrf, authenticated_json_request, authenticated_session};
+use crate::support::{
+    authenticated_csrf, authenticated_json_request, authenticated_session, TEST_ORIGIN,
+};
 
 const PASSWORD: &str = "Workshop-password-123";
 
@@ -235,6 +242,164 @@ async fn api_foundation_enforces_json_content_type_and_route_body_limit() {
         response_json(response).await["error"]["code"],
         "malformed_request"
     );
+}
+
+#[tokio::test]
+async fn every_business_route_rejects_guests_and_unsafe_csrf_failures() {
+    let boot = boot_test::<App>().await.expect("application should boot");
+    let service = boot
+        .app_context
+        .shared_store
+        .get::<AuthService>()
+        .expect("auth service should exist");
+    service
+        .create_user("filippo@example.com", "Filippo", PASSWORD)
+        .await
+        .expect("fixture user should be created");
+    let router = boot.router.expect("application router should exist");
+
+    let login_page = router
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/login")
+                .body(Body::empty())
+                .expect("login request should build"),
+        )
+        .await
+        .expect("login request should complete");
+    let login_html = response_text(login_page).await;
+    let wrong_action = html_value(&login_html, "name=\"_csrf\" value=\"");
+
+    let session = authenticated_session(&router, PASSWORD).await;
+    let encoded_jwt = session
+        .strip_prefix("pipauto_session=")
+        .expect("session helper should return the session cookie");
+    let authenticated = service
+        .authenticate_session(encoded_jwt)
+        .await
+        .expect("fixture session should authenticate");
+    let encoded_claims = encoded_jwt
+        .split('.')
+        .nth(1)
+        .expect("JWT should contain claims");
+    let claims: Value = serde_json::from_slice(
+        &URL_SAFE_NO_PAD
+            .decode(encoded_claims)
+            .expect("JWT claims should be base64url"),
+    )
+    .expect("JWT claims should be JSON");
+    let session_jti = claims["jti"].as_str().expect("JWT should contain a jti");
+    let csrf_service = boot
+        .app_context
+        .shared_store
+        .get::<CsrfService>()
+        .expect("CSRF service should exist");
+    let valid = csrf_service
+        .issue_authenticated(session_jti, authenticated.user.session_expires_at)
+        .expect("valid CSRF should issue")
+        .expose()
+        .to_owned();
+    let expired = csrf_service
+        .issue_authenticated(session_jti, Utc::now() - TimeDelta::seconds(1))
+        .expect("expired CSRF fixture should issue")
+        .expose()
+        .to_owned();
+    let wrong_session = csrf_service
+        .issue_authenticated("different-session", authenticated.user.session_expires_at)
+        .expect("wrong-session CSRF fixture should issue")
+        .expose()
+        .to_owned();
+
+    for route in ROUTE_ACCESS_POLICY.iter().filter(|route| {
+        route.class == AccessClass::Authenticated && route.path.starts_with("/api/v1/")
+    }) {
+        let method = Method::from_bytes(route.method.as_bytes()).expect("method should be valid");
+        let uri = concrete_uri(route.path);
+        let guest = axum::http::Request::builder()
+            .method(method.clone())
+            .uri(&uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from("{}"))
+            .expect("guest request should build");
+        let response = router
+            .clone()
+            .oneshot(guest)
+            .await
+            .expect("guest request should complete");
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "{} {} must reject guests",
+            route.method,
+            route.path
+        );
+
+        if method == Method::GET {
+            continue;
+        }
+
+        let cases = [
+            ("missing", None, TEST_ORIGIN),
+            ("expired", Some(expired.as_str()), TEST_ORIGIN),
+            ("wrong-action", Some(wrong_action.as_str()), TEST_ORIGIN),
+            ("wrong-session", Some(wrong_session.as_str()), TEST_ORIGIN),
+            (
+                "wrong-origin",
+                Some(valid.as_str()),
+                "https://attacker.example",
+            ),
+        ];
+        for (case, token, origin) in cases {
+            let mut request = axum::http::Request::builder()
+                .method(method.clone())
+                .uri(&uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::COOKIE, &session)
+                .header(header::ORIGIN, origin);
+            if let Some(token) = token {
+                request = request.header("X-CSRF-Token", token);
+            }
+            let response = router
+                .clone()
+                .oneshot(
+                    request
+                        .body(Body::from("{}"))
+                        .expect("request should build"),
+                )
+                .await
+                .expect("CSRF request should complete");
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "{} {} must reject {case} CSRF",
+                route.method,
+                route.path
+            );
+        }
+    }
+}
+
+fn concrete_uri(path: &str) -> String {
+    path.replace("{id}", "fixture-id")
+        .replace("{line_id}", "fixture-line-id")
+}
+
+fn html_value(html: &str, marker: &str) -> String {
+    html.split_once(marker)
+        .expect("HTML value should exist")
+        .1
+        .split_once('"')
+        .expect("HTML value should end")
+        .0
+        .to_owned()
+}
+
+async fn response_text(response: axum::response::Response) -> String {
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("response body should be readable");
+    String::from_utf8(body.to_vec()).expect("response body should be UTF-8")
 }
 
 async fn response_json(response: axum::response::Response) -> Value {

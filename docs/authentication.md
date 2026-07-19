@@ -65,7 +65,7 @@ throttle state change. Output names only the failed phase/table and never prints
 credentials, password hashes, sessions, or tokens.
 
 After adoption, shared development, staging, and production databases use only the phased rollout
-and recovery procedures in [Database migration and recovery operations](database-operations.md).
+and recovery procedures in [Database migration and recovery operations](migrations.md).
 Production rollout start requires the checksummed logical export documented there.
 
 Provision users interactively. The two password prompts do not echo; never put a password in a
@@ -180,7 +180,7 @@ the direct socket IP and deliberately ignores forwarding headers. Trusted proxy 
 must be an explicit later configuration change; do not enable arbitrary `X-Forwarded-For` trust.
 Keep system clocks synchronized because JWT and CSRF expiry checks are time based.
 
-## Clean-checkout end-to-end verification
+## Clean-checkout authentication verification
 
 Run this procedure from a fresh checkout with no existing `.env` or SurrealDB volume. Credential
 entry is deliberately performed in the browser or non-echoing terminal prompt, never in a shell
@@ -245,7 +245,9 @@ argument or environment variable.
     and throttle timing, but must contain no configured secret, password, JWT, CSRF token, session
     identifier, submitted email, or database password.
 
-For a production deployment, repeat the browser checks against the HTTPS origin. Cookie names must
+For the complete core-backend workflow after authentication, use the route and representative-flow
+documentation in [JSON API v1](api-v1.md). For a production deployment, repeat the browser checks
+against the HTTPS origin. Cookie names must
 be `__Host-pipauto_session` and `__Host-pipauto_login_csrf`, and both cookies must additionally have
 `Secure`.
 
