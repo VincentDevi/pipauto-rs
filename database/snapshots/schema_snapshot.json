@@ -27,7 +27,7 @@
     },
     {
       "path": "database/schema/business/intervention_line.surql",
-      "hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+      "hash": "a973568beacbd18e0df6c96bb07f292a477370d57bfb3b91f8743a62d1e7fed2"
     },
     {
       "path": "database/schema/business/invoice.surql",

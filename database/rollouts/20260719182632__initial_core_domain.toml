@@ -1,7 +1,7 @@
 id = "20260719182632__initial_core_domain"
 name = "initial core domain"
 source_schema_hash = "3c63bf20757b514917c4bf74a57ee1c131748497436a780d726b7e1d21ee50f2"
-target_schema_hash = "6cdc666dc7bcfe7ffc260a57ca3b919d6ffd5cf7d90168884a873a1f6eb6c6ad"
+target_schema_hash = "0333beabc3a5f40caa76c742d168eeefcfcb12323506dae8346dbc608c7ca1c3"
 compatibility = "phased"
 renames = []
 

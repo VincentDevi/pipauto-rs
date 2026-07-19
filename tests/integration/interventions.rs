@@ -150,7 +150,7 @@ async fn service_history_cursor_and_atomic_line_totals_are_deterministic() {
                     Quantity::parse("1.5").expect("quantity"),
                     "set".into(),
                     Money::new(101, currency).expect("price"),
-                    Some(Money::new(52, currency).expect("cost")),
+                    Some(Money::new(51, currency).expect("cost")),
                     0,
                     currency,
                 )
@@ -160,7 +160,7 @@ async fn service_history_cursor_and_atomic_line_totals_are_deterministic() {
         .await
         .expect("atomic line mutation");
     assert_eq!(result.totals.price.minor_units(), 152);
-    assert_eq!(result.totals.cost.minor_units(), 78);
+    assert_eq!(result.totals.cost.minor_units(), 77);
 }
 
 #[tokio::test]

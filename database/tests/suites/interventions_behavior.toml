@@ -128,6 +128,26 @@ path = ""
 equals = 5000
 
 [[cases]]
+name = "line_totals_round_half_up_instead_of_ties_to_even"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:half_up_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:half_up_vehicle CONTENT { customer: customer:half_up_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:half_up_parent CONTENT { vehicle: vehicle:half_up_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+]
+action_sql = "CREATE intervention_line:half_up CONTENT { intervention: intervention:half_up_parent, category: 'part', description: 'Half-up boundary', quantity: 1.5dec, unit_label: 'item', currency: 'EUR', unit_price_minor: 101, unit_cost_minor: 51, total_price_minor: 152, total_cost_minor: 77, position: 0 };"
+expect_success = true
+verify_sql = "RETURN [intervention_line:half_up.total_price_minor, intervention_line:half_up.total_cost_minor];"
+
+[[cases.assertions]]
+path = "[0]"
+equals = 152
+
+[[cases.assertions]]
+path = "[1]"
+equals = 77
+
+[[cases]]
 name = "intervention_currency_cannot_conflict_with_existing_lines"
 kind = "schema_behavior"
 setup_sql = [

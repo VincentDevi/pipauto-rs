@@ -30,7 +30,8 @@ DEFINE FIELD IF NOT EXISTS unit_cost_minor ON intervention_line TYPE option<int>
     ASSERT $value IS NONE OR $value >= 0;
 
 DEFINE FIELD IF NOT EXISTS total_price_minor ON intervention_line TYPE int
-    ASSERT $value >= 0 AND $value = math::round(quantity * unit_price_minor);
+    ASSERT $value >= 0
+        AND $value = math::floor(quantity * unit_price_minor + 0.5dec);
 
 DEFINE FIELD IF NOT EXISTS total_cost_minor ON intervention_line TYPE option<int>
     ASSERT (
@@ -40,7 +41,7 @@ DEFINE FIELD IF NOT EXISTS total_cost_minor ON intervention_line TYPE option<int
         unit_cost_minor IS NOT NONE
         AND $value IS NOT NONE
         AND $value >= 0
-        AND $value = math::round(quantity * unit_cost_minor)
+        AND $value = math::floor(quantity * unit_cost_minor + 0.5dec)
     );
 
 DEFINE FIELD IF NOT EXISTS position ON intervention_line TYPE int
@@ -74,8 +75,8 @@ DEFINE EVENT IF NOT EXISTS intervention_line_validate_totals ON TABLE interventi
         IF $after.currency != $after.intervention.currency {
             THROW 'intervention line currency must match its intervention';
         };
-        IF $after.total_price_minor != math::round(
-            $after.quantity * $after.unit_price_minor
+        IF $after.total_price_minor != math::floor(
+            $after.quantity * $after.unit_price_minor + 0.5dec
         ) {
             THROW 'intervention line price total is inconsistent';
         };
@@ -86,8 +87,8 @@ DEFINE EVENT IF NOT EXISTS intervention_line_validate_totals ON TABLE interventi
             $after.unit_cost_minor IS NOT NONE
             AND (
                 $after.total_cost_minor IS NONE
-                OR $after.total_cost_minor != math::round(
-                    $after.quantity * $after.unit_cost_minor
+                OR $after.total_cost_minor != math::floor(
+                    $after.quantity * $after.unit_cost_minor + 0.5dec
                 )
             )
         ) {
