@@ -26,6 +26,7 @@ pub fn routes() -> Vec<Routes> {
     vec![
         mount(crate::controllers::customers::routes()),
         mount(crate::controllers::vehicles::routes()),
+        mount(crate::controllers::interventions::routes()),
     ]
 }
 

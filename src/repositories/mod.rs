@@ -9,6 +9,7 @@ use thiserror::Error;
 
 pub mod auth;
 pub mod customer;
+pub mod intervention;
 pub mod surreal;
 pub mod vehicle;
 

@@ -5,6 +5,7 @@
 
 pub mod auth;
 pub mod customer;
+pub mod intervention;
 pub mod vehicle;
 
 use thiserror::Error;

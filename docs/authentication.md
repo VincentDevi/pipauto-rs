@@ -232,6 +232,15 @@ be `__Host-pipauto_session` and `__Host-pipauto_login_csrf`, and both cookies mu
 
 ## Automated verification
 
+The authenticated JSON route inventory includes `GET /api/v1/vehicles/{id}/service-history`,
+`GET /api/v1/interventions`, `POST /api/v1/interventions`,
+`GET /api/v1/interventions/{id}`, `PATCH /api/v1/interventions/{id}`,
+`POST /api/v1/interventions/{id}/complete`, `POST /api/v1/interventions/{id}/cancel`,
+`GET /api/v1/interventions/{id}/lines`, `POST /api/v1/interventions/{id}/lines`,
+`PATCH /api/v1/interventions/{id}/lines/{line_id}`, and
+`DELETE /api/v1/interventions/{id}/lines/{line_id}`. They require an active session; unsafe
+methods additionally require the standard origin-bound CSRF token.
+
 Run the automated gate:
 
 ```bash

@@ -1,6 +1,10 @@
 //! Database-independent intervention line validation and persisted totals.
 
-use crate::domain::{CurrencyCode, InterventionId, Money, MoneyError, Quantity};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{
+    CurrencyCode, InterventionId, InterventionLineId, Money, MoneyError, Quantity,
+};
 
 pub const DESCRIPTION_MAX_CHARS: usize = 500;
 pub const UNIT_LABEL_MAX_CHARS: usize = 32;
@@ -14,7 +18,7 @@ pub enum InterventionLineCategory {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InterventionLine {
+pub struct NewInterventionLine {
     pub intervention_id: InterventionId,
     pub category: InterventionLineCategory,
     pub description: String,
@@ -27,7 +31,7 @@ pub struct InterventionLine {
     pub position: u32,
 }
 
-impl InterventionLine {
+impl NewInterventionLine {
     /// Validate a line and calculate its persisted revenue and cost totals.
     ///
     /// # Errors
@@ -71,6 +75,23 @@ impl InterventionLine {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InterventionLine {
+    pub id: InterventionLineId,
+    pub intervention_id: InterventionId,
+    pub category: InterventionLineCategory,
+    pub description: String,
+    pub quantity: Quantity,
+    pub unit_label: String,
+    pub unit_price: Money,
+    pub unit_cost: Option<Money>,
+    pub total_price: Money,
+    pub total_cost: Option<Money>,
+    pub position: u32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum InterventionLineError {
     #[error("required intervention line text is blank")]
@@ -104,7 +125,7 @@ mod tests {
 
     #[test]
     fn intervention_line_calculates_persisted_totals_with_shared_rounding() {
-        let line = InterventionLine::new(
+        let line = NewInterventionLine::new(
             InterventionId::parse("front-pads").expect("valid intervention id"),
             InterventionLineCategory::Part,
             " Front brake pads ".into(),
@@ -125,7 +146,7 @@ mod tests {
 
     #[test]
     fn intervention_line_rejects_currency_mismatch() {
-        let error = InterventionLine::new(
+        let error = NewInterventionLine::new(
             InterventionId::parse("front-pads").expect("valid intervention id"),
             InterventionLineCategory::Part,
             "Front brake pads".into(),

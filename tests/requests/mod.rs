@@ -6,5 +6,6 @@
 mod api_foundation;
 mod auth;
 mod customers_vehicles;
+mod interventions;
 mod setup;
 mod surrealdb_health;

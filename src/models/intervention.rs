@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 
-use crate::domain::{CurrencyCode, InterventionId, VehicleId};
+use crate::domain::{CurrencyCode, InterventionId, Money, VehicleId};
 
 pub const NARRATIVE_MAX_CHARS: usize = 10_000;
 
@@ -14,7 +14,7 @@ pub enum InterventionStatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Intervention {
+pub struct NewIntervention {
     pub vehicle_id: VehicleId,
     pub service_date: NaiveDate,
     pub status: InterventionStatus,
@@ -31,7 +31,7 @@ pub struct Intervention {
     pub cancelled_at: Option<DateTime<Utc>>,
 }
 
-impl Intervention {
+impl NewIntervention {
     /// Create a mutable draft intervention.
     ///
     /// # Errors
@@ -100,6 +100,72 @@ impl Intervention {
         self.updated_at = now;
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Intervention {
+    pub id: InterventionId,
+    pub vehicle_id: VehicleId,
+    pub service_date: NaiveDate,
+    pub status: InterventionStatus,
+    pub mileage: Option<u64>,
+    pub customer_reported_problem: Option<String>,
+    pub diagnostics: Option<String>,
+    pub performed_work: Option<String>,
+    pub recommendations: Option<String>,
+    pub notes: Option<String>,
+    pub currency: CurrencyCode,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub cancelled_at: Option<DateTime<Utc>>,
+}
+
+impl Intervention {
+    #[must_use]
+    pub fn history_entry(&self) -> ServiceHistoryEntry {
+        ServiceHistoryEntry {
+            id: self.id.clone(),
+            service_date: self.service_date,
+            created_at: self.created_at,
+            status: self.status,
+            mileage: self.mileage,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InterventionTotals {
+    pub price: Money,
+    pub cost: Money,
+}
+
+impl InterventionTotals {
+    pub fn zero(currency: CurrencyCode) -> Result<Self, InterventionModelError> {
+        Ok(Self {
+            price: Money::new(0, currency)?,
+            cost: Money::new(0, currency)?,
+        })
+    }
+
+    pub fn checked_add(
+        self,
+        price: Money,
+        cost: Option<Money>,
+    ) -> Result<Self, InterventionModelError> {
+        Ok(Self {
+            price: self.price.checked_add(price)?,
+            cost: self
+                .cost
+                .checked_add(cost.unwrap_or(Money::new(0, self.cost.currency())?))?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ServiceHistorySummary {
+    pub intervention: Intervention,
+    pub totals: InterventionTotals,
 }
 
 /// Chronology values needed to validate a proposed intervention mileage.
@@ -179,6 +245,8 @@ pub enum InterventionModelError {
     InvalidTransition,
     #[error("intervention mileage conflicts with service-history chronology")]
     MileageRegression,
+    #[error(transparent)]
+    Money(#[from] crate::domain::MoneyError),
 }
 
 fn optional_text(value: Option<String>) -> Result<Option<String>, InterventionModelError> {
@@ -221,7 +289,7 @@ mod tests {
 
     #[test]
     fn intervention_model_timestamps_terminal_transitions_and_prevents_reopening() {
-        let mut intervention = Intervention::new(
+        let mut intervention = NewIntervention::new(
             VehicleId::parse("golf").expect("valid vehicle id"),
             NaiveDate::from_ymd_opt(2026, 7, 19).expect("valid date"),
             Some(120_000),
@@ -246,7 +314,7 @@ mod tests {
 
     #[test]
     fn intervention_model_requires_performed_work_for_completion() {
-        let mut intervention = Intervention::new(
+        let mut intervention = NewIntervention::new(
             VehicleId::parse("golf").expect("valid vehicle id"),
             NaiveDate::from_ymd_opt(2026, 7, 19).expect("valid date"),
             None,

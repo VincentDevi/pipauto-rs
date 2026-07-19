@@ -41,7 +41,18 @@ pub fn record_key(record: &RecordId, table: &'static str) -> Result<String, Repo
 #[must_use]
 pub fn classify_query_error(error: &surrealdb::Error) -> RepositoryError {
     let message = error.to_string().to_ascii_lowercase();
-    if message.contains("unique") || message.contains("already contains") {
+    if [
+        "unique",
+        "already contains",
+        "immutable",
+        "mileage",
+        "draft",
+        "state transition",
+        "currency cannot conflict",
+    ]
+    .iter()
+    .any(|needle| message.contains(needle))
+    {
         RepositoryError::Conflict
     } else if [
         "connection",

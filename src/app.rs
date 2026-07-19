@@ -146,6 +146,61 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         path: "/api/v1/vehicles/{id}/restore",
         class: AccessClass::Authenticated,
     },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/vehicles/{id}/service-history",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/interventions/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/interventions/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/interventions/{id}/complete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/interventions/{id}/cancel",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/interventions/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/interventions/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/interventions/{id}/lines/{line_id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "DELETE",
+        path: "/api/v1/interventions/{id}/lines/{line_id}",
+        class: AccessClass::Authenticated,
+    },
 ];
 
 /// Pipauto's Loco application definition.

@@ -9,10 +9,16 @@ use crate::{
     domain::CursorCodec,
     repositories::{
         customer::CustomerRepository,
-        surreal::{customer::SurrealCustomerRepository, vehicle::SurrealVehicleRepository},
+        intervention::InterventionRepository,
+        surreal::{
+            customer::SurrealCustomerRepository, intervention::SurrealInterventionRepository,
+            vehicle::SurrealVehicleRepository,
+        },
         vehicle::VehicleRepository,
     },
-    services::{customer::CustomerService, vehicle::VehicleService},
+    services::{
+        customer::CustomerService, intervention::InterventionService, vehicle::VehicleService,
+    },
 };
 
 pub async fn install(ctx: &AppContext) -> Result<()> {
@@ -25,6 +31,8 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         let schema = [
             include_str!("../../database/schema/business/customer.surql"),
             include_str!("../../database/schema/business/vehicle.surql"),
+            include_str!("../../database/schema/business/intervention.surql"),
+            include_str!("../../database/schema/business/intervention_line.surql"),
         ]
         .join("\n");
         client
@@ -40,10 +48,18 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         .ok_or_else(|| Error::string("cursor service is not installed"))?;
     let customers: Arc<dyn CustomerRepository> =
         Arc::new(SurrealCustomerRepository::new(client.clone()));
-    let vehicles: Arc<dyn VehicleRepository> = Arc::new(SurrealVehicleRepository::new(client));
+    let vehicles: Arc<dyn VehicleRepository> =
+        Arc::new(SurrealVehicleRepository::new(client.clone()));
+    let interventions: Arc<dyn InterventionRepository> =
+        Arc::new(SurrealInterventionRepository::new(client));
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
+    ctx.shared_store.insert(VehicleService::new(
+        vehicles.clone(),
+        customers,
+        cursors.clone(),
+    ));
     ctx.shared_store
-        .insert(VehicleService::new(vehicles, customers, cursors));
+        .insert(InterventionService::new(interventions, vehicles, cursors));
     Ok(())
 }
