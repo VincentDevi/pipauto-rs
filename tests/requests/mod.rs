@@ -9,3 +9,4 @@ mod customers_vehicles;
 mod interventions;
 mod setup;
 mod surrealdb_health;
+mod technical_notes_attachments;

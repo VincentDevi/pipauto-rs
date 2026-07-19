@@ -8,16 +8,21 @@ use crate::{
     database::client::AppDatabase,
     domain::CursorCodec,
     repositories::{
+        attachment::AttachmentRepository,
         customer::CustomerRepository,
         intervention::InterventionRepository,
         surreal::{
-            customer::SurrealCustomerRepository, intervention::SurrealInterventionRepository,
-            vehicle::SurrealVehicleRepository,
+            attachment::SurrealAttachmentRepository, customer::SurrealCustomerRepository,
+            intervention::SurrealInterventionRepository,
+            technical_note::SurrealTechnicalNoteRepository, vehicle::SurrealVehicleRepository,
         },
+        technical_note::TechnicalNoteRepository,
         vehicle::VehicleRepository,
     },
     services::{
-        customer::CustomerService, intervention::InterventionService, vehicle::VehicleService,
+        attachment::AttachmentService, customer::CustomerService,
+        intervention::InterventionService, technical_note::TechnicalNoteService,
+        vehicle::VehicleService,
     },
 };
 
@@ -33,6 +38,8 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
             include_str!("../../database/schema/business/vehicle.surql"),
             include_str!("../../database/schema/business/intervention.surql"),
             include_str!("../../database/schema/business/intervention_line.surql"),
+            include_str!("../../database/schema/business/technical_note.surql"),
+            include_str!("../../database/schema/business/attachment.surql"),
         ]
         .join("\n");
         client
@@ -51,7 +58,11 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     let vehicles: Arc<dyn VehicleRepository> =
         Arc::new(SurrealVehicleRepository::new(client.clone()));
     let interventions: Arc<dyn InterventionRepository> =
-        Arc::new(SurrealInterventionRepository::new(client));
+        Arc::new(SurrealInterventionRepository::new(client.clone()));
+    let notes: Arc<dyn TechnicalNoteRepository> =
+        Arc::new(SurrealTechnicalNoteRepository::new(client.clone()));
+    let attachments: Arc<dyn AttachmentRepository> =
+        Arc::new(SurrealAttachmentRepository::new(client));
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
     ctx.shared_store.insert(VehicleService::new(
@@ -59,7 +70,18 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         customers,
         cursors.clone(),
     ));
+    ctx.shared_store.insert(InterventionService::new(
+        interventions.clone(),
+        vehicles.clone(),
+        cursors.clone(),
+    ));
+    ctx.shared_store.insert(TechnicalNoteService::new(
+        notes,
+        vehicles.clone(),
+        interventions.clone(),
+        cursors,
+    ));
     ctx.shared_store
-        .insert(InterventionService::new(interventions, vehicles, cursors));
+        .insert(AttachmentService::new(attachments, vehicles, interventions));
     Ok(())
 }

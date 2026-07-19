@@ -201,6 +201,71 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         path: "/api/v1/interventions/{id}/lines/{line_id}",
         class: AccessClass::Authenticated,
     },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/technical-notes",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/technical-notes",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/technical-notes/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/technical-notes/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/technical-notes/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/technical-notes/{id}/restore",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/vehicles/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/vehicles/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/interventions/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/interventions/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/attachments/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/attachments/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "DELETE",
+        path: "/api/v1/attachments/{id}",
+        class: AccessClass::Authenticated,
+    },
 ];
 
 /// Pipauto's Loco application definition.

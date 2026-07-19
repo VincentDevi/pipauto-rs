@@ -4,9 +4,11 @@
 //! business rules, issue database queries, or depend directly on persistence adapters.
 
 pub mod api_v1;
+pub mod attachments;
 pub mod auth;
 pub mod customers;
 pub mod interventions;
 pub mod setup;
 pub mod surrealdb_health;
+pub mod technical_notes;
 pub mod vehicles;

@@ -7,10 +7,12 @@
 
 use thiserror::Error;
 
+pub mod attachment;
 pub mod auth;
 pub mod customer;
 pub mod intervention;
 pub mod surreal;
+pub mod technical_note;
 pub mod vehicle;
 
 /// Technology-independent persistence failures.

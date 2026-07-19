@@ -1,6 +1,8 @@
 //! Searchable, database-independent workshop knowledge.
 
-use crate::domain::{normalize_search_text, InterventionId, VehicleId};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{normalize_search_text, InterventionId, TechnicalNoteId, VehicleId};
 
 pub const TITLE_MAX_CHARS: usize = 200;
 pub const BODY_MAX_CHARS: usize = 50_000;
@@ -40,6 +42,29 @@ pub struct NewTechnicalNote {
     pub make: Option<TechnicalNoteContext>,
     pub model: Option<TechnicalNoteContext>,
     pub engine: Option<TechnicalNoteContext>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TechnicalNote {
+    pub id: TechnicalNoteId,
+    pub title: String,
+    pub body: String,
+    pub tags: Vec<String>,
+    pub vehicle_id: Option<VehicleId>,
+    pub source_intervention_id: Option<InterventionId>,
+    pub make: Option<TechnicalNoteContext>,
+    pub model: Option<TechnicalNoteContext>,
+    pub engine: Option<TechnicalNoteContext>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub archived_at: Option<DateTime<Utc>>,
+}
+
+impl TechnicalNote {
+    #[must_use]
+    pub const fn is_archived(&self) -> bool {
+        self.archived_at.is_some()
+    }
 }
 
 impl NewTechnicalNote {

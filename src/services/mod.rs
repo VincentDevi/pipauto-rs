@@ -3,9 +3,11 @@
 //! Services may depend on `models`, repository contracts, and application error types. They must
 //! not depend on HTTP frameworks, templates, database clients, or concrete persistence adapters.
 
+pub mod attachment;
 pub mod auth;
 pub mod customer;
 pub mod intervention;
+pub mod technical_note;
 pub mod vehicle;
 
 use thiserror::Error;

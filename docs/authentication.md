@@ -121,6 +121,19 @@ sessions. Restore `active = true` only after the account is safe.
 | `PATCH /api/v1/vehicles/{id}` | Authenticated + session CSRF | Update a vehicle or reassign its current customer. |
 | `POST /api/v1/vehicles/{id}/archive` | Authenticated + session CSRF | Idempotently archive a vehicle. |
 | `POST /api/v1/vehicles/{id}/restore` | Authenticated + session CSRF | Idempotently restore a vehicle. |
+| `GET /api/v1/technical-notes` | Authenticated | Search and page through technical notes; archived notes are opt-in. |
+| `POST /api/v1/technical-notes` | Authenticated + session CSRF | Create reusable workshop knowledge. |
+| `GET /api/v1/technical-notes/{id}` | Authenticated | Read a technical note, including an archived note. |
+| `PATCH /api/v1/technical-notes/{id}` | Authenticated + session CSRF | Update technical-note content, context, tags, or sources. |
+| `POST /api/v1/technical-notes/{id}/archive` | Authenticated + session CSRF | Idempotently archive a technical note. |
+| `POST /api/v1/technical-notes/{id}/restore` | Authenticated + session CSRF | Idempotently restore a technical note. |
+| `GET /api/v1/vehicles/{id}/attachments` | Authenticated | List attachment metadata owned by a vehicle. |
+| `POST /api/v1/vehicles/{id}/attachments` | Authenticated + session CSRF | Create metadata for an active vehicle. |
+| `GET /api/v1/interventions/{id}/attachments` | Authenticated | List attachment metadata owned by an intervention. |
+| `POST /api/v1/interventions/{id}/attachments` | Authenticated + session CSRF | Create metadata for an intervention whose vehicle is active. |
+| `GET /api/v1/attachments/{id}` | Authenticated | Read attachment metadata. |
+| `PATCH /api/v1/attachments/{id}` | Authenticated + session CSRF | Update metadata without changing its owner or storage state. |
+| `DELETE /api/v1/attachments/{id}` | Authenticated + session CSRF | Delete a `metadata_only` attachment record. |
 | `/static/*` | Public | Committed same-origin CSS, JavaScript, and vendored HTMX. |
 | `GET /_health` | Public | Loco liveness response with no application data. |
 | `GET /_health/surrealdb` | Public | Non-sensitive database availability state only. |
@@ -146,6 +159,12 @@ paths. Opaque `500 internal_error` and `503 database_unavailable` responses incl
 `X-Correlation-ID` header and matching body field; structured logs contain the correlation ID and
 safe category, never infrastructure error text or submitted secrets. User-specific API responses
 always carry `Cache-Control: no-store`.
+
+Attachment routes accept JSON metadata only. Their owner kind comes from the vehicle or intervention
+route, and their storage state is always `metadata_only`; multipart bodies, binary content, upload
+claims, and arbitrary owner table names are not accepted. Deletion is temporary and permitted only
+in this state. The later storage milestone will replace this lifecycle when it defines actual
+upload and storage behavior.
 
 Authentication routes and authenticated application routes apply `Cache-Control: no-store` in a
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.

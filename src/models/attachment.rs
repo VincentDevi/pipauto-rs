@@ -1,6 +1,8 @@
 //! Honest metadata for a file that has not been stored yet.
 
-use crate::domain::{InterventionId, VehicleId};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{AttachmentId, InterventionId, VehicleId};
 
 pub const DISPLAY_NAME_MAX_CHARS: usize = 255;
 pub const CAPTION_MAX_CHARS: usize = 1_000;
@@ -60,6 +62,25 @@ pub struct NewAttachmentMetadata {
     pub media_type: AttachmentMediaType,
     pub byte_size: Option<u64>,
     pub caption: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AttachmentMetadata {
+    pub id: AttachmentId,
+    pub owner: AttachmentOwner,
+    pub display_name: String,
+    pub media_type: AttachmentMediaType,
+    pub byte_size: Option<u64>,
+    pub caption: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl AttachmentMetadata {
+    #[must_use]
+    pub const fn storage_state(&self) -> &'static str {
+        METADATA_ONLY_STORAGE_STATE
+    }
 }
 
 impl NewAttachmentMetadata {
