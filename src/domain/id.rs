@@ -89,9 +89,11 @@ macro_rules! entity_id {
 entity_id!(CustomerId, Customer);
 entity_id!(VehicleId, Vehicle);
 entity_id!(InterventionId, Intervention);
+entity_id!(InterventionLineId, InterventionLine);
 entity_id!(TechnicalNoteId, TechnicalNote);
 entity_id!(AttachmentId, Attachment);
 entity_id!(InvoiceId, Invoice);
+entity_id!(InvoiceLineId, InvoiceLine);
 entity_id!(PaymentId, Payment);
 
 #[cfg(test)]

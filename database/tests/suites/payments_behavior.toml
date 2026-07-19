@@ -1,0 +1,84 @@
+name = "payments_behavior"
+tags = ["payments", "behavior"]
+
+[[cases]]
+name = "payment_accepts_exact_outstanding_balance"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:payment_user CONTENT { email: 'mechanic@example.com', email_normalized: 'mechanic@example.com', display_name: 'Mechanic', password_hash: '$argon2id$fixture' };",
+    "CREATE customer:payment_owner CONTENT { display_name: 'Payment Owner', display_name_normalized: 'payment owner' };",
+    "CREATE invoice:payment_invoice CONTENT { customer: customer:payment_owner };",
+    "CREATE invoice_line:payment_line CONTENT { invoice: invoice:payment_invoice, description: 'Repair', quantity: 1dec, unit_label: 'job', currency: 'EUR', unit_price_minor: 10000, line_total_minor: 10000, position: 0 };",
+    "UPDATE invoice:payment_invoice SET status = 'issued', issue_number = '2026-00100', issue_date = d'2026-07-19', customer_display_snapshot = 'Payment Owner', subtotal_minor = 10000, total_minor = 10000, issued_at = time::now();",
+    "CREATE payment:first CONTENT { invoice: invoice:payment_invoice, amount_minor: 4000, currency: 'EUR', received_at: d'2026-07-19T11:00:00Z', method: 'cash', created_by: user:payment_user };",
+]
+action_sql = "CREATE payment:second CONTENT { invoice: invoice:payment_invoice, amount_minor: 6000, currency: 'EUR', received_at: d'2026-07-19T12:00:00Z', method: 'bank_transfer', reference: 'transfer-42', created_by: user:payment_user };"
+expect_success = true
+verify_sql = "RETURN math::sum((SELECT VALUE amount_minor FROM payment WHERE invoice = invoice:payment_invoice));"
+
+[[cases.assertions]]
+path = ""
+equals = 10000
+
+[[cases]]
+name = "payment_rejects_overpayment_atomically"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:overpayment_user CONTENT { email: 'overpayment@example.com', email_normalized: 'overpayment@example.com', display_name: 'Mechanic', password_hash: '$argon2id$fixture' };",
+    "CREATE customer:overpayment_owner CONTENT { display_name: 'Overpayment Owner', display_name_normalized: 'overpayment owner' };",
+    "CREATE invoice:overpayment_invoice CONTENT { customer: customer:overpayment_owner };",
+    "CREATE invoice_line:overpayment_line CONTENT { invoice: invoice:overpayment_invoice, description: 'Repair', quantity: 1dec, unit_label: 'job', currency: 'EUR', unit_price_minor: 10000, line_total_minor: 10000, position: 0 };",
+    "UPDATE invoice:overpayment_invoice SET status = 'issued', issue_number = '2026-00101', issue_date = d'2026-07-19', customer_display_snapshot = 'Overpayment Owner', subtotal_minor = 10000, total_minor = 10000, issued_at = time::now();",
+    "CREATE payment:overpayment_first CONTENT { invoice: invoice:overpayment_invoice, amount_minor: 4000, currency: 'EUR', received_at: d'2026-07-19T11:00:00Z', method: 'card', created_by: user:overpayment_user };",
+]
+action_sql = "CREATE payment:overpayment_second CONTENT { invoice: invoice:overpayment_invoice, amount_minor: 6001, currency: 'EUR', received_at: d'2026-07-19T12:00:00Z', method: 'card', created_by: user:overpayment_user };"
+expect_success = false
+verify_sql = "RETURN math::sum((SELECT VALUE amount_minor FROM payment WHERE invoice = invoice:overpayment_invoice));"
+
+[[cases.assertions]]
+path = ""
+equals = 4000
+
+[[cases]]
+name = "payment_rejects_draft_invoice_and_wrong_currency"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:draft_payment_user CONTENT { email: 'draft@example.com', email_normalized: 'draft@example.com', display_name: 'Mechanic', password_hash: '$argon2id$fixture' };",
+    "CREATE customer:draft_payment_owner CONTENT { display_name: 'Draft Owner', display_name_normalized: 'draft owner' };",
+    "CREATE invoice:draft_payment_invoice CONTENT { customer: customer:draft_payment_owner, currency: 'EUR', total_minor: 1000, subtotal_minor: 1000 };",
+]
+action_sql = "CREATE payment:draft_invalid CONTENT { invoice: invoice:draft_payment_invoice, amount_minor: 100, currency: 'USD', received_at: d'2026-07-19T12:00:00Z', method: 'other', created_by: user:draft_payment_user };"
+expect_success = false
+
+[[cases]]
+name = "recorded_payment_cannot_be_updated_or_deleted"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:immutable_payment_user CONTENT { email: 'immutable@example.com', email_normalized: 'immutable@example.com', display_name: 'Mechanic', password_hash: '$argon2id$fixture' };",
+    "CREATE customer:immutable_payment_owner CONTENT { display_name: 'Immutable Owner', display_name_normalized: 'immutable owner' };",
+    "CREATE invoice:immutable_payment_invoice CONTENT { customer: customer:immutable_payment_owner };",
+    "CREATE invoice_line:immutable_payment_line CONTENT { invoice: invoice:immutable_payment_invoice, description: 'Repair', quantity: 1dec, unit_label: 'job', currency: 'EUR', unit_price_minor: 1000, line_total_minor: 1000, position: 0 };",
+    "UPDATE invoice:immutable_payment_invoice SET status = 'issued', issue_number = '2026-00102', issue_date = d'2026-07-19', customer_display_snapshot = 'Immutable Owner', subtotal_minor = 1000, total_minor = 1000, issued_at = time::now();",
+    "CREATE payment:immutable CONTENT { invoice: invoice:immutable_payment_invoice, amount_minor: 100, currency: 'EUR', received_at: d'2026-07-19T12:00:00Z', method: 'cash', created_by: user:immutable_payment_user };",
+]
+action_sql = "UPDATE payment:immutable SET amount_minor = 200;"
+expect_success = false
+verify_sql = "RETURN payment:immutable.amount_minor;"
+
+[[cases.assertions]]
+path = ""
+equals = 100
+
+[[cases]]
+name = "invoice_with_payment_cannot_be_voided"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:void_payment_user CONTENT { email: 'void@example.com', email_normalized: 'void@example.com', display_name: 'Mechanic', password_hash: '$argon2id$fixture' };",
+    "CREATE customer:void_payment_owner CONTENT { display_name: 'Paid Owner', display_name_normalized: 'paid owner' };",
+    "CREATE invoice:void_payment_invoice CONTENT { customer: customer:void_payment_owner };",
+    "CREATE invoice_line:void_payment_line CONTENT { invoice: invoice:void_payment_invoice, description: 'Repair', quantity: 1dec, unit_label: 'job', currency: 'EUR', unit_price_minor: 1000, line_total_minor: 1000, position: 0 };",
+    "UPDATE invoice:void_payment_invoice SET status = 'issued', issue_number = '2026-00103', issue_date = d'2026-07-19', customer_display_snapshot = 'Paid Owner', subtotal_minor = 1000, total_minor = 1000, issued_at = time::now();",
+    "CREATE payment:void_guard CONTENT { invoice: invoice:void_payment_invoice, amount_minor: 100, currency: 'EUR', received_at: d'2026-07-19T12:00:00Z', method: 'cash', created_by: user:void_payment_user };",
+]
+action_sql = "UPDATE invoice:void_payment_invoice SET status = 'void', void_reason = 'Should fail', voided_at = time::now();"
+expect_success = false

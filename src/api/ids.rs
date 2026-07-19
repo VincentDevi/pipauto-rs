@@ -19,7 +19,9 @@ macro_rules! id_dto {
 id_dto!(CustomerIdDto, crate::domain::CustomerId);
 id_dto!(VehicleIdDto, crate::domain::VehicleId);
 id_dto!(InterventionIdDto, crate::domain::InterventionId);
+id_dto!(InterventionLineIdDto, crate::domain::InterventionLineId);
 id_dto!(TechnicalNoteIdDto, crate::domain::TechnicalNoteId);
 id_dto!(AttachmentIdDto, crate::domain::AttachmentId);
 id_dto!(InvoiceIdDto, crate::domain::InvoiceId);
+id_dto!(InvoiceLineIdDto, crate::domain::InvoiceLineId);
 id_dto!(PaymentIdDto, crate::domain::PaymentId);

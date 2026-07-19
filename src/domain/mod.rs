@@ -13,8 +13,8 @@ pub mod validation;
 
 pub use archive::{ArchiveState, EntityTimestamps};
 pub use id::{
-    AttachmentId, CustomerId, EntityId, InterventionId, InvoiceId, PaymentId, TechnicalNoteId,
-    VehicleId,
+    AttachmentId, CustomerId, EntityId, InterventionId, InterventionLineId, InvoiceId,
+    InvoiceLineId, PaymentId, TechnicalNoteId, VehicleId,
 };
 pub use money::{CurrencyCode, Money, MoneyError};
 pub use normalization::{

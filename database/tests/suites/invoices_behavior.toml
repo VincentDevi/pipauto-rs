@@ -1,0 +1,96 @@
+name = "invoices_behavior"
+tags = ["invoices", "behavior"]
+
+[[cases]]
+name = "database_sequence_is_monotonic"
+kind = "schema_behavior"
+setup_sql = [
+    "RETURN sequence::nextval('invoice_issue_number');",
+]
+action_sql = "RETURN sequence::nextval('invoice_issue_number') > 1;"
+expect_success = true
+
+[[cases.assertions]]
+path = ""
+equals = true
+
+[[cases]]
+name = "draft_issues_with_unique_final_number_and_matching_snapshots"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:invoice_owner CONTENT { display_name: 'Invoice Owner', display_name_normalized: 'invoice owner' };",
+    "CREATE invoice:issued CONTENT { customer: customer:invoice_owner, currency: 'EUR' };",
+    "CREATE invoice_line:issued_line CONTENT { invoice: invoice:issued, description: 'Workshop labour', quantity: 2dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, line_total_minor: 10000, position: 0 };",
+]
+action_sql = "UPDATE invoice:issued SET status = 'issued', issue_number = '2026-00001', issue_date = d'2026-07-19', due_date = d'2026-08-19', customer_display_snapshot = 'Invoice Owner', subtotal_minor = 10000, total_minor = 10000, issued_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM invoice:issued WHERE status = 'issued' AND issue_number = '2026-00001' AND subtotal_minor = total_minor);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "issued_total_must_match_line_snapshots"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:total_owner CONTENT { display_name: 'Total Owner', display_name_normalized: 'total owner' };",
+    "CREATE invoice:bad_total CONTENT { customer: customer:total_owner };",
+    "CREATE invoice_line:bad_total_line CONTENT { invoice: invoice:bad_total, description: 'Part', quantity: 1dec, unit_label: 'item', currency: 'EUR', unit_price_minor: 5000, line_total_minor: 5000, position: 0 };",
+]
+action_sql = "UPDATE invoice:bad_total SET status = 'issued', issue_number = '2026-00002', issue_date = d'2026-07-19', customer_display_snapshot = 'Total Owner', subtotal_minor = 4000, total_minor = 4000, issued_at = time::now();"
+expect_success = false
+
+[[cases]]
+name = "final_number_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:number_owner CONTENT { display_name: 'Number Owner', display_name_normalized: 'number owner' };",
+    "CREATE invoice:number_first CONTENT { customer: customer:number_owner };",
+    "UPDATE invoice:number_first SET status = 'issued', issue_number = '2026-00003', issue_date = d'2026-07-19', customer_display_snapshot = 'Number Owner', issued_at = time::now();",
+    "CREATE invoice:number_second CONTENT { customer: customer:number_owner };",
+]
+action_sql = "UPDATE invoice:number_second SET status = 'issued', issue_number = '2026-00003', issue_date = d'2026-07-19', customer_display_snapshot = 'Number Owner', issued_at = time::now();"
+expect_success = false
+
+[[cases]]
+name = "issued_snapshots_and_lines_are_immutable"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:snapshot_owner CONTENT { display_name: 'Snapshot Owner', display_name_normalized: 'snapshot owner' };",
+    "CREATE invoice:snapshot CONTENT { customer: customer:snapshot_owner };",
+    "CREATE invoice_line:snapshot_line CONTENT { invoice: invoice:snapshot, description: 'Original description', quantity: 1dec, unit_label: 'item', currency: 'EUR', unit_price_minor: 1000, line_total_minor: 1000, position: 0 };",
+    "UPDATE invoice:snapshot SET status = 'issued', issue_number = '2026-00004', issue_date = d'2026-07-19', customer_display_snapshot = 'Snapshot Owner', subtotal_minor = 1000, total_minor = 1000, issued_at = time::now();",
+]
+action_sql = "UPDATE invoice_line:snapshot_line SET description = 'Rewritten';"
+expect_success = false
+verify_sql = "RETURN invoice_line:snapshot_line.description;"
+
+[[cases.assertions]]
+path = ""
+equals = "Original description"
+
+[[cases]]
+name = "draft_can_be_voided_without_allocating_final_number"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:void_owner CONTENT { display_name: 'Void Owner', display_name_normalized: 'void owner' };",
+    "CREATE invoice:void_draft CONTENT { customer: customer:void_owner };",
+]
+action_sql = "UPDATE invoice:void_draft SET status = 'void', void_reason = 'Duplicate draft', voided_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM invoice:void_draft WHERE status = 'void' AND issue_number IS NONE AND issued_at IS NONE);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "invoice_line_requires_matching_currency_and_total"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:line_owner CONTENT { display_name: 'Line Owner', display_name_normalized: 'line owner' };",
+    "CREATE invoice:line_parent CONTENT { customer: customer:line_owner, currency: 'EUR' };",
+]
+action_sql = "CREATE invoice_line:invalid CONTENT { invoice: invoice:line_parent, description: 'Part', quantity: 1.5dec, unit_label: 'item', currency: 'USD', unit_price_minor: 101, line_total_minor: 151, position: 0 };"
+expect_success = false

@@ -1,0 +1,74 @@
+name = "invoices_schema"
+tags = ["invoices", "metadata"]
+
+[[cases]]
+name = "invoice_tables_and_sequence_exist"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE SEQUENCE invoice_issue_number",
+    "DEFINE TABLE invoice TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "DEFINE TABLE invoice_line TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+]
+
+[[cases]]
+name = "invoice_fields_events_and_indexes_match"
+kind = "schema_metadata"
+table = "invoice"
+contains = [
+    "DEFINE FIELD billing_address_snapshot ON invoice TYPE none | object",
+    "DEFINE FIELD created_at ON invoice TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD currency ON invoice TYPE string DEFAULT 'EUR'",
+    "DEFINE FIELD customer ON invoice TYPE record<customer>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE FIELD customer_display_snapshot ON invoice TYPE none | string",
+    "DEFINE FIELD due_date ON invoice TYPE none | datetime",
+    "DEFINE FIELD intervention ON invoice TYPE none | record<intervention>",
+    "DEFINE FIELD issue_date ON invoice TYPE none | datetime",
+    "DEFINE FIELD issue_number ON invoice TYPE none | string",
+    "DEFINE FIELD issued_at ON invoice TYPE none | datetime",
+    "DEFINE FIELD notes ON invoice TYPE none | string",
+    "DEFINE FIELD status ON invoice TYPE string DEFAULT 'draft'",
+    "DEFINE FIELD subtotal_minor ON invoice TYPE int DEFAULT 0",
+    "DEFINE FIELD total_minor ON invoice TYPE int DEFAULT 0",
+    "DEFINE FIELD updated_at ON invoice TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE FIELD vehicle ON invoice TYPE none | record<vehicle>",
+    "DEFINE FIELD void_reason ON invoice TYPE none | string",
+    "DEFINE FIELD voided_at ON invoice TYPE none | datetime",
+    "DEFINE INDEX invoice_customer ON invoice FIELDS customer",
+    "DEFINE INDEX invoice_intervention ON invoice FIELDS intervention",
+    "DEFINE INDEX invoice_issue_date ON invoice FIELDS issue_date",
+    "DEFINE INDEX invoice_issue_number_unique ON invoice FIELDS issue_number UNIQUE",
+    "DEFINE INDEX invoice_outstanding_listing ON invoice FIELDS status, due_date, issue_date",
+    "DEFINE INDEX invoice_status ON invoice FIELDS status",
+    "DEFINE INDEX invoice_vehicle ON invoice FIELDS vehicle",
+    "DEFINE EVENT invoice_reject_delete ON invoice",
+    "DEFINE EVENT invoice_reject_issued_snapshot_update ON invoice",
+    "DEFINE EVENT invoice_reject_number_reassignment ON invoice",
+    "DEFINE EVENT invoice_validate_state ON invoice",
+    "DEFINE EVENT invoice_validate_void ON invoice",
+]
+
+[[cases]]
+name = "invoice_line_fields_events_and_indexes_match"
+kind = "schema_metadata"
+table = "invoice_line"
+contains = [
+    "DEFINE FIELD created_at ON invoice_line TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD currency ON invoice_line TYPE string",
+    "DEFINE FIELD description ON invoice_line TYPE string",
+    "DEFINE FIELD invoice ON invoice_line TYPE record<invoice>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE FIELD line_total_minor ON invoice_line TYPE int",
+    "DEFINE FIELD position ON invoice_line TYPE int",
+    "DEFINE FIELD quantity ON invoice_line TYPE decimal",
+    "DEFINE FIELD source_intervention_line ON invoice_line TYPE none | record<intervention_line>",
+    "DEFINE FIELD unit_label ON invoice_line TYPE string",
+    "DEFINE FIELD unit_price_minor ON invoice_line TYPE int",
+    "DEFINE FIELD updated_at ON invoice_line TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE INDEX invoice_line_invoice ON invoice_line FIELDS invoice",
+    "DEFINE INDEX invoice_line_position_unique ON invoice_line FIELDS invoice, position UNIQUE",
+    "DEFINE INDEX invoice_line_source_intervention_line ON invoice_line FIELDS source_intervention_line",
+    "DEFINE EVENT invoice_line_reject_terminal_mutation ON invoice_line",
+    "DEFINE EVENT invoice_line_validate_snapshot ON invoice_line",
+]

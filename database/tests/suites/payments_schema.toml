@@ -1,0 +1,29 @@
+name = "payments_schema"
+tags = ["payments", "metadata"]
+
+[[cases]]
+name = "payment_table_is_schemafull"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = ["DEFINE TABLE payment TYPE NORMAL SCHEMAFULL PERMISSIONS NONE"]
+
+[[cases]]
+name = "payment_fields_events_and_indexes_match"
+kind = "schema_metadata"
+table = "payment"
+contains = [
+    "DEFINE FIELD amount_minor ON payment TYPE int",
+    "DEFINE FIELD created_at ON payment TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD created_by ON payment TYPE record<user>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE FIELD currency ON payment TYPE string",
+    "DEFINE FIELD invoice ON payment TYPE record<invoice>",
+    "DEFINE FIELD method ON payment TYPE string",
+    "DEFINE FIELD notes ON payment TYPE none | string",
+    "DEFINE FIELD received_at ON payment TYPE datetime",
+    "DEFINE FIELD reference ON payment TYPE none | string",
+    "DEFINE INDEX payment_created_by ON payment FIELDS created_by",
+    "DEFINE INDEX payment_invoice_received ON payment FIELDS invoice, received_at, created_at",
+    "DEFINE EVENT payment_reject_mutation ON payment",
+    "DEFINE EVENT payment_validate_create ON payment",
+]

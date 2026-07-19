@@ -8,5 +8,8 @@ pub mod auth;
 pub mod customer;
 pub mod intervention;
 pub mod intervention_line;
+pub mod invoice;
+pub mod invoice_line;
+pub mod payment;
 pub mod technical_note;
 pub mod vehicle;

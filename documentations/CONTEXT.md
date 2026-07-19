@@ -131,7 +131,21 @@ The initial product should provide a straightforward view of the financial side 
 - Invoice numbering.
 - Invoice and payment-status tracking.
 
-Detailed accounting rules, taxation, legal invoice requirements, currencies, billing calculations, and payment-provider behavior are not defined in the current brief. They must be specified before implementation rather than inferred.
+Invoices begin as unnumbered drafts and may be issued or voided. Issuing snapshots the displayed
+customer, billing, line, currency, and total values and allocates a unique final number from a
+monotonically increasing database sequence. Final numbers use `YYYY-NNNNN`, based on the UTC issue
+year; sequence gaps are expected and values are never reused. Issued financial snapshots and final
+numbers are immutable.
+
+Invoice amounts are tax-neutral in the initial release: persisted subtotal and total minor units
+are equal. Invoice lines use positive quantities, snapshot their displayed values, and share the
+invoice currency. Payments are append-only, positive records against issued invoices, attributed
+to the authenticated user, and cannot exceed the outstanding balance. Unpaid, partially paid, and
+paid are derived from recorded payments rather than stored as writable state. Invoices with any
+recorded payment cannot be voided until a later correction/refund policy is approved.
+
+VAT, tax reporting, jurisdiction-specific legal invoice behavior, payment providers, refunds,
+credit notes, and payment correction behavior remain undefined and outside the initial scope.
 
 ### Approved shared domain conventions
 
