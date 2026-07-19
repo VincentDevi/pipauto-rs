@@ -3,10 +3,13 @@
 use std::{env, fmt, time::Duration};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use hmac::{Hmac, Mac};
 use loco_rs::environment::Environment;
 use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 use url::Url;
+
+use sha2::Sha256;
 
 const JWT_SECRET_ENV: &str = "PIPAUTO_JWT_SECRET";
 const CSRF_SECRET_ENV: &str = "PIPAUTO_CSRF_SECRET";
@@ -18,6 +21,7 @@ const LOGIN_BLOCK_SECONDS: u64 = 15 * 60;
 const LOGIN_CSRF_SECONDS: u64 = 10 * 60;
 const MIN_SECRET_BYTES: usize = 32;
 const EXAMPLE_SECRET: &str = "replace-with-generated-base64";
+const CURSOR_KEY_PURPOSE: &[u8] = b"pipauto/api-v1/cursor-hmac/v1";
 
 /// Validated authentication settings installed once during application startup.
 #[derive(Clone)]
@@ -177,6 +181,14 @@ impl AuthSettings {
     pub(crate) fn csrf_secret(&self) -> &str {
         self.csrf_secret.expose_secret()
     }
+
+    /// Derive a purpose-separated cursor key without reusing JWT or raw CSRF key material.
+    pub(crate) fn cursor_key(&self) -> Result<[u8; 32], AuthSettingsError> {
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.csrf_secret().as_bytes())
+            .map_err(|_| AuthSettingsError::CursorKeyDerivation)?;
+        mac.update(CURSOR_KEY_PURPOSE);
+        Ok(mac.finalize().into_bytes().into())
+    }
 }
 
 impl fmt::Debug for AuthSettings {
@@ -216,6 +228,9 @@ pub enum AuthSettingsError {
     /// JWT and CSRF keys must have different material.
     #[error("JWT and CSRF secrets must differ")]
     SecretsMustDiffer,
+    /// Purpose-separated cursor key derivation failed.
+    #[error("cursor key derivation failed")]
+    CursorKeyDerivation,
     /// Browser sessions have one fixed, approved lifetime.
     #[error("session lifetime must be exactly 12 hours")]
     SessionLifetimeMustBeTwelveHours,
@@ -373,6 +388,17 @@ mod tests {
             .expect_err("non-standard session lifetime must fail"),
             AuthSettingsError::SessionLifetimeMustBeTwelveHours
         );
+    }
+
+    #[test]
+    fn auth_settings_derive_a_stable_purpose_separated_cursor_key() {
+        let settings = AuthSettings::from_environment(&Environment::Test)
+            .expect("test settings should validate");
+        let key = settings.cursor_key().expect("cursor key should derive");
+
+        assert_ne!(key.as_slice(), settings.jwt_secret().as_bytes());
+        assert_ne!(key.as_slice(), settings.csrf_secret().as_bytes());
+        assert_eq!(key, settings.cursor_key().expect("derivation is stable"));
     }
 
     #[test]

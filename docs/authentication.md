@@ -120,6 +120,20 @@ session `jti`, canonical origin, action, and expiry. Unsafe requests accept one 
 `X-CSRF-Token`; if both exist they must match. The same-origin JavaScript adds the header to HTMX
 unsafe requests, while forms remain fully usable without JavaScript.
 
+Business JSON routes use the same authenticated session boundary below `/api/v1`. Every handler
+extracts `CurrentUser`; unsafe handlers additionally extract `AuthenticatedCsrfJson<T>`, which
+checks the single `X-CSRF-Token` against the session `jti`, canonical origin, unsafe action, and
+expiry before the handler can invoke a service. Each unsafe route sets an explicit body limit and
+accepts JSON content types only. Stale credentials receive a JSON `401 unauthenticated` response
+and the same expired session cookie used by the browser flow.
+
+Successful single-resource responses use `{ "data": ... }`; collections use
+`{ "data": [...], "next_cursor": null }`. Errors use a stable `error` envelope with public field
+paths. Opaque `500 internal_error` and `503 database_unavailable` responses include an
+`X-Correlation-ID` header and matching body field; structured logs contain the correlation ID and
+safe category, never infrastructure error text or submitted secrets. User-specific API responses
+always carry `Cache-Control: no-store`.
+
 Authentication routes and authenticated application routes apply `Cache-Control: no-store` in a
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.
 Responses use a restrictive same-origin CSP, no-referrer,

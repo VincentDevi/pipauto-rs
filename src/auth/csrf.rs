@@ -3,7 +3,7 @@
 use std::fmt;
 
 use axum::{
-    extract::{Form, FromRef, FromRequest, Request},
+    extract::{Form, FromRef, FromRequest, Json, Request},
     http::{
         header::{CACHE_CONTROL, LOCATION, ORIGIN, REFERER},
         HeaderMap, HeaderValue, StatusCode,
@@ -23,7 +23,8 @@ use url::Url;
 
 use super::settings::AuthSettings;
 use crate::{
-    auth::extractors::append_vary_hx_request,
+    auth::{cookies::AuthCookies, extractors::append_vary_hx_request},
+    errors::AppError,
     models::auth::AuthenticatedUser,
     services::auth::{AuthError, AuthService},
 };
@@ -454,6 +455,53 @@ where
     }
 }
 
+/// A JSON body validated against the active session, same origin, unsafe action, and expiry.
+///
+/// API handlers also declare [`crate::auth::extractors::CurrentUser`] explicitly. Keeping this
+/// extractor focused on the unsafe body boundary ensures CSRF is complete before the handler can
+/// invoke a service.
+pub struct AuthenticatedCsrfJson<T>(pub T);
+
+impl<S, T> FromRequest<S> for AuthenticatedCsrfJson<T>
+where
+    AppContext: FromRef<S>,
+    S: Send + Sync,
+    T: DeserializeOwned + Send,
+{
+    type Rejection = Response;
+
+    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let headers = request.headers().clone();
+        let jar = CookieJar::from_headers(&headers);
+        let ctx = AppContext::from_ref(state);
+        let settings =
+            shared::<AuthSettings>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let service =
+            shared::<AuthService>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let csrf =
+            shared::<CsrfService>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let encoded_jwt = jar
+            .get(settings.session_cookie_name())
+            .map(|cookie| cookie.value().to_owned())
+            .ok_or_else(|| AppError::Unauthenticated.into_response())?;
+        let session = service
+            .authenticate_session(&encoded_jwt)
+            .await
+            .map_err(|error| api_auth_rejection(error, &headers, &settings))?;
+        let token =
+            submitted_token(&headers, None).ok_or_else(|| AppError::Forbidden.into_response())?;
+        let origin =
+            same_origin(&headers, &settings).ok_or_else(|| AppError::Forbidden.into_response())?;
+        csrf.validate_authenticated(&token, &session.jti, &origin, Utc::now())
+            .map_err(api_csrf_rejection)?;
+
+        let Json(fields) = Json::<T>::from_request(request, state)
+            .await
+            .map_err(api_json_rejection)?;
+        Ok(Self(fields))
+    }
+}
+
 #[derive(Deserialize)]
 struct CsrfEnvelope<T> {
     #[serde(rename = "_csrf")]
@@ -526,6 +574,33 @@ fn authenticated_csrf_rejection(error: AuthError) -> Response {
     match error {
         AuthError::Unauthenticated => forbidden_response(),
         AuthError::Unavailable => service_unavailable_response(),
+    }
+}
+
+fn api_auth_rejection(error: AuthError, headers: &HeaderMap, settings: &AuthSettings) -> Response {
+    match error {
+        AuthError::Unauthenticated => {
+            let response = AppError::Unauthenticated.into_response();
+            let jar = CookieJar::from_headers(headers)
+                .add(AuthCookies::new(settings.clone()).clear_session());
+            (jar, response).into_response()
+        }
+        AuthError::Unavailable => AppError::Unavailable.into_response(),
+    }
+}
+
+fn api_csrf_rejection(error: CsrfError) -> Response {
+    match error {
+        CsrfError::Invalid => AppError::Forbidden.into_response(),
+        CsrfError::Unavailable => AppError::Unavailable.into_response(),
+    }
+}
+
+fn api_json_rejection(rejection: axum::extract::rejection::JsonRejection) -> Response {
+    match rejection.status() {
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => AppError::UnsupportedMediaType.into_response(),
+        StatusCode::PAYLOAD_TOO_LARGE => AppError::PayloadTooLarge.into_response(),
+        _ => AppError::MalformedRequest.into_response(),
     }
 }
 

@@ -21,8 +21,8 @@ pub use normalization::{
     normalize_email, normalize_phone, normalize_search_text, NormalizedRegistration, NormalizedVin,
 };
 pub use pagination::{
-    CollectionFilter, CursorCodec, CursorError, CursorTuple, OpaqueCursor, Page, PageLimit,
-    PageRequest, PaginationError, MAX_PAGE_LIMIT, MIN_PAGE_LIMIT,
+    CollectionFilter, CursorCodec, CursorError, CursorResource, CursorSortValue, CursorTuple,
+    OpaqueCursor, Page, PageLimit, PageRequest, PaginationError, MAX_PAGE_LIMIT, MIN_PAGE_LIMIT,
 };
 pub use quantity::{Quantity, QuantityError};
 pub use validation::{FieldPath, ValidationCode, ValidationError, ValidationErrors};

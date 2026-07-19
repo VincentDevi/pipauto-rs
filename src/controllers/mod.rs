@@ -3,6 +3,7 @@
 //! Controllers may depend on Axum and Loco HTTP types, services, and views. They must not contain
 //! business rules, issue database queries, or depend directly on persistence adapters.
 
+pub mod api_v1;
 pub mod auth;
 pub mod setup;
 pub mod surrealdb_health;

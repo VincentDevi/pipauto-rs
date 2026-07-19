@@ -89,7 +89,7 @@ impl ValidationError {
         code: ValidationCode,
         message: impl Into<String>,
     ) -> Result<Self, Self> {
-        let field = FieldPath::parse(field).map_err(|error| error)?;
+        let field = FieldPath::parse(field)?;
         let message = message.into();
         if message.trim().is_empty() {
             return Err(Self::new_unchecked(

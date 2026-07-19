@@ -12,6 +12,7 @@ use crate::{
         settings::AuthSettings,
     },
     database::client::AppDatabase,
+    domain::CursorCodec,
     repositories::surreal::auth::SurrealAuthRepository,
     services::auth::{AuthService, PasswordEngine},
 };
@@ -23,6 +24,8 @@ use crate::{
 /// Returns a safe startup error before the listener binds when composition fails.
 pub async fn install(ctx: &AppContext) -> Result<()> {
     let settings = AuthSettings::from_environment(&ctx.environment).map_err(Error::msg)?;
+    let cursor_codec =
+        CursorCodec::new(settings.cursor_key().map_err(Error::msg)?).map_err(Error::msg)?;
     let database = ctx
         .shared_store
         .get::<AppDatabase>()
@@ -64,6 +67,7 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     );
 
     ctx.shared_store.insert(settings.clone());
+    ctx.shared_store.insert(cursor_codec);
     ctx.shared_store.insert(CsrfService::new(settings.clone()));
     ctx.shared_store.insert(AuthCookies::new(settings));
     ctx.shared_store.insert(service);

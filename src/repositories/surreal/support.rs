@@ -3,7 +3,10 @@
 use chrono::{DateTime, Utc};
 use surrealdb::types::{RecordId, SurrealValue, ToSql};
 
-use crate::{domain::CursorTuple, repositories::RepositoryError};
+use crate::{
+    domain::{CursorSortValue, CursorTuple},
+    repositories::RepositoryError,
+};
 
 /// Build a record ID only after validating its database-independent key.
 pub fn record_id(table: &'static str, key: &str) -> Result<RecordId, RepositoryError> {
@@ -85,10 +88,11 @@ pub fn cursor_tuple(
     record: &RecordId,
     table: &'static str,
 ) -> Result<CursorTuple, RepositoryError> {
-    Ok(CursorTuple {
-        timestamp,
-        entity_key: record_key(record, table)?,
-    })
+    CursorTuple::new(
+        vec![CursorSortValue::Timestamp(timestamp)],
+        record_key(record, table)?,
+    )
+    .map_err(|_| RepositoryError::CorruptData)
 }
 
 /// Convert a decoded cursor tuple into bound Surreal query values.
@@ -96,7 +100,10 @@ pub fn surreal_cursor_tuple(
     tuple: &CursorTuple,
     table: &'static str,
 ) -> Result<(DateTime<Utc>, RecordId), RepositoryError> {
-    Ok((tuple.timestamp, record_id(table, &tuple.entity_key)?))
+    let [CursorSortValue::Timestamp(timestamp)] = tuple.sort_values() else {
+        return Err(RepositoryError::CorruptData);
+    };
+    Ok((*timestamp, record_id(table, tuple.entity_key())?))
 }
 
 #[cfg(test)]

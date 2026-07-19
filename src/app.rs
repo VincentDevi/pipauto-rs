@@ -146,6 +146,7 @@ pub fn app_routes() -> AppRoutes {
         .add_route(crate::controllers::auth::routes())
         .add_route(crate::controllers::setup::routes())
         .add_route(crate::controllers::surrealdb_health::routes())
+        .add_routes(crate::controllers::api_v1::routes())
 }
 
 #[cfg(test)]
@@ -178,6 +179,13 @@ mod tests {
 
         let documentation = include_str!("../docs/authentication.md");
         for route in ROUTE_ACCESS_POLICY {
+            if route.path == "/api/v1" || route.path.starts_with("/api/v1/") {
+                assert_eq!(
+                    route.class,
+                    AccessClass::Authenticated,
+                    "every /api/v1 route must be authenticated"
+                );
+            }
             let signature = format!("`{} {}`", route.method, route.path);
             assert!(
                 documentation.contains(&signature),

@@ -20,6 +20,8 @@ pub enum WorkflowError {
     Conflict,
     #[error("workflow is temporarily unavailable")]
     Unavailable,
+    #[error("workflow failed internally")]
+    Internal,
 }
 
 impl From<RepositoryError> for WorkflowError {
@@ -27,7 +29,8 @@ impl From<RepositoryError> for WorkflowError {
         match value {
             RepositoryError::Conflict => Self::Conflict,
             RepositoryError::NotFound => Self::NotFound,
-            RepositoryError::Unavailable | RepositoryError::CorruptData => Self::Unavailable,
+            RepositoryError::Unavailable => Self::Unavailable,
+            RepositoryError::CorruptData => Self::Internal,
         }
     }
 }
@@ -52,7 +55,7 @@ mod tests {
         );
         assert_eq!(
             WorkflowError::from(RepositoryError::CorruptData),
-            WorkflowError::Unavailable
+            WorkflowError::Internal
         );
     }
 }

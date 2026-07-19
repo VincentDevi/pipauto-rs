@@ -13,7 +13,8 @@ use axum_extra::extract::cookie::CookieJar;
 use loco_rs::app::AppContext;
 
 use crate::{
-    auth::settings::AuthSettings,
+    auth::{cookies::AuthCookies, settings::AuthSettings},
+    errors::AppError,
     models::auth::AuthenticatedUser,
     services::auth::{AuthError, AuthService},
 };
@@ -30,14 +31,16 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let ctx = AppContext::from_ref(state);
-        let settings = shared::<AuthSettings>(&ctx)?;
-        let service = shared::<AuthService>(&ctx)?;
+        let settings = shared::<AuthSettings>(&ctx, parts)?;
+        let service = shared::<AuthService>(&ctx, parts)?;
         let token = session_cookie(&parts.headers, settings.session_cookie_name())
-            .ok_or_else(|| unauthenticated_response(parts))?;
+            .ok_or_else(|| unauthenticated_response(parts, &settings, false))?;
         match service.authenticate(&token).await {
             Ok(user) => Ok(Self(user)),
-            Err(AuthError::Unauthenticated) => Err(unauthenticated_response(parts)),
-            Err(AuthError::Unavailable) => Err(unavailable_response()),
+            Err(AuthError::Unauthenticated) => {
+                Err(unauthenticated_response(parts, &settings, true))
+            }
+            Err(AuthError::Unavailable) => Err(unavailable_response(parts)),
         }
     }
 }
@@ -61,8 +64,8 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let ctx = AppContext::from_ref(state);
-        let settings = shared::<AuthSettings>(&ctx)?;
-        let service = shared::<AuthService>(&ctx)?;
+        let settings = shared::<AuthSettings>(&ctx, parts)?;
+        let service = shared::<AuthService>(&ctx, parts)?;
         let token = match session_cookie(&parts.headers, settings.session_cookie_name()) {
             Some(token) => token,
             None if cookie_was_present(&parts.headers, settings.session_cookie_name()) => {
@@ -73,17 +76,31 @@ where
         match service.authenticate(&token).await {
             Ok(user) => Ok(Self::Authenticated(user)),
             Err(AuthError::Unauthenticated) => Ok(Self::StaleCredential),
-            Err(AuthError::Unavailable) => Err(unavailable_response()),
+            Err(AuthError::Unavailable) => Err(unavailable_response(parts)),
         }
     }
 }
 
 #[allow(clippy::result_large_err)]
-fn shared<T: Clone + Send + Sync + 'static>(ctx: &AppContext) -> Result<T, Response> {
-    ctx.shared_store.get::<T>().ok_or_else(unavailable_response)
+fn shared<T: Clone + Send + Sync + 'static>(
+    ctx: &AppContext,
+    parts: &Parts,
+) -> Result<T, Response> {
+    ctx.shared_store
+        .get::<T>()
+        .ok_or_else(|| unavailable_response(parts))
 }
 
-fn unauthenticated_response(parts: &Parts) -> Response {
+fn unauthenticated_response(parts: &Parts, settings: &AuthSettings, stale: bool) -> Response {
+    if is_api_path(parts.uri.path()) {
+        let response = AppError::Unauthenticated.into_response();
+        if stale {
+            let jar = CookieJar::from_headers(&parts.headers)
+                .add(AuthCookies::new(settings.clone()).clear_session());
+            return (jar, response).into_response();
+        }
+        return response;
+    }
     let next = safe_next_destination(Some(
         parts
             .uri
@@ -109,11 +126,18 @@ fn unauthenticated_response(parts: &Parts) -> Response {
     }
 }
 
-fn unavailable_response() -> Response {
+fn unavailable_response(parts: &Parts) -> Response {
+    if is_api_path(parts.uri.path()) {
+        return AppError::Unavailable.into_response();
+    }
     no_store((
         StatusCode::SERVICE_UNAVAILABLE,
         "Authentication is temporarily unavailable. Please try again.",
     ))
+}
+
+fn is_api_path(path: &str) -> bool {
+    path == "/api/v1" || path.starts_with("/api/v1/")
 }
 
 fn no_store(response: impl IntoResponse) -> Response {
