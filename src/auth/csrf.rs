@@ -5,7 +5,7 @@ use std::fmt;
 use axum::{
     extract::{Form, FromRef, FromRequest, Request},
     http::{
-        header::{CACHE_CONTROL, ORIGIN, REFERER},
+        header::{CACHE_CONTROL, LOCATION, ORIGIN, REFERER},
         HeaderMap, HeaderValue, StatusCode,
     },
     response::{IntoResponse, Response},
@@ -23,6 +23,7 @@ use url::Url;
 
 use super::settings::AuthSettings;
 use crate::{
+    auth::extractors::append_vary_hx_request,
     models::auth::AuthenticatedUser,
     services::auth::{AuthError, AuthService},
 };
@@ -254,6 +255,116 @@ impl<T> LoginCsrfForm<T> {
     }
 }
 
+/// Guest-only login form with pre-authentication CSRF state already validated.
+pub struct GuestLoginCsrfForm<T> {
+    /// Controller-specific form fields.
+    pub fields: T,
+    token: SecretCsrfToken,
+    stale_session: bool,
+}
+
+impl<T> GuestLoginCsrfForm<T> {
+    /// Return the validated token so a recoverable login error can render the same safe form.
+    #[must_use]
+    pub fn token(&self) -> &SecretCsrfToken {
+        &self.token
+    }
+
+    /// Whether the request presented a credential that should be cleared from the browser.
+    #[must_use]
+    pub const fn stale_session(&self) -> bool {
+        self.stale_session
+    }
+}
+
+impl<S, T> FromRequest<S> for GuestLoginCsrfForm<T>
+where
+    AppContext: FromRef<S>,
+    S: Send + Sync,
+    T: DeserializeOwned + Send,
+{
+    type Rejection = Response;
+
+    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let jar = CookieJar::from_headers(request.headers());
+        let ctx = AppContext::from_ref(state);
+        let settings = shared::<AuthSettings>(&ctx)?;
+        let service = shared::<AuthService>(&ctx)?;
+        let stale_session = if let Some(encoded_jwt) = jar.get(settings.session_cookie_name()) {
+            match service.authenticate(encoded_jwt.value()).await {
+                Ok(_) => return Err(guest_redirect(request.headers())),
+                Err(AuthError::Unauthenticated) => true,
+                Err(AuthError::Unavailable) => return Err(service_unavailable_response()),
+            }
+        } else {
+            false
+        };
+        let validated = LoginCsrfForm::<T>::from_request(request, state).await?;
+        Ok(Self {
+            fields: validated.fields,
+            token: validated.token,
+            stale_session,
+        })
+    }
+}
+
+/// Logout form that requires session CSRF for active sessions and permits idempotent cleanup.
+pub struct LogoutCsrfForm<T> {
+    /// Controller-specific form fields.
+    pub fields: T,
+    encoded_jwt: Option<String>,
+}
+
+impl<T> LogoutCsrfForm<T> {
+    /// Return the presented credential for the idempotent revocation workflow.
+    #[must_use]
+    pub fn encoded_jwt(&self) -> Option<&str> {
+        self.encoded_jwt.as_deref()
+    }
+}
+
+impl<S, T> FromRequest<S> for LogoutCsrfForm<T>
+where
+    AppContext: FromRef<S>,
+    S: Send + Sync,
+    T: DeserializeOwned + Send,
+{
+    type Rejection = Response;
+
+    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let headers = request.headers().clone();
+        let jar = CookieJar::from_headers(&headers);
+        let ctx = AppContext::from_ref(state);
+        let settings = shared::<AuthSettings>(&ctx)?;
+        let service = shared::<AuthService>(&ctx)?;
+        let csrf = shared::<CsrfService>(&ctx)?;
+        let Form(envelope) = Form::<CsrfEnvelope<T>>::from_request(request, state)
+            .await
+            .map_err(IntoResponse::into_response)?;
+        let origin = same_origin(&headers, &settings).ok_or_else(forbidden_response)?;
+        let encoded_jwt = jar
+            .get(settings.session_cookie_name())
+            .map(|cookie| cookie.value().to_owned());
+
+        if let Some(encoded_jwt) = encoded_jwt.as_deref() {
+            match service.authenticate_session(encoded_jwt).await {
+                Ok(session) => {
+                    let token = submitted_token(&headers, envelope.csrf.as_deref())
+                        .ok_or_else(forbidden_response)?;
+                    csrf.validate_authenticated(&token, &session.jti, &origin, Utc::now())
+                        .map_err(csrf_rejection)?;
+                }
+                Err(AuthError::Unauthenticated | AuthError::Unavailable) => {}
+            }
+        }
+
+        Ok(Self {
+            fields: envelope.fields,
+            encoded_jwt,
+        })
+    }
+}
+
 impl<S, T> FromRequest<S> for LoginCsrfForm<T>
 where
     AppContext: FromRef<S>,
@@ -367,6 +478,23 @@ fn submitted_token(headers: &HeaderMap, form: Option<&str>) -> Option<String> {
         (None, Some(form)) => Some(form.to_owned()),
         (Some(_), None) | (None, None) => None,
     }
+}
+
+fn guest_redirect(headers: &HeaderMap) -> Response {
+    let htmx = headers
+        .get("HX-Request")
+        .is_some_and(|value| value == "true");
+    let mut response = if htmx {
+        let mut response = StatusCode::OK.into_response();
+        response
+            .headers_mut()
+            .insert("HX-Redirect", HeaderValue::from_static("/"));
+        response
+    } else {
+        (StatusCode::SEE_OTHER, [(LOCATION, "/")]).into_response()
+    };
+    append_vary_hx_request(response.headers_mut());
+    no_store(response)
 }
 
 fn same_origin(headers: &HeaderMap, settings: &AuthSettings) -> Option<String> {

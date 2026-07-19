@@ -1,0 +1,12 @@
+{% if error_summary %}
+  <div class="error-summary" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1">
+    <strong>We could not sign you in.</strong>
+    <p>{{ error_summary }}</p>
+    {% if email_error or password_error %}
+      <ul>
+        {% if email_error %}<li><a href="#email">Email address: {{ email_error }}</a></li>{% endif %}
+        {% if password_error %}<li><a href="#password">Password: {{ password_error }}</a></li>{% endif %}
+      </ul>
+    {% endif %}
+  </div>
+{% endif %}

@@ -217,10 +217,16 @@ impl AuthService {
     }
 
     async fn login_inner(&self, command: LoginCommand) -> Result<LoginSuccess, LoginError> {
-        let email = NormalizedEmail::parse(&command.email).map_err(|_| LoginError::InvalidInput)?;
-        if command.password.len() > crate::models::auth::PASSWORD_MAX_BYTES {
-            return Err(LoginError::InvalidInput);
+        let email = NormalizedEmail::parse(&command.email);
+        let input_errors = LoginInputErrors {
+            email: email.is_err(),
+            password: command.password.is_empty()
+                || command.password.len() > crate::models::auth::PASSWORD_MAX_BYTES,
+        };
+        if input_errors.any() {
+            return Err(LoginError::InvalidInput(input_errors));
         }
+        let email = email.map_err(|_| LoginError::Unavailable)?;
         let now = self.clock.now();
         let identifier_digest = self.keyed_digest("login-identifier", email.as_str())?;
         let network_digest = self.keyed_digest("login-network", &command.client_network)?;
@@ -478,13 +484,28 @@ pub enum AuthError {
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 pub enum LoginError {
     #[error("invalid login input")]
-    InvalidInput,
+    InvalidInput(LoginInputErrors),
     #[error("invalid credentials")]
     InvalidCredentials,
     #[error("login temporarily throttled")]
     Throttled { until: DateTime<Utc> },
     #[error("authentication unavailable")]
     Unavailable,
+}
+
+/// Presentation-safe login field validation result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LoginInputErrors {
+    /// The submitted email cannot identify an account.
+    pub email: bool,
+    /// The submitted password is absent or exceeds the bounded input size.
+    pub password: bool,
+}
+
+impl LoginInputErrors {
+    const fn any(self) -> bool {
+        self.email || self.password
+    }
 }
 
 impl From<AuthError> for LoginError {

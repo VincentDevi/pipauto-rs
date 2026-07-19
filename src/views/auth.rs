@@ -8,6 +8,8 @@ use serde::Serialize;
 
 const PAGE_TEMPLATE: &str = "pages/login.html";
 const FORM_TEMPLATE: &str = "fragments/login_form.html";
+const UNAVAILABLE_PAGE_TEMPLATE: &str = "pages/auth_unavailable.html";
+const UNAVAILABLE_FRAGMENT_TEMPLATE: &str = "fragments/auth_unavailable.html";
 
 /// Login form presentation state. It never contains a password.
 #[derive(Debug, Serialize)]
@@ -19,6 +21,46 @@ pub struct LoginView<'view> {
     error_summary: Option<&'view str>,
     email_error: Option<&'view str>,
     password_error: Option<&'view str>,
+}
+
+/// Safe authentication outage state with an operator-searchable correlation identifier.
+#[derive(Debug, Serialize)]
+pub struct AuthenticationUnavailableView<'view> {
+    title: &'static str,
+    heading: &'static str,
+    message: &'view str,
+    correlation_id: &'view str,
+}
+
+impl<'view> AuthenticationUnavailableView<'view> {
+    /// Construct an authentication outage response without carrying an internal error.
+    #[must_use]
+    pub const fn new(message: &'view str, correlation_id: &'view str) -> Self {
+        Self {
+            title: "Authentication unavailable | Pipauto",
+            heading: "Authentication is temporarily unavailable",
+            message,
+            correlation_id,
+        }
+    }
+
+    /// Render a complete outage page.
+    ///
+    /// # Errors
+    ///
+    /// Returns a rendering error when the committed template is invalid.
+    pub fn render_page(&self, engine: &TeraView) -> Result<String> {
+        engine.render(UNAVAILABLE_PAGE_TEMPLATE, self)
+    }
+
+    /// Render only the progressively enhanced outage region.
+    ///
+    /// # Errors
+    ///
+    /// Returns a rendering error when the committed template is invalid.
+    pub fn render_fragment(&self, engine: &TeraView) -> Result<String> {
+        engine.render(UNAVAILABLE_FRAGMENT_TEMPLATE, self)
+    }
 }
 
 impl<'view> LoginView<'view> {

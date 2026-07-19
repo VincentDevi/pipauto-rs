@@ -219,6 +219,55 @@ p {
   color: #8a1c1c;
 }
 
+.error-summary {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid currentColor;
+  border-radius: 0.5rem;
+  background: #fff7f7;
+}
+
+.error-summary p {
+  margin-top: 0.35rem;
+}
+
+.error-summary ul {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}
+
+.field-error {
+  margin-top: 0;
+}
+
+.primary-button {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #17211b;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17211b;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.field input:focus-visible,
+.primary-button:focus-visible,
+.error-summary:focus-visible {
+  outline: 3px solid #326b4b;
+  outline-offset: 2px;
+}
+
+.correlation-reference code {
+  overflow-wrap: anywhere;
+}
+
 .htmx-indicator {
   display: none;
 }

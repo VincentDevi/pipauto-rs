@@ -1,13 +1,8 @@
 <section id="login-region" class="auth-card" aria-labelledby="login-heading">
   <h1 id="login-heading">Sign in to Pipauto</h1>
   <p>Use your provisioned workshop account to continue.</p>
-  {% if error_summary %}
-    <div class="error-summary" role="alert" aria-live="assertive" tabindex="-1">
-      <strong>We could not sign you in.</strong>
-      <p>{{ error_summary }}</p>
-    </div>
-  {% endif %}
-  <form method="post" action="/login" hx-post="/login" hx-target="#login-region" hx-swap="outerHTML" hx-disabled-elt="button[type='submit']">
+  {% include "fragments/error_summary.html" %}
+  <form method="post" action="/login" hx-post="/login" hx-target="#login-region" hx-swap="outerHTML" hx-disabled-elt="find button[type='submit']">
     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     <input type="hidden" name="next" value="{{ next }}">
     <div class="field">
@@ -20,12 +15,12 @@
     <div class="field">
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password"
-             required {% if password_error %}aria-invalid="true" aria-describedby="password-error"{% endif %}>
+             required{% if password_error %} aria-invalid="true" aria-describedby="password-error"{% endif %}>
       {% if password_error %}<p id="password-error" class="field-error">{{ password_error }}</p>{% endif %}
     </div>
-    <button type="submit">
+    <button class="primary-button" type="submit">
       <span class="button-label">Sign in</span>
-      <span class="htmx-indicator" aria-live="polite">Signing in…</span>
+      <span class="htmx-indicator" role="status" aria-live="polite">Signing in…</span>
     </button>
   </form>
 </section>

@@ -3,14 +3,14 @@
 use crate::{
     auth::{
         cookies::AuthCookies,
-        csrf::{AuthenticatedCsrfForm, CsrfService, LoginCsrfForm},
+        csrf::{CsrfService, GuestLoginCsrfForm, LogoutCsrfForm},
         extractors::{append_vary_hx_request, safe_next_destination, OptionalCurrentUser},
     },
     services::auth::{AuthService, LoginCommand, LoginError},
-    views::auth::LoginView,
+    views::auth::{AuthenticationUnavailableView, LoginView},
 };
 use axum::{
-    extract::{ConnectInfo, Extension, Query},
+    extract::{ConnectInfo, DefaultBodyLimit, Extension, Query},
     http::{
         header::{CACHE_CONTROL, LOCATION, RETRY_AFTER},
         HeaderMap, HeaderValue, StatusCode,
@@ -26,7 +26,10 @@ use loco_rs::{
     Result,
 };
 use serde::Deserialize;
-use std::net::SocketAddr;
+use std::{fmt::Write as _, net::SocketAddr};
+
+const AUTH_FORM_BODY_LIMIT: usize = 4 * 1_024;
+const MAX_RETRY_AFTER_SECONDS: i64 = 300;
 
 #[derive(Default, Deserialize)]
 struct LoginQuery {
@@ -35,8 +38,11 @@ struct LoginQuery {
 
 #[derive(Deserialize)]
 struct LoginForm {
+    #[serde(default)]
     email: String,
+    #[serde(default)]
     password: String,
+    #[serde(default)]
     next: String,
 }
 
@@ -58,7 +64,19 @@ async fn show_login(
     }
     let state = match csrf.issue_login(Utc::now()) {
         Ok(state) => state,
-        Err(_) => return Ok(unavailable()),
+        Err(_) => {
+            let response = render_unavailable(
+                &engine,
+                "We could not prepare sign-in. Please try again shortly.",
+                false,
+            )?;
+            return Ok(with_optional_stale_cookie(
+                response,
+                &jar,
+                &cookies,
+                matches!(optional_user, OptionalCurrentUser::StaleCredential),
+            ));
+        }
     };
     let view = LoginView::new("", &next, &state.token, None, None, None);
     let response = format::html(&view.render_page(&engine)?)?;
@@ -77,9 +95,10 @@ async fn login(
     SharedStore(cookies): SharedStore<AuthCookies>,
     SharedStore(service): SharedStore<AuthService>,
     ViewEngine(engine): ViewEngine<TeraView>,
-    validated: LoginCsrfForm<LoginForm>,
+    validated: GuestLoginCsrfForm<LoginForm>,
 ) -> Result<Response> {
     let htmx = is_htmx(&headers);
+    let stale_session = validated.stale_session();
     let submitted_token = validated.token().expose().to_owned();
     let form = validated.fields;
     let next = safe_next_destination(Some(&form.next));
@@ -88,31 +107,31 @@ async fn login(
         || "socket:unknown".to_owned(),
         |Extension(ConnectInfo(address))| format!("socket:{}", address.ip()),
     );
-    match service
+    let result = service
         .login(LoginCommand {
             email: form.email.clone(),
             password: form.password,
             client_network,
         })
-        .await
-    {
+        .await;
+    let response = match result {
         Ok(success) => {
             let jar = jar
                 .add(cookies.session(success.encoded_jwt().to_owned()))
                 .add(cookies.clear_login_csrf());
-            Ok(with_no_store((jar, redirect(&next, htmx)).into_response()))
+            return Ok(with_no_store((jar, redirect(&next, htmx)).into_response()));
         }
-        Err(LoginError::InvalidInput) => render_login_error(
+        Err(LoginError::InvalidInput(errors)) => render_login_error(
             &engine,
             &form.email,
             &next,
             &submitted_token,
             "Check the highlighted fields and try again.",
-            Some("Enter a valid email address."),
-            Some("Use a password of at least 12 characters."),
+            errors.email.then_some("Enter a valid email address."),
+            errors.password.then_some("Enter your password."),
             StatusCode::UNPROCESSABLE_ENTITY,
             htmx,
-        ),
+        )?,
         Err(LoginError::InvalidCredentials) => render_login_error(
             &engine,
             &form.email,
@@ -123,9 +142,11 @@ async fn login(
             None,
             StatusCode::UNAUTHORIZED,
             htmx,
-        ),
+        )?,
         Err(LoginError::Throttled { until }) => {
-            let retry = (until - Utc::now()).num_seconds().max(1);
+            let retry = (until - Utc::now())
+                .num_seconds()
+                .clamp(1, MAX_RETRY_AFTER_SECONDS);
             let mut response = render_login_error(
                 &engine,
                 &form.email,
@@ -141,20 +162,20 @@ async fn login(
                 RETRY_AFTER,
                 HeaderValue::from_str(&retry.to_string()).unwrap_or(HeaderValue::from_static("60")),
             );
-            Ok(response)
+            response
         }
-        Err(LoginError::Unavailable) => render_login_error(
+        Err(LoginError::Unavailable) => render_unavailable(
             &engine,
-            &form.email,
-            &next,
-            &submitted_token,
-            "Authentication is temporarily unavailable. Try again shortly.",
-            None,
-            None,
-            StatusCode::SERVICE_UNAVAILABLE,
+            "We could not confirm your sign-in. Please try again shortly.",
             htmx,
-        ),
-    }
+        )?,
+    };
+    Ok(with_optional_stale_cookie(
+        response,
+        &jar,
+        &cookies,
+        stale_session,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -163,16 +184,24 @@ async fn logout(
     jar: CookieJar,
     SharedStore(cookies): SharedStore<AuthCookies>,
     SharedStore(service): SharedStore<AuthService>,
-    validated: AuthenticatedCsrfForm<LogoutForm>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    validated: LogoutCsrfForm<LogoutForm>,
 ) -> Result<Response> {
     let htmx = is_htmx(&headers);
-    let outcome = service.logout(Some(validated.encoded_jwt())).await;
+    let outcome = service.logout(validated.encoded_jwt()).await;
     let jar = jar.add(cookies.clear_session());
     match outcome {
         Ok(_) => Ok(with_no_store(
             (jar, redirect("/login", htmx)).into_response(),
         )),
-        Err(_) => Ok(with_no_store((jar, unavailable()).into_response())),
+        Err(_) => {
+            let response = render_unavailable(
+                &engine,
+                "Your browser was signed out, but server-side logout could not be confirmed. Please try again before signing back in.",
+                htmx,
+            )?;
+            Ok(with_no_store((jar, response).into_response()))
+        }
     }
 }
 
@@ -234,14 +263,49 @@ fn with_no_store(mut response: Response) -> Response {
     response
 }
 
-fn unavailable() -> Response {
-    with_no_store(
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Authentication is temporarily unavailable. Reference: auth-unavailable",
-        )
-            .into_response(),
-    )
+fn with_optional_stale_cookie(
+    response: Response,
+    jar: &CookieJar,
+    cookies: &AuthCookies,
+    stale_session: bool,
+) -> Response {
+    if stale_session {
+        with_no_store((jar.clone().add(cookies.clear_session()), response).into_response())
+    } else {
+        response
+    }
+}
+
+fn render_unavailable(engine: &TeraView, message: &str, htmx: bool) -> Result<Response> {
+    let correlation_id = correlation_id();
+    tracing::error!(correlation_id, "authentication request unavailable");
+    let view = AuthenticationUnavailableView::new(message, &correlation_id);
+    let html = if htmx {
+        view.render_fragment(engine)?
+    } else {
+        view.render_page(engine)?
+    };
+    let mut response = (StatusCode::SERVICE_UNAVAILABLE, format::html(&html)?).into_response();
+    response.headers_mut().insert(
+        "X-Correlation-ID",
+        HeaderValue::from_str(&correlation_id)
+            .unwrap_or_else(|_| HeaderValue::from_static("auth-unavailable")),
+    );
+    append_vary_hx_request(response.headers_mut());
+    Ok(with_no_store(response))
+}
+
+fn correlation_id() -> String {
+    let mut random = [0_u8; 8];
+    if getrandom::fill(&mut random).is_err() {
+        return "auth-unavailable".to_owned();
+    }
+    let mut identifier = String::with_capacity(21);
+    identifier.push_str("auth-");
+    for byte in random {
+        let _ = write!(&mut identifier, "{byte:02x}");
+    }
+    identifier
 }
 
 /// Authentication routes.
@@ -249,8 +313,14 @@ fn unavailable() -> Response {
 pub fn routes() -> Routes {
     Routes::new()
         .add("/login", get(show_login))
-        .add("/login", post(login))
-        .add("/logout", post(logout))
+        .add(
+            "/login",
+            post(login).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
+        )
+        .add(
+            "/logout",
+            post(logout).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
+        )
 }
 
 #[cfg(test)]
