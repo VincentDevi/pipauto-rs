@@ -45,6 +45,10 @@ server:
 
 # Application-specific settings. Values are required from the process environment.
 settings:
+  business:
+    default_currency: EUR
+    default_collection_limit: 25
+    maximum_collection_limit: 200
   surrealdb:
     endpoint: '{{ get_env(name="SURREALDB_ENDPOINT") }}'
     username: '{{ get_env(name="SURREALDB_ROOT_USERNAME") }}'

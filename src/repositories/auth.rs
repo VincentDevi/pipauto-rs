@@ -2,23 +2,13 @@
 
 use std::time::Duration;
 
-use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use thiserror::Error;
-
 use crate::models::auth::{
     AuthSession, NewAuthSession, NewUserRecord, NormalizedEmail, SessionDigest, ThrottleDigest,
     User, UserCredentials, UserId,
 };
-
-/// Technology-independent persistence failure.
-#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
-pub enum RepositoryError {
-    #[error("record already exists")]
-    Conflict,
-    #[error("repository unavailable")]
-    Unavailable,
-}
+pub use crate::repositories::RepositoryError;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 
 /// Idempotent revocation result.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

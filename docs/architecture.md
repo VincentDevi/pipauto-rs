@@ -1,15 +1,16 @@
 # Pipauto architecture
 
-Pipauto is a single Loco application serving HTTP directly. This foundation deliberately contains
-no generated authentication, SeaORM models or migrations, separate frontend, or business-domain
-repository traits. Those capabilities must be introduced only by later approved milestones.
+Pipauto is a single Loco application serving HTTP directly. Shared domain, persistence, service,
+and API contracts keep later business areas consistent without coupling them to Loco or SurrealDB.
 
 ## Dependency direction
 
 ```text
-controllers → services → repository contracts
-                     ↘ models
-SurrealDB adapters → repository contracts
+controllers → API DTOs
+      ↓
+services → domain ← repository contracts
+                       ↑
+              SurrealDB adapters
 views ← controllers
 app/initializers → compose all infrastructure
 ```
@@ -24,18 +25,33 @@ the rest of the application does not need to.
 | --- | --- | --- |
 | `app` | Route, initializer, middleware, and shared-service composition | Business rules or persistence behavior |
 | `controllers` | HTTP input parsing and response selection | Business rules or database queries |
-| `models` | Database-independent domain values and invariants | Loco, Axum, Tera, or SurrealDB concerns |
+| `domain` | Shared IDs, money, quantity, normalization, archive chronology, validation, and pagination invariants | Loco, Axum, Tera, SurrealDB, HTTP query strings, or row structs |
+| `models` | Feature-specific database-independent models, currently authentication | Loco, Axum, Tera, or SurrealDB concerns |
+| `api` | Explicit IDs, timestamps, money, quantity, pagination, and error DTOs | SurrealDB rows, repository errors, or business decisions |
 | `services` | Application workflows across models and repository contracts | HTTP, templates, or concrete databases |
-| `repositories` | Persistence contracts and adapter organization | HTTP, templates, or workflow policy |
-| `repositories::surreal` | SurrealDB implementations of repository contracts | HTTP or template behavior |
+| `repositories` | Persistence-neutral errors and contracts using typed domain filters and cursors | HTTP query strings, SurrealDB types, templates, or workflow policy |
+| `repositories::surreal` | SurrealDB adapters and centralized record-ID, response, query-error, and cursor-tuple mechanics | HTTP or template behavior |
 | `database` | Settings, connection, authentication, database selection, and health checks | Domain persistence contracts or workflows |
 | `initializers` | Loco lifecycle wiring and shared-store registration | Business workflows or HTTP behavior |
 | `views` | Typed presentation data and Tera rendering | HTTP parsing, business rules, or persistence |
-| `errors` | Error categories and secret-safe HTTP mappings | Raw infrastructure details in client responses |
+| `settings` | Validated business defaults and collection bounds | Secrets or feature-specific workflow policy |
+| `errors` | Workflow-to-HTTP status and safe error-envelope mapping | Repository errors or raw infrastructure details in client responses |
 
-Business-domain repository contracts will live in `repositories` when a later milestone defines the
-domain workflows that need them. Their SurrealDB implementations will live in
-`repositories::surreal`; connection mechanics remain in `database`.
+Business-domain repository contracts live in `repositories` when their workflows are defined.
+Absence uses `Option`; conditional mutation absence may use `RepositoryError::NotFound`.
+`Unavailable` and `CorruptData` remain distinct repository failures and are never converted to
+not-found. Services translate repository results to `WorkflowError`; controllers alone translate
+workflow outcomes into HTTP statuses and `api::ErrorEnvelope` values.
+
+Collection contracts take `PageRequest<F>` with a typed `CollectionFilter`, `PageLimit`, and
+`OpaqueCursor`. Cursor signatures bind the deterministic `(timestamp, entity key)` tuple to every
+filter affecting membership or order. SurrealDB rows stay private to adapters and are explicitly
+converted into domain models before DTO conversion.
+
+Money is stored as checked, non-negative minor units plus an assigned uppercase ISO 4217 code.
+Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.
+Business settings default to EUR, 25 records per collection, and a hard maximum of 200 records.
+Startup rejects invalid settings before serving requests.
 
 ## Assets and tests
 

@@ -20,6 +20,7 @@ use crate::{
         AuthSessionRepository, LoginThrottleRepository, RepositoryError, RevokeOutcome,
         ThrottleState, UserRepository,
     },
+    repositories::surreal::support,
 };
 
 /// Shared SurrealDB implementation of all authentication repository contracts.
@@ -40,19 +41,18 @@ impl SurrealAuthRepository {
         identifier_digest: &ThrottleDigest,
         network_digest: &ThrottleDigest,
     ) -> Result<Option<DbThrottle>, RepositoryError> {
-        let mut response = self
-            .client
-            .query(
-                "SELECT failed_attempts, window_started_at, blocked_until FROM login_throttle \
-                 WHERE identifier_digest = $identifier AND network_digest = $network LIMIT 1;",
-            )
-            .bind(("identifier", identifier_digest.as_str().to_owned()))
-            .bind(("network", network_digest.as_str().to_owned()))
-            .await
-            .map_err(|_| RepositoryError::Unavailable)?
-            .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
-        response.take(0).map_err(|_| RepositoryError::Unavailable)
+        let mut response = support::checked_response(
+            self.client
+                .query(
+                    "SELECT failed_attempts, window_started_at, blocked_until \
+                     FROM login_throttle WHERE identifier_digest = $identifier \
+                     AND network_digest = $network LIMIT 1;",
+                )
+                .bind(("identifier", identifier_digest.as_str().to_owned()))
+                .bind(("network", network_digest.as_str().to_owned()))
+                .await,
+        )?;
+        support::take(&mut response, 0)
     }
 }
 
@@ -101,7 +101,7 @@ impl TryFrom<DbUser> for User {
 
     fn try_from(value: DbUser) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: UserId::parse(value.id.to_sql()).map_err(|_| RepositoryError::Unavailable)?,
+            id: UserId::parse(value.id.to_sql()).map_err(|_| RepositoryError::CorruptData)?,
             email: value.email,
             display_name: value.display_name,
             active: value.active,
@@ -116,7 +116,7 @@ impl TryFrom<DbUserCredentials> for UserCredentials {
 
     fn try_from(value: DbUserCredentials) -> Result<Self, Self::Error> {
         let user = User {
-            id: UserId::parse(value.id.to_sql()).map_err(|_| RepositoryError::Unavailable)?,
+            id: UserId::parse(value.id.to_sql()).map_err(|_| RepositoryError::CorruptData)?,
             email: value.email,
             display_name: value.display_name,
             active: value.active,
@@ -133,9 +133,9 @@ impl TryFrom<DbAuthSession> for AuthSession {
     fn try_from(value: DbAuthSession) -> Result<Self, Self::Error> {
         Ok(Self {
             user_id: UserId::parse(value.user.to_sql())
-                .map_err(|_| RepositoryError::Unavailable)?,
+                .map_err(|_| RepositoryError::CorruptData)?,
             jti_digest: SessionDigest::parse(value.jti_digest)
-                .map_err(|_| RepositoryError::Unavailable)?,
+                .map_err(|_| RepositoryError::CorruptData)?,
             issued_at: value.issued_at,
             expires_at: value.expires_at,
             revoked_at: value.revoked_at,
@@ -144,7 +144,7 @@ impl TryFrom<DbAuthSession> for AuthSession {
                 .created_ip_digest
                 .map(ThrottleDigest::parse)
                 .transpose()
-                .map_err(|_| RepositoryError::Unavailable)?,
+                .map_err(|_| RepositoryError::CorruptData)?,
             user_agent_summary: value.user_agent_summary,
         })
     }
@@ -153,18 +153,16 @@ impl TryFrom<DbAuthSession> for AuthSession {
 #[async_trait]
 impl UserRepository for SurrealAuthRepository {
     async fn find_by_id(&self, id: &UserId) -> Result<Option<User>, RepositoryError> {
-        let mut response = self
-            .client
-            .query(
-                "SELECT id, email, display_name, active, created_at, updated_at \
-                 FROM $record LIMIT 1;",
-            )
-            .bind(("record", user_record_id(id)?))
-            .await
-            .map_err(|_| RepositoryError::Unavailable)?
-            .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
-        let user: Option<DbUser> = response.take(0).map_err(|_| RepositoryError::Unavailable)?;
+        let mut response = support::checked_response(
+            self.client
+                .query(
+                    "SELECT id, email, display_name, active, created_at, updated_at \
+                     FROM $record LIMIT 1;",
+                )
+                .bind(("record", user_record_id(id)?))
+                .await,
+        )?;
+        let user: Option<DbUser> = support::take(&mut response, 0)?;
         user.map(TryInto::try_into).transpose()
     }
 
@@ -172,19 +170,16 @@ impl UserRepository for SurrealAuthRepository {
         &self,
         normalized_email: &NormalizedEmail,
     ) -> Result<Option<UserCredentials>, RepositoryError> {
-        let mut response = self
-            .client
-            .query(
-                "SELECT id, email, display_name, password_hash, active, created_at, updated_at \
-                 FROM user WHERE email_normalized = $email LIMIT 1;",
-            )
-            .bind(("email", normalized_email.as_str().to_owned()))
-            .await
-            .map_err(|_| RepositoryError::Unavailable)?
-            .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
-        let user: Option<DbUserCredentials> =
-            response.take(0).map_err(|_| RepositoryError::Unavailable)?;
+        let mut response = support::checked_response(
+            self.client
+                .query(
+                    "SELECT id, email, display_name, password_hash, active, created_at, \
+                     updated_at FROM user WHERE email_normalized = $email LIMIT 1;",
+                )
+                .bind(("email", normalized_email.as_str().to_owned()))
+                .await,
+        )?;
+        let user: Option<DbUserCredentials> = support::take(&mut response, 0)?;
         user.map(TryInto::try_into).transpose()
     }
 
@@ -204,8 +199,8 @@ impl UserRepository for SurrealAuthRepository {
             .map_err(classify_write_error)?
             .check()
             .map_err(classify_write_error)?;
-        let user: Option<DbUser> = response.take(0).map_err(|_| RepositoryError::Unavailable)?;
-        user.ok_or(RepositoryError::Unavailable)?.try_into()
+        let user: Option<DbUser> = support::take(&mut response, 0)?;
+        user.ok_or(RepositoryError::CorruptData)?.try_into()
     }
 }
 
@@ -242,9 +237,8 @@ impl AuthSessionRepository for SurrealAuthRepository {
             .map_err(classify_write_error)?
             .check()
             .map_err(classify_write_error)?;
-        let record: Option<DbAuthSession> =
-            response.take(0).map_err(|_| RepositoryError::Unavailable)?;
-        record.ok_or(RepositoryError::Unavailable)?.try_into()
+        let record: Option<DbAuthSession> = support::take(&mut response, 0)?;
+        record.ok_or(RepositoryError::CorruptData)?.try_into()
     }
 
     async fn find_active(
@@ -252,21 +246,18 @@ impl AuthSessionRepository for SurrealAuthRepository {
         jti_digest: &SessionDigest,
         now: DateTime<Utc>,
     ) -> Result<Option<AuthSession>, RepositoryError> {
-        let mut response = self
-            .client
-            .query(
-                "SELECT user, jti_digest, issued_at, expires_at, revoked_at, last_seen_at, \
-                 created_ip_digest, user_agent_summary FROM auth_session WHERE \
-                 jti_digest = $digest AND revoked_at IS NONE AND expires_at > $now LIMIT 1;",
-            )
-            .bind(("digest", jti_digest.as_str().to_owned()))
-            .bind(("now", now))
-            .await
-            .map_err(|_| RepositoryError::Unavailable)?
-            .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
-        let session: Option<DbAuthSession> =
-            response.take(0).map_err(|_| RepositoryError::Unavailable)?;
+        let mut response = support::checked_response(
+            self.client
+                .query(
+                    "SELECT user, jti_digest, issued_at, expires_at, revoked_at, last_seen_at, \
+                     created_ip_digest, user_agent_summary FROM auth_session WHERE \
+                     jti_digest = $digest AND revoked_at IS NONE AND expires_at > $now LIMIT 1;",
+                )
+                .bind(("digest", jti_digest.as_str().to_owned()))
+                .bind(("now", now))
+                .await,
+        )?;
+        let session: Option<DbAuthSession> = support::take(&mut response, 0)?;
         session.map(TryInto::try_into).transpose()
     }
 
@@ -275,20 +266,17 @@ impl AuthSessionRepository for SurrealAuthRepository {
         jti_digest: &SessionDigest,
         now: DateTime<Utc>,
     ) -> Result<RevokeOutcome, RepositoryError> {
-        let mut response = self
-            .client
-            .query(
-                "UPDATE auth_session SET revoked_at = $now WHERE jti_digest = $digest \
-                 AND revoked_at IS NONE RETURN BEFORE;",
-            )
-            .bind(("digest", jti_digest.as_str().to_owned()))
-            .bind(("now", now))
-            .await
-            .map_err(|_| RepositoryError::Unavailable)?
-            .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
-        let changed: Vec<DbAuthSession> =
-            response.take(0).map_err(|_| RepositoryError::Unavailable)?;
+        let mut response = support::checked_response(
+            self.client
+                .query(
+                    "UPDATE auth_session SET revoked_at = $now WHERE jti_digest = $digest \
+                     AND revoked_at IS NONE RETURN BEFORE;",
+                )
+                .bind(("digest", jti_digest.as_str().to_owned()))
+                .bind(("now", now))
+                .await,
+        )?;
+        let changed: Vec<DbAuthSession> = support::take(&mut response, 0)?;
         Ok(if changed.is_empty() {
             RevokeOutcome::AlreadyInactive
         } else {
@@ -381,9 +369,9 @@ impl LoginThrottleRepository for SurrealAuthRepository {
             .bind(("window_started", window_started_at))
             .bind(("blocked_until", blocked_until))
             .await
-            .map_err(|_| RepositoryError::Unavailable)?
+            .map_err(|error| support::classify_query_error(&error))?
             .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
+            .map_err(|error| support::classify_query_error(&error))?;
         Ok(blocked_until.map_or(ThrottleState::Allowed, ThrottleState::BlockedUntil))
     }
 
@@ -400,9 +388,9 @@ impl LoginThrottleRepository for SurrealAuthRepository {
             .bind(("identifier", identifier_digest.as_str().to_owned()))
             .bind(("network", network_digest.as_str().to_owned()))
             .await
-            .map_err(|_| RepositoryError::Unavailable)?
+            .map_err(|error| support::classify_query_error(&error))?
             .check()
-            .map_err(|_| RepositoryError::Unavailable)?;
+            .map_err(|error| support::classify_query_error(&error))?;
         Ok(())
     }
 }
@@ -411,17 +399,12 @@ fn user_record_id(id: &UserId) -> Result<RecordId, RepositoryError> {
     let (_, key) = id
         .as_str()
         .split_once(':')
-        .ok_or(RepositoryError::Unavailable)?;
-    Ok(RecordId::new("user", key.to_owned()))
+        .ok_or(RepositoryError::CorruptData)?;
+    support::record_id("user", key)
 }
 
 fn classify_write_error(error: surrealdb::Error) -> RepositoryError {
-    let message = error.to_string().to_ascii_lowercase();
-    if message.contains("unique") || message.contains("already contains") {
-        RepositoryError::Conflict
-    } else {
-        RepositoryError::Unavailable
-    }
+    support::classify_query_error(&error)
 }
 
 fn duration_delta(duration: Duration) -> Result<TimeDelta, RepositoryError> {
@@ -431,10 +414,7 @@ fn duration_delta(duration: Duration) -> Result<TimeDelta, RepositoryError> {
 fn changed_count(
     response: surrealdb::Result<surrealdb::IndexedResults>,
 ) -> Result<u64, RepositoryError> {
-    let mut response = response
-        .map_err(|_| RepositoryError::Unavailable)?
-        .check()
-        .map_err(|_| RepositoryError::Unavailable)?;
-    let changed: Vec<DbAuthSession> = response.take(0).map_err(|_| RepositoryError::Unavailable)?;
-    u64::try_from(changed.len()).map_err(|_| RepositoryError::Unavailable)
+    let mut response = support::checked_response(response)?;
+    let changed: Vec<DbAuthSession> = support::take(&mut response, 0)?;
+    u64::try_from(changed.len()).map_err(|_| RepositoryError::CorruptData)
 }

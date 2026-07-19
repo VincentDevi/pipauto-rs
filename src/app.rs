@@ -111,6 +111,9 @@ impl Hooks for App {
     }
 
     async fn after_context(ctx: AppContext) -> Result<AppContext> {
+        let business = crate::settings::BusinessSettings::from_config(&ctx.config)
+            .map_err(loco_rs::Error::msg)?;
+        ctx.shared_store.insert(business);
         crate::initializers::surrealdb::install(&ctx).await?;
         crate::initializers::auth::install(&ctx).await?;
         Ok(ctx)

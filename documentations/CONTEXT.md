@@ -87,6 +87,17 @@ The initial product should provide a straightforward view of the financial side 
 
 Detailed accounting rules, taxation, legal invoice requirements, currencies, billing calculations, and payment-provider behavior are not defined in the current brief. They must be specified before implementation rather than inferred.
 
+### Approved shared domain conventions
+
+The application default currency is EUR. Monetary values use checked, non-negative minor units and
+an uppercase ISO 4217 currency code. Multiplying a monetary unit price by a positive quantity (up to
+three fractional digits) rounds half-up once to the nearest minor unit. This shared arithmetic rule
+does not define taxation, invoice totals, or other accounting policy.
+
+Collection workflows default to 25 records and accept validated limits from 1 through 200 records.
+Opaque signed cursors preserve deterministic chronology and are bound to the typed filters used to
+produce them.
+
 ## Initial-release priorities
 
 The first usable version should focus on five areas, in this order of product importance:

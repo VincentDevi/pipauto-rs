@@ -43,6 +43,10 @@ server:
 
 # Automated tests use an isolated embedded database and do not require external credentials.
 settings:
+  business:
+    default_currency: EUR
+    default_collection_limit: 25
+    maximum_collection_limit: 200
   surrealdb:
     endpoint: memory
     username: test

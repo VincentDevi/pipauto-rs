@@ -425,7 +425,9 @@ impl AuthService {
             .await
             .map_err(|error| match error {
                 RepositoryError::Conflict => CreateUserError::Duplicate,
-                RepositoryError::Unavailable => CreateUserError::Unavailable,
+                RepositoryError::NotFound
+                | RepositoryError::Unavailable
+                | RepositoryError::CorruptData => CreateUserError::Unavailable,
             })
     }
 
