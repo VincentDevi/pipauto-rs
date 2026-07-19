@@ -25,6 +25,7 @@ regex = { version = "1.11" }
 tera = "2.0.0"
 thiserror = "2.0.18"
 surrealdb = { version = "3.2.1", default-features = false, features = ["protocol-ws", "kv-mem", "rustls"] }
+chrono = "0.4"
 
 [[bin]]
 name = "pipauto-cli"

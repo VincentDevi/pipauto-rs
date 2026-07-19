@@ -8,4 +8,5 @@ pub mod initializers;
 pub mod models;
 pub mod repositories;
 pub mod services;
+pub mod tasks;
 pub mod views;

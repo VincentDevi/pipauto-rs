@@ -16,6 +16,7 @@ use super::settings::{DatabaseEngine, DatabaseSettings};
 /// Cheap-to-clone application database service stored in Loco's shared store.
 #[derive(Clone)]
 pub struct AppDatabase {
+    client: Option<Surreal<Any>>,
     health_service: Arc<dyn DatabaseHealthService>,
 }
 
@@ -56,6 +57,7 @@ impl AppDatabase {
         .await?;
 
         let database = Self {
+            client: Some(client.clone()),
             health_service: Arc::new(SurrealHealthService {
                 client,
                 timeout: settings.connection_timeout(),
@@ -79,8 +81,18 @@ impl AppDatabase {
     #[must_use]
     pub fn from_health_service(service: Arc<dyn DatabaseHealthService>) -> Self {
         Self {
+            client: None,
             health_service: service,
         }
+    }
+
+    /// Clone the selected application client for repository composition.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only for health-only test doubles that deliberately have no client.
+    pub fn client(&self) -> Result<Surreal<Any>, DatabaseAccessError> {
+        self.client.clone().ok_or(DatabaseAccessError)
     }
 
     /// Check whether the selected database can execute a minimal query.
@@ -179,3 +191,8 @@ pub enum DatabaseStartupError {
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 #[error("SurrealDB is unavailable")]
 pub struct DatabaseHealthError;
+
+/// The database value is a health-only test seam and cannot serve repositories.
+#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
+#[error("application database client is unavailable")]
+pub struct DatabaseAccessError;
