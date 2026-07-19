@@ -1,0 +1,57 @@
+name = "customers_schema"
+tags = ["customers", "metadata"]
+
+[[cases]]
+name = "customer_table_is_schemafull"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE TABLE customer TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+]
+
+[[cases]]
+name = "customer_fields_and_lookup_indexes_match"
+kind = "schema_metadata"
+table = "customer"
+contains = [
+    "DEFINE FIELD address ON customer TYPE none | object",
+    "DEFINE FIELD address.city ON customer TYPE none | string",
+    "DEFINE FIELD address.country_code ON customer TYPE none | string",
+    "DEFINE FIELD address.line_1 ON customer TYPE none | string",
+    "DEFINE FIELD address.line_2 ON customer TYPE none | string",
+    "DEFINE FIELD address.postal_code ON customer TYPE none | string",
+    "DEFINE FIELD archived_at ON customer TYPE none | datetime",
+    "DEFINE FIELD created_at ON customer TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD display_name ON customer TYPE string",
+    "string::len($value) <= 160",
+    "DEFINE FIELD display_name_normalized ON customer TYPE string",
+    "DEFINE FIELD email ON customer TYPE none | string",
+    "DEFINE FIELD email_normalized ON customer TYPE none | string",
+    "DEFINE FIELD notes ON customer TYPE none | string",
+    "string::len($value) <= 10000",
+    "DEFINE FIELD phone ON customer TYPE none | string",
+    "DEFINE FIELD phone_normalized ON customer TYPE none | string",
+    "DEFINE FIELD updated_at ON customer TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE INDEX customer_archived_at ON customer FIELDS archived_at",
+    "DEFINE INDEX customer_display_name_normalized ON customer FIELDS display_name_normalized",
+    "DEFINE INDEX customer_email_normalized ON customer FIELDS email_normalized",
+    "DEFINE INDEX customer_phone_normalized ON customer FIELDS phone_normalized",
+]
+
+[[cases]]
+name = "customer_rejects_untrimmed_required_values"
+kind = "sql_expect"
+sql = "CREATE customer:invalid CONTENT { display_name: ' Filippo ', display_name_normalized: 'filippo' };"
+allow = false
+
+[[cases]]
+name = "customer_address_is_strict"
+kind = "sql_expect"
+sql = "CREATE customer:invalid_address CONTENT { display_name: 'Filippo', display_name_normalized: 'filippo', address: { line_1: 'Main street', postal_code: '1000', city: 'Brussels', country_code: 'BE', county: 'Brussels' } };"
+allow = false
+
+[[cases]]
+name = "customer_address_requires_core_fields_when_present"
+kind = "sql_expect"
+sql = "CREATE customer:incomplete_address CONTENT { display_name: 'Filippo', display_name_normalized: 'filippo', address: { line_1: 'Main street', city: 'Brussels', country_code: 'BE' } };"
+allow = false

@@ -1,0 +1,102 @@
+name = "vehicles_behavior"
+tags = ["vehicles", "behavior"]
+
+[[cases]]
+name = "present_registration_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:first CONTENT { customer: customer:owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', registration: '1-ABC-234', registration_normalized: '1ABC234' };",
+]
+action_sql = "CREATE vehicle:second CONTENT { customer: customer:owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Polo', model_normalized: 'polo', registration: '1 ABC 234', registration_normalized: '1ABC234' };"
+expect_success = false
+
+[[cases]]
+name = "present_vin_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:vin_owner CONTENT { display_name: 'VIN Owner', display_name_normalized: 'vin owner' };",
+    "CREATE vehicle:vin_first CONTENT { customer: customer:vin_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', vin: 'wvwzzz1jzxw000001', vin_normalized: 'WVWZZZ1JZXW000001' };",
+]
+action_sql = "CREATE vehicle:vin_second CONTENT { customer: customer:vin_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Polo', model_normalized: 'polo', vin: 'WVWZZZ1JZXW000001', vin_normalized: 'WVWZZZ1JZXW000001' };"
+expect_success = false
+
+[[cases]]
+name = "multiple_absent_identifiers_are_allowed"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:none_owner CONTENT { display_name: 'None Owner', display_name_normalized: 'none owner' };",
+    "CREATE vehicle:none_first CONTENT { customer: customer:none_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE vehicle:none_second CONTENT { customer: customer:none_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Polo', model_normalized: 'polo', registration: NONE, registration_normalized: NONE, vin: NONE, vin_normalized: NONE };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM vehicle WHERE registration_normalized IS NONE AND vin_normalized IS NONE);"
+
+[[cases.assertions]]
+path = ""
+equals = 2
+
+[[cases]]
+name = "vehicle_reference_rejects_customer_deletion"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:delete_owner CONTENT { display_name: 'Delete Owner', display_name_normalized: 'delete owner' };",
+    "CREATE vehicle:delete_owned CONTENT { customer: customer:delete_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "DELETE customer:delete_owner;"
+expect_success = false
+
+[[cases]]
+name = "archived_customer_rejects_new_vehicle_assignment"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:archived CONTENT { display_name: 'Archived Owner', display_name_normalized: 'archived owner', archived_at: time::now() };",
+]
+action_sql = "CREATE vehicle:rejected CONTENT { customer: customer:archived, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };"
+expect_success = false
+
+[[cases]]
+name = "archiving_customer_keeps_existing_vehicle_relationship"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:archive_owner CONTENT { display_name: 'Archive Owner', display_name_normalized: 'archive owner' };",
+    "CREATE vehicle:archive_owned CONTENT { customer: customer:archive_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "UPDATE customer:archive_owner SET archived_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM vehicle WHERE id = vehicle:archive_owned AND customer = customer:archive_owner);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "vehicle_reassignment_replaces_the_current_customer"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:previous_owner CONTENT { display_name: 'Previous Owner', display_name_normalized: 'previous owner' };",
+    "CREATE customer:current_owner CONTENT { display_name: 'Current Owner', display_name_normalized: 'current owner' };",
+    "CREATE vehicle:reassigned CONTENT { customer: customer:previous_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "UPDATE vehicle:reassigned SET customer = customer:current_owner;"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM vehicle WHERE id = vehicle:reassigned AND customer = customer:current_owner);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "vehicle_archive_retains_identifiers_and_customer_relationship"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:vehicle_archive_owner CONTENT { display_name: 'Vehicle Archive Owner', display_name_normalized: 'vehicle archive owner' };",
+    "CREATE vehicle:archived CONTENT { customer: customer:vehicle_archive_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', registration: '1-XYZ-999', registration_normalized: '1XYZ999' };",
+]
+action_sql = "UPDATE vehicle:archived SET archived_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM vehicle WHERE id = vehicle:archived AND customer = customer:vehicle_archive_owner AND registration_normalized = '1XYZ999' AND archived_at IS NOT NONE);"
+
+[[cases.assertions]]
+path = ""
+equals = 1

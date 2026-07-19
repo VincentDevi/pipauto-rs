@@ -17,7 +17,9 @@ pub use id::{
     VehicleId,
 };
 pub use money::{CurrencyCode, Money, MoneyError};
-pub use normalization::{NormalizedRegistration, NormalizedVin};
+pub use normalization::{
+    normalize_email, normalize_phone, normalize_search_text, NormalizedRegistration, NormalizedVin,
+};
 pub use pagination::{
     CollectionFilter, CursorCodec, CursorError, CursorTuple, OpaqueCursor, Page, PageLimit,
     PageRequest, PaginationError, MAX_PAGE_LIMIT, MIN_PAGE_LIMIT,

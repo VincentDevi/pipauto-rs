@@ -4,3 +4,5 @@
 //! depend on Loco, Axum, Tera, `SurrealDB`, controllers, views, or concrete repositories.
 
 pub mod auth;
+pub mod customer;
+pub mod vehicle;

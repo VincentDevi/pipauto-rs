@@ -1,0 +1,30 @@
+name = "customers_behavior"
+tags = ["customers", "behavior"]
+
+[[cases]]
+name = "normalized_customer_values_support_case_insensitive_lookup_without_merging"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:first CONTENT { display_name: 'Filippo Strasse', display_name_normalized: 'filippo strasse', email: 'Filippo@Example.com', email_normalized: 'filippo@example.com', phone: '+32 475 12 34 56', phone_normalized: '+32475123456' };",
+]
+action_sql = "CREATE customer:second CONTENT { display_name: 'FILIPPO STRASSE', display_name_normalized: 'filippo strasse', email: 'filippo@example.com', email_normalized: 'filippo@example.com', phone: '+32-475-12-34-56', phone_normalized: '+32475123456' };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM customer WHERE display_name_normalized = 'filippo strasse' AND email_normalized = 'filippo@example.com' AND phone_normalized = '+32475123456');"
+
+[[cases.assertions]]
+path = ""
+equals = 2
+
+[[cases]]
+name = "customer_archive_retains_record_and_values"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:archived CONTENT { display_name: 'Archived Customer', display_name_normalized: 'archived customer', email: 'Archived@Example.com', email_normalized: 'archived@example.com' };",
+]
+action_sql = "UPDATE customer:archived SET archived_at = time::now();"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM customer WHERE id = customer:archived AND archived_at IS NOT NONE AND email = 'Archived@Example.com');"
+
+[[cases.assertions]]
+path = ""
+equals = 1

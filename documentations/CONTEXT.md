@@ -45,6 +45,21 @@ Pipauto should support customer profiles and allow each customer to have one or 
 
 Customers and vehicles should be quick to find. A vehicle page should provide direct access to its complete service history.
 
+Customer names use trimmed display values up to 160 characters and separate full-Unicode
+case-folded lookup values. Optional email lookups are ASCII-lowercased; optional phone lookups
+contain digits with at most one leading `+`. Empty optional text is absent rather than stored as an
+empty indexed value. Postal addresses contain required line 1, postal code, city, and uppercase
+two-letter country code plus optional line 2. Customer and vehicle workshop notes are limited to
+10,000 characters.
+
+Vehicles retain submitted display registration and VIN values while storing separate unique
+normalized lookup values. Registrations are ASCII-uppercased and stripped of spaces, hyphens, and
+periods; VINs are trimmed, ASCII-uppercased, exactly 17 characters, and exclude `I`, `O`, and `Q`.
+Vehicle years range from 1886 through the next calendar year. A vehicle has one current customer;
+reassignment does not reconstruct ownership history. Existing relationships survive archiving,
+while archived customers cannot receive newly assigned vehicles. Referenced customers and vehicles
+cannot be deleted.
+
 ### Interventions and service history
 
 An intervention, also referred to as a job, represents a repair, maintenance activity, inspection, or other piece of work performed on a vehicle. Each intervention may record:

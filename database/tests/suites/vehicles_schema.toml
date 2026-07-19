@@ -1,0 +1,52 @@
+name = "vehicles_schema"
+tags = ["vehicles", "metadata"]
+
+[[cases]]
+name = "vehicle_table_is_schemafull"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE TABLE vehicle TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+]
+
+[[cases]]
+name = "vehicle_fields_references_and_indexes_match"
+kind = "schema_metadata"
+table = "vehicle"
+contains = [
+    "DEFINE FIELD archived_at ON vehicle TYPE none | datetime",
+    "DEFINE FIELD created_at ON vehicle TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD current_mileage ON vehicle TYPE none | int",
+    "DEFINE FIELD customer ON vehicle TYPE record<customer>",
+    "REFERENCE ON DELETE REJECT",
+    "record::exists($value)",
+    "DEFINE FIELD engine_type ON vehicle TYPE none | string",
+    "DEFINE FIELD make ON vehicle TYPE string",
+    "DEFINE FIELD make_normalized ON vehicle TYPE string",
+    "DEFINE FIELD model ON vehicle TYPE string",
+    "DEFINE FIELD model_normalized ON vehicle TYPE string",
+    "DEFINE FIELD notes ON vehicle TYPE none | string",
+    "DEFINE FIELD registration ON vehicle TYPE none | string",
+    "DEFINE FIELD registration_normalized ON vehicle TYPE none | string",
+    "DEFINE FIELD updated_at ON vehicle TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE FIELD year ON vehicle TYPE none | int",
+    "DEFINE FIELD vin ON vehicle TYPE none | string",
+    "DEFINE FIELD vin_normalized ON vehicle TYPE none | string",
+    "DEFINE INDEX vehicle_archived_at ON vehicle FIELDS archived_at",
+    "DEFINE INDEX vehicle_customer ON vehicle FIELDS customer",
+    "DEFINE INDEX vehicle_make_model_normalized ON vehicle FIELDS make_normalized, model_normalized",
+    "DEFINE INDEX vehicle_registration_normalized_unique ON vehicle FIELDS registration_normalized UNIQUE",
+    "DEFINE INDEX vehicle_vin_normalized_unique ON vehicle FIELDS vin_normalized UNIQUE",
+]
+
+[[cases]]
+name = "vehicle_rejects_invalid_vin_and_negative_mileage"
+kind = "sql_expect"
+sql = "CREATE customer:owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' }; CREATE vehicle:invalid CONTENT { customer: customer:owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', vin: 'WVWZZZ1JZXW00000I', vin_normalized: 'WVWZZZ1JZXW00000I', current_mileage: -1 };"
+allow = false
+
+[[cases]]
+name = "vehicle_requires_exactly_one_current_customer"
+kind = "sql_expect"
+sql = "CREATE vehicle:no_customer CONTENT { make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };"
+allow = false

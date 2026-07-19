@@ -35,6 +35,7 @@ secrecy = "0.10"
 sha2 = "0.10"
 url = "2"
 time = "0.3.53"
+unicase = "2.9"
 
 [[bin]]
 name = "pipauto-cli"

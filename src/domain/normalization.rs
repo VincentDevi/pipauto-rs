@@ -3,6 +3,44 @@
 use std::fmt;
 
 use thiserror::Error;
+use unicase::UniCase;
+
+/// Trim, collapse whitespace, and apply full Unicode case folding for text lookup.
+#[must_use]
+pub fn normalize_search_text(value: &str) -> String {
+    let collapsed = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    UniCase::new(collapsed).to_folded_case()
+}
+
+/// Trim and ASCII-lowercase an email lookup value.
+#[must_use]
+pub fn normalize_email(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+/// Convert a display phone into digits with an optional leading `+`.
+///
+/// # Errors
+///
+/// Rejects empty values, misplaced `+` characters, letters, and punctuation other than common
+/// visual phone separators.
+pub fn normalize_phone(value: &str) -> Result<String, NormalizationError> {
+    let value = value.trim();
+    let mut normalized = String::with_capacity(value.len());
+    for (index, character) in value.chars().enumerate() {
+        match character {
+            '+' if index == 0 => normalized.push(character),
+            '0'..='9' => normalized.push(character),
+            ' ' | '-' | '.' | '(' | ')' | '/' => {}
+            _ => return Err(NormalizationError::InvalidPhone),
+        }
+    }
+    let digits = normalized.strip_prefix('+').unwrap_or(&normalized);
+    if digits.is_empty() {
+        return Err(NormalizationError::InvalidPhone);
+    }
+    Ok(normalized)
+}
 
 /// Canonical 17-character Vehicle Identification Number.
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -71,6 +109,8 @@ impl fmt::Debug for NormalizedRegistration {
 
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 pub enum NormalizationError {
+    #[error("phone lookup value has an invalid format")]
+    InvalidPhone,
     #[error("VIN must contain 17 valid characters")]
     InvalidVin,
     #[error("registration lookup value has an invalid format")]
@@ -92,5 +132,25 @@ mod tests {
             NormalizedRegistration::parse(" 1-abc-234 ").expect("valid registration");
         assert_eq!(registration.as_str(), "1ABC234");
         assert!(!format!("{registration:?}").contains(registration.as_str()));
+    }
+
+    #[test]
+    fn domain_customer_search_values_are_deterministic() {
+        assert_eq!(
+            normalize_search_text("  Filippo   STRAßE  "),
+            "filippo strasse"
+        );
+        assert_eq!(
+            normalize_email("  Filippo@Example.COM  "),
+            "filippo@example.com"
+        );
+        assert_eq!(
+            normalize_phone(" +32 (0) 475-12.34.56 "),
+            Ok("+320475123456".into())
+        );
+        assert_eq!(
+            normalize_phone("+32 ext 12"),
+            Err(NormalizationError::InvalidPhone)
+        );
     }
 }
