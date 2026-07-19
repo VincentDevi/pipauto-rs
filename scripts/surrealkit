@@ -252,6 +252,13 @@ def run_rollout_start(arguments: list[str], environment: dict[str, str]) -> int:
     selected = rollout_id(arguments[2])
     if run_cli(["rollout", "status", selected], environment) != 0:
         raise SafeFailure(f"rollout {selected} preflight failed")
+    rows = query(
+        environment,
+        f"SELECT status FROM __rollout WHERE record::id(id) = '{selected}' LIMIT 1;",
+    )[0]
+    status = rows[0].get("status") if rows else None
+    if status is None:
+        verify_catalog(environment, allow_metadata=True)
     owner = uuid.uuid4().hex
     query(
         environment,

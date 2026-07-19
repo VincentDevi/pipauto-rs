@@ -1,0 +1,986 @@
+id = "20260719182632__initial_core_domain"
+name = "initial core domain"
+source_schema_hash = "3c63bf20757b514917c4bf74a57ee1c131748497436a780d726b7e1d21ee50f2"
+target_schema_hash = "6cdc666dc7bcfe7ffc260a57ca3b919d6ffd5cf7d90168884a873a1f6eb6c6ad"
+compatibility = "phased"
+renames = []
+
+[[steps]]
+id = "apply_expand_schema"
+phase = "start"
+kind = "apply_files"
+files = [
+    "database/schema/business/attachment.surql",
+    "database/schema/business/customer.surql",
+    "database/schema/business/intervention.surql",
+    "database/schema/business/intervention_line.surql",
+    "database/schema/business/invoice.surql",
+    "database/schema/business/invoice_line.surql",
+    "database/schema/business/payment.surql",
+    "database/schema/business/technical_note.surql",
+    "database/schema/business/vehicle.surql",
+]
+
+[[steps]]
+id = "rollback_expand_schema"
+phase = "rollback"
+kind = "remove_entities"
+
+[[steps.entities]]
+kind = "analyzer"
+name = "workshop_terms"
+
+[[steps.entities]]
+kind = "event"
+scope = "attachment"
+name = "attachment_validate_owner"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_reject_delete"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_reject_line_currency_mismatch"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_reject_terminal_update"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_validate_mileage"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_validate_state"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention_line"
+name = "intervention_line_reject_terminal_mutation"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention_line"
+name = "intervention_line_validate_totals"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_reject_delete"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_reject_issued_snapshot_update"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_reject_line_currency_mismatch"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_reject_number_reassignment"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_validate_state"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice"
+name = "invoice_validate_void"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice_line"
+name = "invoice_line_reject_terminal_mutation"
+
+[[steps.entities]]
+kind = "event"
+scope = "invoice_line"
+name = "invoice_line_validate_snapshot"
+
+[[steps.entities]]
+kind = "event"
+scope = "payment"
+name = "payment_reject_mutation"
+
+[[steps.entities]]
+kind = "event"
+scope = "payment"
+name = "payment_validate_create"
+
+[[steps.entities]]
+kind = "event"
+scope = "technical_note"
+name = "technical_note_validate_context"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "byte_size"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "caption"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "display_name"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "intervention"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "media_type"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "storage_state"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "vehicle"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address.city"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address.country_code"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address.line_1"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address.line_2"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "address.postal_code"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "archived_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "display_name"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "display_name_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "email"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "email_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "notes"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "phone"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "phone_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "customer"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "cancelled_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "completed_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "currency"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "customer_reported_problem"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "diagnostics"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "mileage"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "notes"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "performed_work"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "recommendations"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "service_date"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "status"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "vehicle"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "category"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "currency"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "description"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "intervention"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "position"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "quantity"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "total_cost_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "total_price_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "unit_cost_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "unit_label"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "unit_price_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention_line"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot.city"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot.country_code"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot.line_1"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot.line_2"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "billing_address_snapshot.postal_code"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "currency"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "customer"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "customer_display_snapshot"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "due_date"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "intervention"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "issue_date"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "issue_number"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "issued_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "notes"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "status"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "subtotal_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "total_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "vehicle"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "void_reason"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice"
+name = "voided_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "currency"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "description"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "invoice"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "line_total_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "position"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "quantity"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "source_intervention_line"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "unit_label"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "unit_price_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "invoice_line"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "amount_minor"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "created_by"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "currency"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "invoice"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "method"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "notes"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "received_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "payment"
+name = "reference"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "archived_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "body"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "engine"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "engine_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "make"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "make_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "model"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "model_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "source_intervention"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "tags"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "tags.*"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "title"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "technical_note"
+name = "vehicle"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "archived_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "created_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "current_mileage"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "customer"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "engine_type"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "make"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "make_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "model"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "model_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "notes"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "registration"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "registration_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "updated_at"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "vin"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "vin_normalized"
+
+[[steps.entities]]
+kind = "field"
+scope = "vehicle"
+name = "year"
+
+[[steps.entities]]
+kind = "index"
+scope = "attachment"
+name = "attachment_intervention"
+
+[[steps.entities]]
+kind = "index"
+scope = "attachment"
+name = "attachment_storage_state"
+
+[[steps.entities]]
+kind = "index"
+scope = "attachment"
+name = "attachment_vehicle"
+
+[[steps.entities]]
+kind = "index"
+scope = "customer"
+name = "customer_archived_at"
+
+[[steps.entities]]
+kind = "index"
+scope = "customer"
+name = "customer_display_name_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "customer"
+name = "customer_email_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "customer"
+name = "customer_phone_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention"
+name = "intervention_recent_work"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention"
+name = "intervention_status"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention"
+name = "intervention_vehicle_service_history"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention_line"
+name = "intervention_line_intervention"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention_line"
+name = "intervention_line_position_unique"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_customer"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_intervention"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_issue_date"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_issue_number_unique"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_outstanding_listing"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_status"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice"
+name = "invoice_vehicle"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice_line"
+name = "invoice_line_invoice"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice_line"
+name = "invoice_line_position_unique"
+
+[[steps.entities]]
+kind = "index"
+scope = "invoice_line"
+name = "invoice_line_source_intervention_line"
+
+[[steps.entities]]
+kind = "index"
+scope = "payment"
+name = "payment_created_by"
+
+[[steps.entities]]
+kind = "index"
+scope = "payment"
+name = "payment_invoice_received"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_archived_at"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_body_search"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_engine_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_make_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_model_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_source_intervention"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_tags"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_title_search"
+
+[[steps.entities]]
+kind = "index"
+scope = "technical_note"
+name = "technical_note_vehicle"
+
+[[steps.entities]]
+kind = "index"
+scope = "vehicle"
+name = "vehicle_archived_at"
+
+[[steps.entities]]
+kind = "index"
+scope = "vehicle"
+name = "vehicle_customer"
+
+[[steps.entities]]
+kind = "index"
+scope = "vehicle"
+name = "vehicle_make_model_normalized"
+
+[[steps.entities]]
+kind = "index"
+scope = "vehicle"
+name = "vehicle_registration_normalized_unique"
+
+[[steps.entities]]
+kind = "index"
+scope = "vehicle"
+name = "vehicle_vin_normalized_unique"
+
+[[steps.entities]]
+kind = "sequence"
+name = "invoice_issue_number"
+
+[[steps.entities]]
+kind = "table"
+name = "attachment"
+
+[[steps.entities]]
+kind = "table"
+name = "customer"
+
+[[steps.entities]]
+kind = "table"
+name = "intervention"
+
+[[steps.entities]]
+kind = "table"
+name = "intervention_line"
+
+[[steps.entities]]
+kind = "table"
+name = "invoice"
+
+[[steps.entities]]
+kind = "table"
+name = "invoice_line"
+
+[[steps.entities]]
+kind = "table"
+name = "payment"
+
+[[steps.entities]]
+kind = "table"
+name = "technical_note"
+
+[[steps.entities]]
+kind = "table"
+name = "vehicle"

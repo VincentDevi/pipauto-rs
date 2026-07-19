@@ -2,6 +2,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use surrealdb::types::SurrealValue;
 use surrealdb::{engine::any::Any, opt::capabilities::Capabilities, opt::Config, Surreal};
+use surrealkit::schema_state::CatalogSnapshot;
 use surrealkit::{
     EmbeddedSchemaFile, EntityKey, EntityKind, Rollout, RolloutPhase, RolloutSpec, RolloutStep,
     Sync,
@@ -41,6 +42,89 @@ static AUTHENTICATION_WITH_VEHICLE: &[EmbeddedSchemaFile] = &[
         path: "database/schema/business/vehicle.surql",
         sql: "DEFINE TABLE vehicle SCHEMAFULL;",
     },
+];
+
+static CORE_DOMAIN_SCHEMA: &[EmbeddedSchemaFile] = &[
+    EmbeddedSchemaFile {
+        path: "database/schema/authentication/user.surql",
+        sql: include_str!("../../database/schema/authentication/user.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/authentication/auth_session.surql",
+        sql: include_str!("../../database/schema/authentication/auth_session.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/authentication/login_throttle.surql",
+        sql: include_str!("../../database/schema/authentication/login_throttle.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/attachment.surql",
+        sql: include_str!("../../database/schema/business/attachment.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/customer.surql",
+        sql: include_str!("../../database/schema/business/customer.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/intervention.surql",
+        sql: include_str!("../../database/schema/business/intervention.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/intervention_line.surql",
+        sql: include_str!("../../database/schema/business/intervention_line.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/invoice.surql",
+        sql: include_str!("../../database/schema/business/invoice.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/invoice_line.surql",
+        sql: include_str!("../../database/schema/business/invoice_line.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/payment.surql",
+        sql: include_str!("../../database/schema/business/payment.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/technical_note.surql",
+        sql: include_str!("../../database/schema/business/technical_note.surql"),
+    },
+    EmbeddedSchemaFile {
+        path: "database/schema/business/vehicle.surql",
+        sql: include_str!("../../database/schema/business/vehicle.surql"),
+    },
+];
+
+const BUSINESS_SCHEMA_SQL: &str = concat!(
+    include_str!("../../database/schema/business/attachment.surql"),
+    "\n",
+    include_str!("../../database/schema/business/customer.surql"),
+    "\n",
+    include_str!("../../database/schema/business/intervention.surql"),
+    "\n",
+    include_str!("../../database/schema/business/intervention_line.surql"),
+    "\n",
+    include_str!("../../database/schema/business/invoice.surql"),
+    "\n",
+    include_str!("../../database/schema/business/invoice_line.surql"),
+    "\n",
+    include_str!("../../database/schema/business/payment.surql"),
+    "\n",
+    include_str!("../../database/schema/business/technical_note.surql"),
+    "\n",
+    include_str!("../../database/schema/business/vehicle.surql"),
+);
+
+const BUSINESS_TABLES: [&str; 9] = [
+    "attachment",
+    "customer",
+    "intervention",
+    "intervention_line",
+    "invoice",
+    "invoice_line",
+    "payment",
+    "technical_note",
+    "vehicle",
 ];
 
 async fn migration_database(name: &str) -> Surreal<Any> {
@@ -171,6 +255,76 @@ async fn authentication_catalog(database: &Surreal<Any>) -> Value {
     Value::Object(catalog)
 }
 
+async fn authentication_counts(database: &Surreal<Any>) -> Value {
+    let mut response = database
+        .query(
+            "RETURN [count(SELECT * FROM user), count(SELECT * FROM auth_session), \
+             count(SELECT * FROM login_throttle)];",
+        )
+        .await
+        .expect("authentication counts should execute");
+    json_value(
+        response
+            .take(0)
+            .expect("authentication counts should deserialize"),
+    )
+}
+
+async fn application_catalog(database: &Surreal<Any>) -> Value {
+    let mut sql = String::from("INFO FOR DB;");
+    for table in AUTHENTICATION_SCHEMA
+        .iter()
+        .map(|file| file.path.rsplit('/').next().expect("schema file name"))
+        .map(|file| file.trim_end_matches(".surql"))
+        .chain(BUSINESS_TABLES)
+    {
+        sql.push_str(&format!(" INFO FOR TABLE {table};"));
+    }
+    let mut response = database
+        .query(sql)
+        .await
+        .expect("application catalog should execute");
+    let mut database_info = json_value(
+        response
+            .take(0)
+            .expect("database catalog should deserialize"),
+    );
+    if let Some(tables) = database_info["tables"].as_object_mut() {
+        tables.remove("__entity");
+        tables.remove("__rollout");
+    }
+
+    let mut table_info = serde_json::Map::new();
+    for (offset, table) in ["user", "auth_session", "login_throttle"]
+        .into_iter()
+        .chain(BUSINESS_TABLES)
+        .enumerate()
+    {
+        table_info.insert(
+            table.to_owned(),
+            json_value(
+                response
+                    .take(offset + 1)
+                    .expect("table catalog should deserialize"),
+            ),
+        );
+    }
+    json!({"database": database_info, "tables": table_info})
+}
+
+async fn business_tables(database: &Surreal<Any>) -> Vec<String> {
+    let mut response = database
+        .query("INFO FOR DB;")
+        .await
+        .expect("database table inspection should execute");
+    let info = json_value(response.take(0).expect("database info should deserialize"));
+    BUSINESS_TABLES
+        .iter()
+        .filter(|table| info["tables"].get(**table).is_some())
+        .map(|table| (*table).to_owned())
+        .collect()
+}
+
 fn json_value(value: surrealdb::types::Value) -> Value {
     Value::from_value(value).expect("SurrealDB metadata should convert to JSON")
 }
@@ -194,6 +348,37 @@ fn vehicle_rollout(id: &str) -> Rollout<'static> {
         ))
         .build();
     Rollout::new(spec, AUTHENTICATION_WITH_VEHICLE)
+}
+
+fn core_domain_rollout(id: &str) -> Rollout<'static> {
+    let catalog: CatalogSnapshot = serde_json::from_str(include_str!(
+        "../../database/snapshots/catalog_snapshot.json"
+    ))
+    .expect("committed core-domain catalog snapshot should be valid JSON");
+    let rollback_entities = catalog
+        .entities
+        .into_iter()
+        .filter(|entity| entity.source_path.starts_with("database/schema/business/"))
+        .map(|entity| EntityKey {
+            kind: entity.kind,
+            scope: entity.scope,
+            name: entity.name,
+        })
+        .collect();
+    let spec = RolloutSpec::builder(id)
+        .name("Initial core domain")
+        .step(RolloutStep::apply_schema(
+            "apply_expand_schema",
+            RolloutPhase::Start,
+            BUSINESS_SCHEMA_SQL,
+        ))
+        .step(RolloutStep::remove_entities(
+            "rollback_expand_schema",
+            RolloutPhase::Rollback,
+            rollback_entities,
+        ))
+        .build();
+    Rollout::new(spec, CORE_DOMAIN_SCHEMA)
 }
 
 #[tokio::test]
@@ -292,6 +477,300 @@ async fn migration_pending_rollout_and_rollback_preserve_authentication_fixtures
         .await
         .expect("pending rollout should roll back");
     assert_eq!(fixture_fingerprint(&database).await, before);
+}
+
+#[tokio::test]
+async fn core_domain_rollout_clean_and_existing_databases_reach_the_same_catalog() {
+    let clean = migration_database("core_domain_clean").await;
+    Sync::embedded(CORE_DOMAIN_SCHEMA)
+        .run(&clean)
+        .await
+        .expect("clean desired schema should synchronize");
+    let desired_catalog = application_catalog(&clean).await;
+
+    let existing = migration_database("core_domain_existing").await;
+    apply_authentication_schema(&existing).await;
+    seed_authentication_fixtures(&existing).await;
+    let before_fingerprint = fixture_fingerprint(&existing).await;
+    let before_counts = authentication_counts(&existing).await;
+
+    let rollout = core_domain_rollout("vin_44_existing_database");
+    rollout
+        .start(&existing)
+        .await
+        .expect("core-domain rollout should start");
+    assert_eq!(fixture_fingerprint(&existing).await, before_fingerprint);
+    assert_eq!(authentication_counts(&existing).await, before_counts);
+    rollout
+        .complete(&existing)
+        .await
+        .expect("additive rollout should complete without a contract step");
+    assert_eq!(fixture_fingerprint(&existing).await, before_fingerprint);
+    assert_eq!(authentication_counts(&existing).await, before_counts);
+    assert_eq!(application_catalog(&existing).await, desired_catalog);
+}
+
+#[tokio::test]
+async fn core_domain_rollout_reapplication_is_stable() {
+    let database = migration_database("core_domain_reapplication").await;
+    apply_authentication_schema(&database).await;
+    let rollout = core_domain_rollout("vin_44_reapplication");
+
+    rollout
+        .start(&database)
+        .await
+        .expect("first rollout start should succeed");
+    let first_status = rollout
+        .status(&database)
+        .await
+        .expect("rollout status should load")
+        .expect("rollout record should exist");
+    assert_eq!(
+        first_status.status,
+        Some(surrealkit::RolloutStatus::ReadyToComplete)
+    );
+    assert_eq!(first_status.steps.len(), 1);
+    assert_eq!(first_status.steps[0].status, "completed");
+
+    let pending_error = rollout
+        .start(&database)
+        .await
+        .expect_err("an active rollout must reject a second start");
+    assert!(pending_error.to_string().contains("active"));
+    let repeated_status = rollout
+        .status(&database)
+        .await
+        .expect("repeated rollout status should load")
+        .expect("rollout record should remain present");
+    assert_eq!(repeated_status.steps, first_status.steps);
+
+    rollout
+        .complete(&database)
+        .await
+        .expect("rollout should complete");
+    let error = rollout
+        .start(&database)
+        .await
+        .expect_err("a completed rollout must not reapply");
+    assert!(error.to_string().contains("already completed"));
+    assert_eq!(
+        rollout
+            .status(&database)
+            .await
+            .expect("completed status should load")
+            .expect("completed rollout should remain recorded")
+            .status,
+        Some(surrealkit::RolloutStatus::Completed)
+    );
+}
+
+#[tokio::test]
+async fn core_domain_rollout_rollback_removes_only_business_schema_and_metadata() {
+    let database = migration_database("core_domain_rollback").await;
+    apply_authentication_schema(&database).await;
+    seed_authentication_fixtures(&database).await;
+    let before_fingerprint = fixture_fingerprint(&database).await;
+    let before_counts = authentication_counts(&database).await;
+    let before_catalog = authentication_catalog(&database).await;
+    let rollout = core_domain_rollout("vin_44_rollback");
+
+    rollout
+        .start(&database)
+        .await
+        .expect("disposable rollout should start");
+    assert_eq!(fixture_fingerprint(&database).await, before_fingerprint);
+    rollout
+        .rollback(&database)
+        .await
+        .expect("disposable rollout should roll back");
+
+    assert_eq!(fixture_fingerprint(&database).await, before_fingerprint);
+    assert_eq!(authentication_counts(&database).await, before_counts);
+    assert_eq!(authentication_catalog(&database).await, before_catalog);
+    assert!(business_tables(&database).await.is_empty());
+    assert_eq!(
+        rollout
+            .status(&database)
+            .await
+            .expect("rolled-back status should load")
+            .expect("rolled-back rollout should remain recorded")
+            .status,
+        Some(surrealkit::RolloutStatus::RolledBack)
+    );
+}
+
+#[tokio::test]
+async fn core_domain_rollout_drift_blocks_before_business_changes() {
+    let database = migration_database("core_domain_drift").await;
+    apply_authentication_schema(&database).await;
+    seed_authentication_fixtures(&database).await;
+    database
+        .query("REMOVE INDEX auth_session_expires_at ON auth_session;")
+        .await
+        .expect("drift setup should execute")
+        .check()
+        .expect("drift setup should remove the authentication index");
+    let before_fingerprint = fixture_fingerprint(&database).await;
+    let actual = authentication_catalog(&database).await;
+    let expected: Value = serde_json::from_str(include_str!(
+        "../../database/tests/fixtures/authentication_catalog.json"
+    ))
+    .expect("committed authentication catalog should be valid JSON");
+
+    let error = validate_authentication_catalog(&actual, &expected)
+        .expect_err("authentication drift must block rollout start");
+    assert_eq!(
+        error,
+        CatalogValidationError::TableDrift {
+            table: "auth_session".to_owned()
+        }
+    );
+    assert_eq!(fixture_fingerprint(&database).await, before_fingerprint);
+    assert!(business_tables(&database).await.is_empty());
+    let diagnostic = error.to_string();
+    assert!(diagnostic.contains("auth_session"));
+    assert!(!diagnostic.contains("active-session-digest"));
+}
+
+#[tokio::test]
+async fn core_domain_rollout_representative_queries_pass() {
+    let database = migration_database("core_domain_queries").await;
+    apply_authentication_schema(&database).await;
+    seed_authentication_fixtures(&database).await;
+    core_domain_rollout("vin_44_queries")
+        .start(&database)
+        .await
+        .expect("query verification rollout should start");
+
+    database
+        .query(
+            r#"
+            CREATE customer:filippo CONTENT {
+                display_name: 'Filippo Customer',
+                display_name_normalized: 'filippo customer'
+            };
+            CREATE vehicle:golf CONTENT {
+                customer: customer:filippo,
+                make: 'Volkswagen',
+                make_normalized: 'volkswagen',
+                model: 'Golf',
+                model_normalized: 'golf',
+                registration: '1-ABC-123',
+                registration_normalized: '1ABC123'
+            };
+            CREATE intervention:older CONTENT {
+                vehicle: vehicle:golf,
+                service_date: d'2026-06-01T00:00:00Z',
+                mileage: 120000
+            };
+            CREATE intervention:newer CONTENT {
+                vehicle: vehicle:golf,
+                service_date: d'2026-07-01T00:00:00Z',
+                mileage: 121000,
+                performed_work: 'Water pump replacement'
+            };
+            CREATE intervention_line:labour CONTENT {
+                intervention: intervention:newer,
+                category: 'labour',
+                description: 'Water pump labour',
+                quantity: 2dec,
+                unit_label: 'hour',
+                currency: 'EUR',
+                unit_price_minor: 5000,
+                total_price_minor: 10000,
+                position: 0
+            };
+            CREATE technical_note:water_pump CONTENT {
+                title: 'Water pump replacement',
+                body: 'Use the locking tool before removing the pulley.',
+                tags: ['cooling'],
+                make: 'Volkswagen',
+                make_normalized: 'volkswagen'
+            };
+            CREATE invoice:repair CONTENT {
+                customer: customer:filippo,
+                vehicle: vehicle:golf,
+                intervention: intervention:newer
+            };
+            CREATE invoice_line:repair CONTENT {
+                invoice: invoice:repair,
+                description: 'Water pump replacement',
+                quantity: 1dec,
+                unit_label: 'job',
+                currency: 'EUR',
+                unit_price_minor: 10000,
+                line_total_minor: 10000,
+                position: 0
+            };
+            UPDATE invoice:repair SET
+                status = 'issued',
+                issue_number = '2026-00444',
+                issue_date = d'2026-07-19',
+                customer_display_snapshot = 'Filippo Customer',
+                subtotal_minor = 10000,
+                total_minor = 10000,
+                issued_at = time::now();
+            CREATE payment:deposit CONTENT {
+                invoice: invoice:repair,
+                amount_minor: 4000,
+                currency: 'EUR',
+                received_at: d'2026-07-19T13:00:00Z',
+                method: 'cash',
+                created_by: user:active
+            };
+            "#,
+        )
+        .await
+        .expect("representative fixtures should execute")
+        .check()
+        .expect("representative fixtures should satisfy the rollout schema");
+
+    let mut response = database
+        .query(
+            r#"
+            RETURN count(SELECT * FROM vehicle WHERE customer = customer:filippo);
+            RETURN (SELECT VALUE id FROM intervention WHERE vehicle = vehicle:golf
+                ORDER BY service_date DESC, created_at DESC, id DESC);
+            RETURN count(SELECT * FROM technical_note
+                WHERE (title @@ 'water' OR body @@ 'water')
+                    AND tags CONTAINS 'cooling'
+                    AND make_normalized = 'volkswagen');
+            RETURN invoice:repair.total_minor;
+            RETURN invoice:repair.total_minor - math::sum((SELECT VALUE amount_minor
+                FROM payment WHERE invoice = invoice:repair));
+            RETURN sequence::nextval('invoice_issue_number');
+            RETURN sequence::nextval('invoice_issue_number');
+            "#,
+        )
+        .await
+        .expect("representative queries should execute");
+    assert_eq!(
+        json_value(response.take(0).expect("customer navigation result")),
+        json!(1)
+    );
+    let history = json_value(response.take(1).expect("service history result"));
+    assert_eq!(history.as_array().expect("service history array").len(), 2);
+    assert!(history.to_string().find("newer") < history.to_string().find("older"));
+    assert_eq!(
+        json_value(response.take(2).expect("technical search result")),
+        json!(1)
+    );
+    assert_eq!(
+        json_value(response.take(3).expect("invoice total result")),
+        json!(10000)
+    );
+    assert_eq!(
+        json_value(response.take(4).expect("outstanding total result")),
+        json!(6000)
+    );
+    assert_eq!(
+        json_value(response.take(5).expect("first sequence result")),
+        json!(1)
+    );
+    assert_eq!(
+        json_value(response.take(6).expect("second sequence result")),
+        json!(2)
+    );
 }
 
 #[tokio::test]

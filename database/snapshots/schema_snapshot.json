@@ -12,6 +12,42 @@
     {
       "path": "database/schema/authentication/user.surql",
       "hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "path": "database/schema/business/attachment.surql",
+      "hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "path": "database/schema/business/customer.surql",
+      "hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "path": "database/schema/business/intervention.surql",
+      "hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "path": "database/schema/business/intervention_line.surql",
+      "hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "path": "database/schema/business/invoice.surql",
+      "hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "path": "database/schema/business/invoice_line.surql",
+      "hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "path": "database/schema/business/payment.surql",
+      "hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "path": "database/schema/business/technical_note.surql",
+      "hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "path": "database/schema/business/vehicle.surql",
+      "hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
     }
   ]
 }

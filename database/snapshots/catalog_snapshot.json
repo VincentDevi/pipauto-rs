@@ -2,6 +2,238 @@
   "version": 2,
   "entities": [
     {
+      "kind": "analyzer",
+      "scope": null,
+      "name": "workshop_terms",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "b00298d04f03d0f333125ccd5f57e97d577088aad1243c5542801e082da262a5",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "event",
+      "scope": "attachment",
+      "name": "attachment_validate_owner",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "20627eed10fecc593e835f13d01a6e9ee3ffc2004674b6f2d5613a0eaa49c2c9",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
+      "name": "intervention_reject_delete",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "a7d80c3b46e41a5bd093fb4f61a44dbcbab0bbbc549259b0e4d5e16bb9544485",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
+      "name": "intervention_reject_line_currency_mismatch",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "3751800dbd2d56b6e4c535c5a64ce7295d7f3412fb9ce3331f89883301986555",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
+      "name": "intervention_reject_terminal_update",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "d33e76bb70b6e0f8ac94cbd6cb4872f38554483b8e15837579e316a18c3c32a4",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
+      "name": "intervention_validate_mileage",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "3f976000dd40ac15013d0b1483c925500c4dfa9ed1f949897817f21baf26646b",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
+      "name": "intervention_validate_state",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "9ef53ceccd3259fd94932ab8fa870edf6a6ed2a005ec4f0e1a55be8138e148cf",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention_line",
+      "name": "intervention_line_reject_terminal_mutation",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "1fab1407c0dfc7c00d68278d4b16a5526dbca10e8282bd7d85b14a81a0744653",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention_line",
+      "name": "intervention_line_validate_totals",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "1de5cb2db296bc2018255732f28aecbe65cd366b28085540000ed11193cb54e9",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_reject_delete",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "5697e2bd2408d4a8333d593d4bfb14d60d93806ca38b5de0de994486aa54ac7f",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_reject_issued_snapshot_update",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "5d79df85f2e2a42301e59139164b8ec3d3f2006a594fcdfdc4d268e2096f8d90",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_reject_line_currency_mismatch",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "60ff81c8629c1841a2115a696c177cca3d5c75c00a8815ca371f86d8b1f3cfd5",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_reject_number_reassignment",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "c75608d73df0cf3a6d202ffdc64d2d76d4c159ee0c545b08469498d12c051335",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_validate_state",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "6b81f9e14abe7636900637d4791d9267caa8851fc4c1de36471d35e0d85883f2",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice",
+      "name": "invoice_validate_void",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "7ce10bf5d691bb9839d896768efc97f37a3d4161cd36bdfe20687b0bd5c03994",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice_line",
+      "name": "invoice_line_reject_terminal_mutation",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "f152b94e6a99ded2f12d1e37edb28ca3a63ab8d96c6e939820e15f9be8990d8f",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "event",
+      "scope": "invoice_line",
+      "name": "invoice_line_validate_snapshot",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "ae8f9bff8564939c882226c63492d46e21a4b584e6d2b3213bdfa9a603fff616",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "event",
+      "scope": "payment",
+      "name": "payment_reject_mutation",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "0406a6e07f71b55e4bd156f4998b52635dab9eb86fe02b1cd0516c0e2aa5d77b",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "event",
+      "scope": "payment",
+      "name": "payment_validate_create",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "c3d1f7253b75b133cc3684b0b740df58f5ccc94d2c4761e9a84f54902d1934c7",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "event",
+      "scope": "technical_note",
+      "name": "technical_note_validate_context",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "3371ab90a99405285c1a09ced16b9e98876f4e04e36a3288a0cfc4750713d5a3",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "byte_size",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "98330bcc73dbe523293fa376384a3880a18a41ae290f74b1dfcd9e0a4b81b261",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "caption",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "87ce9867b84f07b566b0fb99ae18816b35c568926c03978e9c6bb7e2c594d2a6",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "created_at",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "e836e2db897747b28287bbfc844b85c0f3b66d58f6d32b5ea2a88c88c72f127f",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "display_name",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "18d7a822fae191b0acf5bf4850ed10dc74c69b893c73bdade6168edcb2db72ec",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "intervention",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "23f50c668a95d63f6a417f8bbb4af5aa0bf9a92936533b0fe7225561adf418be",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "media_type",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "87a8cba39f71b36d8f826bf3e68b0dea69b49f9803e681aa423e019b4675d9bc",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "storage_state",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "34b132b4cd49ed24c75c462171b5eab29d4d700c9870a70383ee092e0c7d75ad",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "updated_at",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "6ae3c3533c241307e7d88a90d238b809b1090fcc59e87377a739e081ce78278a",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "vehicle",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "92ff48045a3f85362ab21cf73dadc60717dc090145a19a1aeaccd0f5cbfd657d",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
       "kind": "field",
       "scope": "auth_session",
       "name": "created_ip_digest",
@@ -67,6 +299,622 @@
     },
     {
       "kind": "field",
+      "scope": "customer",
+      "name": "address",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "9a0d63f8582823da1a2fecb7082dc82e16ba5b72d87eb3027d81495f2f355e8b",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "address.city",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "e3443cbab766322144209d130dbfaedcb058865cdfd08ef18b608ec40d87edb0",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "address.country_code",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "046f01415dffb0eef270b8c2934de5c7b30c4db395617fac52c0d1f210463b03",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "address.line_1",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "cd6512a5a093c16a68ed418a6c7de0f95fcd073f5411bb69222bee6ac2b42e10",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "address.line_2",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "34727be503b59529d491c696178c4118050acd065d9d362dc7bbf6a242bd1d63",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "address.postal_code",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "857dd900a0ea6d331efb44608e5a6b73f4aadce79f1edf5247f1c4e681baf7ef",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "archived_at",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "0f9380b27e4769372b833c921b50592f13c158bdfd58ec6956bb70e8d5990e15",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "created_at",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "10a2a34c22c58a846fc319e69c219b313e9a7fc67fa5fde5e09352afc4d985a5",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "display_name",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "4efafe3f66cbed064786148447de4269862e57ddbdcc70af7fa53e03f018f1c3",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "display_name_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "b6e7a7f815a271789d61459f309e0b0362151c260e411cc1a35886512edeeab3",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "email",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "2ffdacde67e3dede6fbf1a07f9aafa95ea239615529361d2329bd97f9b39c9f9",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "email_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "7d35e128f1e38b4b24ae3d69c10cab801ea0ed7ccf513e8d8abbbe3dbc2a54a6",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "notes",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "27eaf149fecdd5243abfc55b2395b5dc58a8de1ed3dc36353acac53e110941af",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "phone",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "51e02adbd56416172bf18d6fbbef1f0d53c0de08e8b7c9a5e8dfff8088211247",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "phone_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "58a7cfc2bf5c6973efee7a7a6d157ab1a2d344792295d41d6554b19d875b62bb",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "customer",
+      "name": "updated_at",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "4b2bed242c2f22313252f156f68ab8d0fba9abcba6902f047b7122242327d957",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "cancelled_at",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "54ab06b3b40758d98923de7dcf986430374d53347df27ebff8d67b67ce451fab",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "completed_at",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "eb89faad026b53d50ae063f02385003b0da1cdc1aa1dcc6c6ce666145a98c47f",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "created_at",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "39b7812bcc11198f9537f44c940691ca31d4c8c08fe0c56e8d018649e7372cf3",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "currency",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "6de1c119876e05cd50b7773502eec97b42133f2921d21acdf435253d2e680a09",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "customer_reported_problem",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "b3fb0b3ab0e0ef5950df4bfe3e3ec81e407d5aef5f0c203f398d24211acc476a",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "diagnostics",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "2cabec2cc2ecb08d60a0bc1175f20153ed81d99e5a4255e948605a08043343df",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "mileage",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "21b70d621cee4cceac326e822c71b6af82aeaaa26b43a30c3f0736d0b46a8bc1",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "notes",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "26474a9d6097228dea15c66285a22fb80f780971bae33edd199ab588e989b755",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "performed_work",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "0bd5f01ca8e94ea669c26a004ee01b65c1c7b4151aa2be8d127eed1fd2572759",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "recommendations",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "ba603fb567e81a539353128ee57f1341c3d75ef57641c199528e6e62f2e5bb80",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "service_date",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "0c832a4d7dc3fea999df30b0cc783214466a10a22a6e5ac9ee57e1822070dbb2",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "status",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "9998ed4696c3cdb19ca8707a499c37a24a9c31585d7a657637dde52900ca1fc4",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "updated_at",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "d060acd5de4bb04eb4e5761951817b6912357e09b31a667285a0dd1e5b841048",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "vehicle",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "e216662bd0960577ab0609950cf303558de8569bd0375824040ef63e433edd5b",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "category",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "5874a06dab485a911dec74b5c7339deadfd6ead40efb12639855709faf665cc4",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "created_at",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "30198d1e77ec0aeafe42cfc919225f49fe40580e7c3a544e3f0c8aea58ebd7cb",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "currency",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "a6c37da4a6da9a3d0c136a8fc8ced92abf81432fa53dd74e147c97ecccb7c528",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "description",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "0c3e66e34ab344eef9689204c1fe2494157ab4059292e64d2c481eee5c485ad3",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "intervention",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "37051d269dabb9ca5932ad18cf125bc8c9149292c41843016d866856da06012f",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "position",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "c8ad7bedf9433a42690a4fbee75663321f72a6c59b7aedc8b088caa543150e37",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "quantity",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "95ae89c4c0054ae7d5f570913ac77420f7274ed14bfc1199fffc445eb762c506",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "total_cost_minor",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "e145dced5f12e2534f8ab2b11c28d27c6dd3c4267cd7ac52008589104b7059d4",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "total_price_minor",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "c1d850e17ae494a303e47214097e063ea3fa1958a5623681f319a0134c0b09c6",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "unit_cost_minor",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "cb7f8ebac9f4afc46bd8295aded0ec8697b14352832f1a195ba07f0241a4e142",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "unit_label",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "ca218b2953fa81d13a12258069920ff2dc9f2bca18603e96ef71bb9646591b80",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "unit_price_minor",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "200550e588af832a9e9fbcb862fe6e51eeb664c2582958504090ebf70506f464",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention_line",
+      "name": "updated_at",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "3df262ed21e39401404c3acc1b08b496ef5a34c8a7e9f4353ebed961d3484d72",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "39fb8574d212d7ddedab74533837b4eb6d2c2ab7eaf147b4145f79759f528afb",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot.city",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "75ce0a6d388430b47dbe60c9315037154fb827c6c98ec8850f78df87926a1f5e",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot.country_code",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "ec2038bbbbda7ccc2f38c491825e7d4b0bb4a1b612b2226430ba40ada49c8935",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot.line_1",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "b8702ffc34217d5414231fe57e5eb554f677a4bc09b5c27242b844d70ab219f9",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot.line_2",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "96614df5be1a0f6061aa22c641cd53d7ff7a99687f67edfcd6b3941c480238a4",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "billing_address_snapshot.postal_code",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "de04c77be80c3d5b2ebb87c05af144fc0d73dbde1ebb4d1c3e7f5c5ec0ba9016",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "created_at",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "bd241eeefd3e2caa4860e5da0350798ab6392f4d5260bdb021015c13455b2cba",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "currency",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "d3cd3feafb15d47ecff1edc9ad4a4460fd2b61c8d49d7867b8b2225ce6410fcd",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "customer",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "3207b65a1d831c74fa61b59a561019fe50c894c713ed67eb0c4e08f5182e6e1a",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "customer_display_snapshot",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "d436de54cdb3474c00cd60d163349b979ec803959f9e8f855d132927c420e075",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "due_date",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "202888c9c7d862a85355d882115531ea4e515aef1758e027365eb9870443b6f3",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "intervention",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "26252a13cbfeba440644885cb044450eb1757a24d11a9ab1c36663d4c5bffc4b",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "issue_date",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "b530f8da6c16275e488c3d9907c6e367bf9eb93d656989d91d4c40aa1964ec3b",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "issue_number",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "71e244275b85f83a6a2c058c6bfb78b38cb4fcd588789b12ce1494d931e17f33",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "issued_at",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "248bffb6014cb904077b48e01a29a12f6328ddc9327f753bb0b6d5b6229511c1",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "notes",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "22bc82856ff0f3f78a99be8e666c7cd881fa54f9d326a5ccff29f7d1674924ef",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "status",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "5527064ebdd61f5011aa9ea13d48ee71ad224780afcf481afb62df0170a9cefc",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "subtotal_minor",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "8b54331338f17cae56bfe468f552232ebbb0ebd90d3b0ee3c39fcb94363c7f2c",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "total_minor",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "13d36b111920ae86cb946fa5c4ef6177d835dead3f95d25e36e9eec5fdc4d9dd",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "updated_at",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "f56a47146a5a4a875a2a9a4117bdf4dc4592a1b631cbb983229c88f8faa22e26",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "vehicle",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "1fe38eb923bb5c1894a48f515154d6d58099d32c3b610833f163b458ea31526c",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "void_reason",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "2227d44fd9ca8f61004bab893c28fad531d1c75bfb1342b6a2273513755a6c3a",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice",
+      "name": "voided_at",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "fa2a7fb0b39a7028bcba9444eb30cb0c9e84843f4feb502b658dd05b87f88a66",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "created_at",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "39d9896dac2c0293387282cc588c9633dcd53c82b50c9f33d3047ace258cac94",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "currency",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "19be808a6310db776f28da95816dab149732a6ad6c3a3c7860441d23da7b37a2",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "description",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "8fded47ad95fdf2ee80be7ee59fd78a74223d12c00a505f6abbb7fa094f9fe2d",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "invoice",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "0d536a0de7441bb43e454e0c988fa5b9abdd714f650125132d6bbf193aa6dc55",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "line_total_minor",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "c72b30cf0923be082a0fa29c55c4407a4a75bd43d83505f29f0aaf1a6ee11367",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "position",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "3a0df3db2cd0579b244092812ba0aefe24c2556e7b6b809761e2962c91542d57",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "quantity",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "15c17e35f874841ff33dda13c8c7a6a2e54519b89dbdb3533437bebbf2126171",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "source_intervention_line",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "8e74bd5ec6c47131ac10adf21e4ca456d0d82067b50258ed3a30ad18b75a72cb",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "unit_label",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "f91ced08e93ea7517afed7d8acbdf8acac0d0bfe992b68bd2f63b4f65405eb2b",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "unit_price_minor",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "0deb36e318afd25031812949bd30d16f193b39e0cea94e1bf8b82e380aee2a96",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
+      "scope": "invoice_line",
+      "name": "updated_at",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "7f863c0011536cdaf6e70360150ea72f211cb065e7fbddc50b022271aceb0aa0",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "field",
       "scope": "login_throttle",
       "name": "blocked_until",
       "source_path": "database/schema/authentication/login_throttle.surql",
@@ -104,6 +952,198 @@
       "source_path": "database/schema/authentication/login_throttle.surql",
       "statement_hash": "67667f83bae3764d852ea05dc6f6e1ac6362cc690881be6b881af3988485653c",
       "file_hash": "0caca85c4b2dbe12f469b08debc97ce4379b47f69e67cb736e7d2704ba077d18"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "amount_minor",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "d16e7ae600f00f36384370618f017480334953d5035e664ebea23bc07b5ec8da",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "created_at",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "20f4f4a0e8928b8cb393c5de36cb6f254868b4aae62f7d1135a266e2a0471acb",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "created_by",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "65c964ef7b01dc7ec491960590fca9a6a3c389dab898e33961e6c9697fca3ad9",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "currency",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "2da0c2f37a24e370b33d9c48032bf8bb67cd7f561e02e22af888fc11179bcf2f",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "invoice",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "43fe3817761ffa1cc6915ce1be9fee23bb7d0fda78dc22317a568089bd4814b0",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "method",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "fff048bc0fb5708a3cef4e0b786c9d5974c53e8d565d6b5b4cb8744990c0f422",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "notes",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "77a4f032ee56436362f5bc4eb7550358531e0465aa2ec4acb78b422b62c7272a",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "received_at",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "fdf196ba3b881c7cc306e249253388c8b3cd3016c0d3acc4813ac7dae5e591c7",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "payment",
+      "name": "reference",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "b140f7e07e30a53308c9c40280da17f6b2fe1a550dd76e21a7f6a612e7588038",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "archived_at",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "3a031872d9e69497d86ddd4156a4db7edde4ed394d91ab99ee31cde9b6c3fdf7",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "body",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "993a20aa4ce20e5622e1e2eed3a90a953fb32ffb44dd822049c3ae402f39bf9f",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "created_at",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "2501ba9ce76144eb392dd557daa28bbac762193aa307fdfadf49c766ef86dc13",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "engine",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "4759d8c250218645a8300af8341f5ddb14787c601b539ee232968899669b7771",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "engine_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "f96b5fff7aac8cfb99c6cd0b535c0a1ed0b7e497f835822fbfc19e7d7e22c876",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "make",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "aa092c6343cd7928c18928dbab8ca93ed2f6538e36a2ed91ffff209264e341c7",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "make_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "966471ebb872fb015823d7bbdda57a7ba136a989c1a8f51a45ccd378002b5997",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "model",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "8838d8a7285573e7187bfd351d43bac36185c11c7b977885d2787c3ceacd8c2a",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "model_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "360653fbca1ba88b5dd2f0f2df5787aa67a8200773c62a52ecb7163fa03e4496",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "source_intervention",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "bd8f2b9c110f29f1a2190fceda34da57a5112cef457d357a60eab18109c2cf21",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "tags",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "e3c3cdcc7305b6f4b70c2161e5208c9cf5d81f3214809150cae4729fc7621113",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "tags.*",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "b5c5da56365aa2e4d383507457104662fb5efc310aa97fe15f2f2ffc598bf2b4",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "title",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "c542e15687138bcc53d3f93d49658661966ab2eb579435c36eaeba6113c58d48",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "updated_at",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "757f5f41985c2e2013c39cd8f673d6c9cc7ce9ce1ad2e3628e7d327de0418869",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "field",
+      "scope": "technical_note",
+      "name": "vehicle",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "74791572dd956a349d119683b149700eb622a08d050b9652c2474b577b1ed552",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
     },
     {
       "kind": "field",
@@ -162,6 +1202,158 @@
       "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
     },
     {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "archived_at",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "b15aecbc03ae5d01f9ee8fe816116e88ad55bc730fdfa52a05b7987eb6914ada",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "created_at",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "596c74165b63a0acfc3401ed4f3b17edc62c2ddd49a22b49c5ccc277c0c0a86c",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "current_mileage",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "7e9d86bd1d3ade7132c3e1985d08e759f06da820fc20bd7f8c8977ae053aa1f6",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "customer",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "91368c4bdd649896cd5092020cb82155c055e58c1d1c966df7e17a1cd22fe248",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "engine_type",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "358645b7f686dd95402b698486556979671f2baf7a27b326a14f0eb5f4360906",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "make",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "6a3b32aad006de23645b3c4623daf7d33673cb925eb0e822d91b89984e0afefc",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "make_normalized",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "9b9dbfbbebff5a9d42a536034f5ad671205f902a1d7a440a34a21a1522e18595",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "model",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "a11052f453b7312d6955f7335b846290240e83e2efa1415599a6959a6b4a81a9",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "model_normalized",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "7beecf8bbede8d7de68779895055ffedf9f7520ed7947359f9bdb05f1c620de2",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "notes",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "0f5fbc3147b54c898395b96b2a9157b8d4e743dc9de805fc11e1a90cd0f480ea",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "registration",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "3a09df9de80e8d02555e2d612b59d2b185236a870d2e100364279d32593075ed",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "registration_normalized",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "31bb64b0f1afe76e7437689cfa0f608e6776960c9d6f81e37e40e21f2e611b27",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "updated_at",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "884a0344c538dc00e3b12f2408f23be816aea1d6d1bdd08217a19e245e97b796",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "vin",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "9e05648b24245519eb9ed2f71f65569b2afdd1343446f80bf3379218757533eb",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "vin_normalized",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "ca068e1d46e7a676f8f58474871c70016eacec1fe4cac2378747ee1c69956985",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "field",
+      "scope": "vehicle",
+      "name": "year",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "1c92690ee6f968557a0c2c35ad61c695f886c4103f01db4f8bca8d705a7b6e79",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "index",
+      "scope": "attachment",
+      "name": "attachment_intervention",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "195d1a24745b79d8bdd6ef77276efc24308fe8fc7d76f42422a3ca0165f98f53",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "index",
+      "scope": "attachment",
+      "name": "attachment_storage_state",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "c64c3cad835074ee91c0161e607155f6f1a59cfcc2d7267d4d186dd0b690df1e",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
+      "kind": "index",
+      "scope": "attachment",
+      "name": "attachment_vehicle",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "2eff450ea56165cb558f821ccfc79f7e52599da88315b1804036f580667cdd55",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+    },
+    {
       "kind": "index",
       "scope": "auth_session",
       "name": "auth_session_expires_at",
@@ -187,6 +1379,158 @@
     },
     {
       "kind": "index",
+      "scope": "customer",
+      "name": "customer_archived_at",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "4b9eada3783340505462967ad5e48b17ff21914f45d1ac9591a0bb2a9fed85bf",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "index",
+      "scope": "customer",
+      "name": "customer_display_name_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "8efdcda00ff90d1d8dfcade42ec1660a9d02bc42117ec8f2248c70a766853878",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "index",
+      "scope": "customer",
+      "name": "customer_email_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "5e4f5cd1d86e9d4a481692f051b2a1c98a6f4654005fc9748afe59478739a360",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "index",
+      "scope": "customer",
+      "name": "customer_phone_normalized",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "af8991909fb05ea0fdd3f1e0b04ce1448719e76e6635ee68c004aadebccd48ed",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention",
+      "name": "intervention_recent_work",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "03330af14faa65785183d0e1e5c4305495e6b4ee303a77e69efec5638a5c304c",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention",
+      "name": "intervention_status",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "1e626c4eae0d8fd558c2ae2bfc7c473c0bec2a477f70a4f5c22d03f94a750877",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention",
+      "name": "intervention_vehicle_service_history",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "34d9cf8edbf412c5af25150ffe011df91bffa5c655841945a0cba6376c7918b3",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention_line",
+      "name": "intervention_line_intervention",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "2fe3f383d641feb397958d0f9bbda2dab3b33e3be228b64b5c34cf9a378e0576",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention_line",
+      "name": "intervention_line_position_unique",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "9139ebf50c30fc08dee2569f8b41034548006919d453168ae138434cc68d8c8b",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_customer",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "d6640e31f3956ea05dfaf1b308574bd3d9dfff82ce8ea10c8a9031f7e3714bc6",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_intervention",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "b29cdacc852450b029efe1816401dd6661ee257d67355e810b01ace47e37c4d4",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_issue_date",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "98a58363723a211fb058e493880e2a60d76837776bff96368af65645e5f45847",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_issue_number_unique",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "2d46af57398eb7a24350c016a97b98e340e470939bb4654c60044f892aed349f",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_outstanding_listing",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "504159c0429d8ad96127b3f9efe826c8069aefe7a2391b7c4fcda6036e7ba02a",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_status",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "9860f711f39569fe165c3c3ef1593027dae1ed699698cd4e1c874c98a81af0ff",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice",
+      "name": "invoice_vehicle",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "2b4e4db5944df2f6759e543353868fae941c7a0d2d2a7eccbffa3d3991f91075",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice_line",
+      "name": "invoice_line_invoice",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "a4b20ac4895c02412198394abb52d1a75726c389aa1fdaafac9f86839f267fce",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice_line",
+      "name": "invoice_line_position_unique",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "872f6cc4b5ae2a7e84af6b7f9e5b418e885f8e2aebd2d3b590b9ebc3463e706b",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "index",
+      "scope": "invoice_line",
+      "name": "invoice_line_source_intervention_line",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "761e477ca9e6bf3c3f75911cb169c945f0d43abe0c20da7845554a9599531516",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "index",
       "scope": "login_throttle",
       "name": "login_throttle_blocked_until",
       "source_path": "database/schema/authentication/login_throttle.surql",
@@ -203,11 +1547,155 @@
     },
     {
       "kind": "index",
+      "scope": "payment",
+      "name": "payment_created_by",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "fa46e5286916e1b81fc7a544bd9a4d82d2a3891876d1a1d224657326b3744234",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "index",
+      "scope": "payment",
+      "name": "payment_invoice_received",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "8f9b4b3f6bf7ea655c3699368b34ca83f8f3d1f497d92c5db37159a2aff67052",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_archived_at",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "55f799ce1a9be5e284ba985bfe4943dd2ae0d558949d106708b23c1a138d9674",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_body_search",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "020872b5c2c80b8904c70e969d732d1ec7adab9638cce8ae88f2a6114f81375a",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_engine_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "c1f3ad93934d249f8d5dfe2fdc33efc6a39264b4467572fdef8f27b2420360a0",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_make_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "363f6975eff0eaccb7a1acd6ba77b2db1152289cd48cf43ddfd41844c9bb23c0",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_model_normalized",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "9bd37f4e69a57fd228f46a811bef5e04c647c4c5331c89b54efaf08559f081c6",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_source_intervention",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "0ecaf95b6f8d83af492fbbf4d072884ed299a9b0346416ff70a8d383333c0d4a",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_tags",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "b6a19285dae245ab1e272cc778754363c71a5c05456604360ce91853bc4a7432",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_title_search",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "518d03039d71b47f43598dbc72ed7382ec6500ae12a8b27475e062b2ac1806c7",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
+      "scope": "technical_note",
+      "name": "technical_note_vehicle",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "028c32277e2c600f8794f58bc4c41d7ff7044cff2a38b57c3bdf565ea4d080a2",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "index",
       "scope": "user",
       "name": "user_email_normalized_unique",
       "source_path": "database/schema/authentication/user.surql",
       "statement_hash": "65a2c07baf3b20cc4035eeceaf5d153f7b3273a63f9a16bc265d10f48e1ef8cc",
       "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "index",
+      "scope": "vehicle",
+      "name": "vehicle_archived_at",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "8eaeb0a6c9ee67a77a082304148756b629913c34ad3b1abd80b4e37b38a285e8",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "index",
+      "scope": "vehicle",
+      "name": "vehicle_customer",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "49dd9bf80b4a943c2428c7683e604ea7f9268bf57d364ce32c0881b2c7a4aeba",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "index",
+      "scope": "vehicle",
+      "name": "vehicle_make_model_normalized",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "f29e1ce1a1cab1d9acd8f57ea62fb70343e16282c7a9e1846e3295cf1b547323",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "index",
+      "scope": "vehicle",
+      "name": "vehicle_registration_normalized_unique",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "7b362f061095279a062e3e89d5ee509bdedbf599a422d7282c6387d0c0082dfa",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "index",
+      "scope": "vehicle",
+      "name": "vehicle_vin_normalized_unique",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "88926ccb2a6e17d5b0c3fa0dcad452748acb07fdd2b049ad84db3c545d62657d",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "kind": "sequence",
+      "scope": null,
+      "name": "invoice_issue_number",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "c1090891d05513d66d429b6babbd068ef5f8344fad0ab18e4a3618b124627c93",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "attachment",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "8bc738e5d6157c31d6a827739e7c14099c8e814d84e7c8f439cab361023e072a",
+      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
     },
     {
       "kind": "table",
@@ -220,6 +1708,46 @@
     {
       "kind": "table",
       "scope": null,
+      "name": "customer",
+      "source_path": "database/schema/business/customer.surql",
+      "statement_hash": "dc31095cd19bf97b4c8888aed20d0d1289a277a83b27d7e905538534834761a2",
+      "file_hash": "311894ca17aef6432bfb48978f7b08c5df6d390968ada01bea7c76c4e365045e"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "intervention",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "27699bb05973bf5c2e2a1413a8163f45ea28b212845282944a5721136642347b",
+      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "intervention_line",
+      "source_path": "database/schema/business/intervention_line.surql",
+      "statement_hash": "49960e5c7731cee34f5229f3627d0c6ebac287a76182e1a83f28c09ab91d99a3",
+      "file_hash": "65a78f04749e78f38498a685744db8cb66c70790807749780c741b2baada44d8"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "invoice",
+      "source_path": "database/schema/business/invoice.surql",
+      "statement_hash": "2d434573ea1a96798ea8920ec59651758d3ee60502036c0b02708c644d81133c",
+      "file_hash": "ee19d4743fcc82a129d3b9d36b72362f96f57569925587e6475711be8cfa2f4c"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "invoice_line",
+      "source_path": "database/schema/business/invoice_line.surql",
+      "statement_hash": "59712ed1b08b443aeda344fca9ae8e61fa0aec6e43fc4f6d0af53817ae7e6af2",
+      "file_hash": "c19d432beff88c89591bcb7c2564ce818dd0ba124bb77ff7d2c36c8e553ed13f"
+    },
+    {
+      "kind": "table",
+      "scope": null,
       "name": "login_throttle",
       "source_path": "database/schema/authentication/login_throttle.surql",
       "statement_hash": "73781ea7585c0902fe74a4aa37a666be22bbd2c93cc52a6d7f7c77ea121870f9",
@@ -228,10 +1756,34 @@
     {
       "kind": "table",
       "scope": null,
+      "name": "payment",
+      "source_path": "database/schema/business/payment.surql",
+      "statement_hash": "77708d559a07a08e0c6fd0ebb02254ece14929da1ce248767acc4c0d8f8c9864",
+      "file_hash": "ee1daae3bdd1d5d2a21eacd20eee432ef9c362f1f5bd1b19681f471d5ad574c2"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "technical_note",
+      "source_path": "database/schema/business/technical_note.surql",
+      "statement_hash": "b71d92e08b32f7e54dcc653219ebc1fcee8fb332557ff72105327c5e4cc880c4",
+      "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
+    },
+    {
+      "kind": "table",
+      "scope": null,
       "name": "user",
       "source_path": "database/schema/authentication/user.surql",
       "statement_hash": "5baf1783f24861bd523cea0e82f3bda0bd8521744d73767905d513368567b54f",
       "file_hash": "b0a88582cfb081faa0ec897ccd096bf4fc46e93c052e09a1af07d53dfdcf54ce"
+    },
+    {
+      "kind": "table",
+      "scope": null,
+      "name": "vehicle",
+      "source_path": "database/schema/business/vehicle.surql",
+      "statement_hash": "a572519ebf04a76dbd9e1fd8343b702e68029d22a7678a6282f3a9395ca589a1",
+      "file_hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
     }
   ]
 }
