@@ -192,19 +192,20 @@ tests should not use the persistent development database.
 
 ## Development checks
 
-Automated tests use an isolated in-memory SurrealDB engine and do not require Docker or `.env`.
-Run the complete milestone gate from the repository root:
+Rust tests use an isolated in-memory SurrealDB engine and do not require Docker or `.env`. Run the
+complete migration and application gate from the repository root. It starts a disposable
+in-memory SurrealDB database named `pipauto_ci`, rejects development and production database names,
+and removes the container even when a check fails:
 
 ```bash
-surrealkit --version
-./scripts/surrealkit test --suite 'authentication*'
-cargo fmt --check
-cargo check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test
-cargo loco routes
-cargo loco task
+./scripts/ci-check
 ```
+
+The gate runs formatting and checking, every isolated SurrealKit suite, lint for every committed
+rollout manifest, the Rust migration integration tests, and the complete Rust suite. SurrealKit's
+machine-readable result is sanitized to `artifacts/migration-report.json`: it includes suite/case
+names and pass/fail state, but omits connection settings, database names, error payloads, and rows.
+CI uploads that report only when the gate fails.
 
 SurrealKit is pinned at `0.7.0` and verified with the SurrealDB `3.2.1` server image and Rust SDK.
 The wrapper maps `SURREALDB_ENDPOINT`, `SURREALDB_ROOT_USERNAME`,

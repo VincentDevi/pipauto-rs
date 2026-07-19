@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly COMPOSE_PROJECT_NAME="pipauto-vin38-ci"
+readonly COMPOSE_FILE="$ROOT/compose.ci.yaml"
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+else
+  COMPOSE=(docker-compose)
+fi
+
+export SURREALDB_ENDPOINT="ws://localhost:18000"
+export SURREALDB_ROOT_USERNAME="root"
+export SURREALDB_ROOT_PASSWORD="local-ci-only"
+export SURREALDB_NAMESPACE="pipauto_ci"
+export SURREALDB_DATABASE="pipauto_ci"
+export PIPAUTO_MIGRATION_REPORT="$ROOT/artifacts/migration-report.json"
+
+case "$SURREALDB_DATABASE" in
+  pipauto_development|*production*|*prod*)
+    echo "error: CI refuses development or production database names" >&2
+    exit 1
+    ;;
+esac
+
+cleanup() {
+  "${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
+    down --volumes --remove-orphans >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+cd "$ROOT"
+cargo fmt --check
+cargo check
+
+"${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
+  up --detach --wait
+
+./scripts/surrealkit test --parallel 2
+
+while IFS= read -r -d '' rollout; do
+  ./scripts/surrealkit rollout lint "$rollout"
+done < <(find database/rollouts -maxdepth 1 -type f -name '*.toml' -print0 | sort -z)
+
+if rg -n 'local-ci-only|SURREALDB_ROOT_PASSWORD|password_hash|jti_digest|identifier_digest' \
+  "$PIPAUTO_MIGRATION_REPORT"; then
+  echo "error: migration report contains credentials or row-shaped authentication data" >&2
+  exit 1
+fi
+
+cargo test migration
+cargo test

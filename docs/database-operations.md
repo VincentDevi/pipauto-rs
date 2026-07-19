@@ -169,8 +169,17 @@ Inspect: ./scripts/surrealkit rollout status 20260719090000__example
 Recovery: follow the interrupted-rollout repair procedure; do not start the application release.
 ```
 
-VIN-38 adds automated validation around this operator gate. Until then, a second operator must
-compare the targeted status output with the table above before application deployment.
+Automated deployment validation applies the table above without printing `last_error` or record
+contents. It permits only `ready_to_complete`:
+
+```bash
+./scripts/surrealkit deployment-gate production "$ROLLOUT_ID"
+```
+
+All other states exit non-zero and identify the environment, rollout ID, observed state, and safe
+next action. The wrapper also serializes `rollout start` with a database-backed gate lock, so two
+concurrent starts cannot both proceed. A successful `repair` or `rollback` clears a lock left by an
+interrupted start after the documented state transition is reconciled.
 
 ### 1. Export and verify the production backup
 

@@ -8,15 +8,21 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
+import uuid
 
 PINNED_VERSION = "0.7.0"
 AUTH_TABLES = ("auth_session", "login_throttle", "user")
 ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_CATALOG = ROOT / "database/tests/fixtures/authentication_catalog.json"
+DEFAULT_REPORT = ROOT / "artifacts/migration-report.json"
+ROLLOUT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+ENVIRONMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 class SafeFailure(Exception):
@@ -154,6 +160,151 @@ def run_cli(arguments: list[str], environment: dict[str, str]) -> int:
     return subprocess.run(["surrealkit", *arguments], env=environment, check=False).returncode
 
 
+def report_path(arguments: list[str]) -> tuple[list[str], Path]:
+    cleaned: list[str] = []
+    requested: Path | None = None
+    iterator = iter(arguments)
+    for argument in iterator:
+        if argument == "--json-out":
+            try:
+                requested = Path(next(iterator))
+            except StopIteration as error:
+                raise SafeFailure("--json-out requires a report path") from error
+        elif argument.startswith("--json-out="):
+            requested = Path(argument.partition("=")[2])
+        else:
+            cleaned.append(argument)
+    configured = os.environ.get("PIPAUTO_MIGRATION_REPORT", "").strip()
+    return cleaned, requested or (Path(configured) if configured else DEFAULT_REPORT)
+
+
+def sanitize_report(raw_path: Path, destination: Path, result: int) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    report: dict[str, object] = {
+        "schema_version": 1,
+        "status": "passed" if result == 0 else "failed",
+        "phase": "surrealkit_test",
+    }
+    try:
+        raw = json.loads(raw_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        raw = {}
+
+    for field in (
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "suites_total",
+        "suites_failed",
+        "cases_total",
+        "cases_passed",
+        "cases_failed",
+    ):
+        if field in raw:
+            report[field] = raw[field]
+    report["suites"] = [
+        {
+            "suite_file": suite.get("suite_file"),
+            "suite_name": suite.get("suite_name"),
+            "cases": [
+                {
+                    "name": case.get("name"),
+                    "kind": case.get("kind"),
+                    "passed": case.get("passed"),
+                }
+                for case in suite.get("cases", [])
+            ],
+        }
+        for suite in raw.get("suites", [])
+    ]
+    destination.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+
+
+def run_tests(arguments: list[str], environment: dict[str, str]) -> int:
+    arguments, destination = report_path(arguments)
+    temporary = tempfile.NamedTemporaryFile(prefix="pipauto-migration-", suffix=".json", delete=False)
+    raw_path = Path(temporary.name)
+    temporary.close()
+    try:
+        result = run_cli([*arguments, "--json-out", str(raw_path)], environment)
+        sanitize_report(raw_path, destination, result)
+        return result
+    finally:
+        raw_path.unlink(missing_ok=True)
+
+
+def rollout_id(value: str) -> str:
+    if not ROLLOUT_ID_PATTERN.fullmatch(value):
+        raise SafeFailure("rollout id contains unsupported characters")
+    return value
+
+
+def clear_rollout_lock(environment: dict[str, str]) -> None:
+    query(
+        environment,
+        "DELETE __entity WHERE ns = 'pipauto_rollout_gate' AND key = 'global';",
+    )
+
+
+def run_rollout_start(arguments: list[str], environment: dict[str, str]) -> int:
+    if len(arguments) != 3:
+        raise SafeFailure("rollout start requires exactly one rollout id")
+    selected = rollout_id(arguments[2])
+    if run_cli(["rollout", "status", selected], environment) != 0:
+        raise SafeFailure(f"rollout {selected} preflight failed")
+    owner = uuid.uuid4().hex
+    query(
+        environment,
+        "CREATE ONLY __entity CONTENT { "
+        "ns: 'pipauto_rollout_gate', key: 'global', "
+        f"val: {{ owner: '{owner}' }}, updated_at: time::now() }};",
+    )
+    try:
+        return run_cli(arguments, environment)
+    finally:
+        query(
+            environment,
+            "DELETE __entity WHERE ns = 'pipauto_rollout_gate' "
+            f"AND key = 'global' AND val.owner = '{owner}';",
+        )
+
+
+def deployment_gate(arguments: list[str], environment: dict[str, str]) -> int:
+    if len(arguments) != 3:
+        raise SafeFailure("deployment-gate requires an environment and rollout id")
+    selected_environment = arguments[1].strip().lower()
+    if not ENVIRONMENT_PATTERN.fullmatch(selected_environment):
+        raise SafeFailure("deployment environment contains unsupported characters")
+    selected_rollout = rollout_id(arguments[2])
+    rows = query(
+        environment,
+        f"SELECT status FROM __rollout WHERE record::id(id) = '{selected_rollout}' LIMIT 1;",
+    )[0]
+    status = rows[0].get("status") if rows else "planned"
+    if status == "ready_to_complete":
+        print(
+            f"DEPLOYMENT PERMITTED: {selected_environment} rollout "
+            f"{selected_rollout} is ready_to_complete."
+        )
+        return 0
+    actions = {
+        "planned": "run the reviewed rollout start phase",
+        "running_start": "follow the interrupted-rollout repair procedure",
+        "running_complete": "follow the interrupted-rollout repair procedure",
+        "running_rollback": "follow the interrupted-rollout repair procedure",
+        "failed": "make a reviewed retry-or-rollback decision",
+        "completed": "use a new forward rollout or isolated backup recovery",
+        "rolled_back": "do not deploy code that requires this rollout",
+    }
+    action = actions.get(status, "preserve evidence and escalate the unknown rollout state")
+    print(
+        f"DEPLOYMENT BLOCKED: {selected_environment} rollout {selected_rollout} "
+        f"is {status}. Action: {action}.",
+        file=sys.stderr,
+    )
+    return 1
+
+
 def baseline_authentication(environment: dict[str, str]) -> int:
     verify_catalog(environment, allow_metadata=False)
     before = record_fingerprint(environment)
@@ -177,6 +328,17 @@ def main() -> int:
         return baseline_authentication(environment)
     if not arguments:
         raise SafeFailure("a SurrealKit command is required")
+    if arguments[0] == "test":
+        return run_tests(arguments, environment)
+    if arguments[0] == "deployment-gate":
+        return deployment_gate(arguments, environment)
+    if arguments[:2] == ["rollout", "start"]:
+        return run_rollout_start(arguments, environment)
+    if arguments[:2] in (["rollout", "repair"], ["rollout", "rollback"]):
+        result = run_cli(arguments, environment)
+        if result == 0:
+            clear_rollout_lock(environment)
+        return result
     return run_cli(arguments, environment)
 
 

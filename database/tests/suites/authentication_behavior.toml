@@ -1,0 +1,60 @@
+name = "authentication_behavior"
+tags = ["authentication", "behavior"]
+
+[[cases]]
+name = "normalized_email_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:email_first CONTENT { email: 'Mechanic@Example.com', email_normalized: 'mechanic@example.com', display_name: 'First Mechanic', password_hash: '$argon2id$fixture' };",
+]
+action_sql = "CREATE user:email_second CONTENT { email: 'mechanic@example.com', email_normalized: 'mechanic@example.com', display_name: 'Second Mechanic', password_hash: '$argon2id$fixture' };"
+expect_success = false
+
+[[cases]]
+name = "session_digest_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:session_owner CONTENT { email: 'session@example.com', email_normalized: 'session@example.com', display_name: 'Session Owner', password_hash: '$argon2id$fixture' };",
+    "CREATE auth_session:first CONTENT { user: user:session_owner, jti_digest: 'shared-session-digest', issued_at: time::now(), expires_at: time::now() + 1h };",
+]
+action_sql = "CREATE auth_session:second CONTENT { user: user:session_owner, jti_digest: 'shared-session-digest', issued_at: time::now(), expires_at: time::now() + 2h };"
+expect_success = false
+
+[[cases]]
+name = "session_expiry_lookup_returns_only_unexpired_sessions"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE user:expiry_owner CONTENT { email: 'expiry@example.com', email_normalized: 'expiry@example.com', display_name: 'Expiry Owner', password_hash: '$argon2id$fixture' };",
+    "CREATE auth_session:unexpired CONTENT { user: user:expiry_owner, jti_digest: 'unexpired-digest', issued_at: time::now() - 1h, expires_at: time::now() + 1h };",
+    "CREATE auth_session:expired CONTENT { user: user:expiry_owner, jti_digest: 'expired-digest', issued_at: time::now() - 2h, expires_at: time::now() - 1h };",
+]
+action_sql = "RETURN true;"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM auth_session WHERE user = user:expiry_owner AND expires_at > time::now());"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "throttle_identifier_and_network_pair_is_unique"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE login_throttle:first CONTENT { identifier_digest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', network_digest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', window_started_at: time::now() };",
+]
+action_sql = "CREATE login_throttle:duplicate CONTENT { identifier_digest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', network_digest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', window_started_at: time::now() };"
+expect_success = false
+
+[[cases]]
+name = "throttle_identifier_can_exist_on_a_different_network"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE login_throttle:first_network CONTENT { identifier_digest: 'ccccccccccccccccccccccccccccccccccccccccccc', network_digest: 'ddddddddddddddddddddddddddddddddddddddddddd', window_started_at: time::now() };",
+]
+action_sql = "CREATE login_throttle:second_network CONTENT { identifier_digest: 'ccccccccccccccccccccccccccccccccccccccccccc', network_digest: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', window_started_at: time::now() };"
+expect_success = true
+verify_sql = "RETURN count(SELECT * FROM login_throttle WHERE identifier_digest = 'ccccccccccccccccccccccccccccccccccccccccccc');"
+
+[[cases.assertions]]
+path = ""
+equals = 2

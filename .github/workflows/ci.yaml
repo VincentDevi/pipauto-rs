@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  migration-safety-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Install pinned SurrealKit
+        run: cargo install surrealkit --version 0.7.0 --locked
+      - name: Run the disposable migration and Rust gate
+        run: ./scripts/ci-check
+      - name: Upload secret-safe migration report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-report
+          path: artifacts/migration-report.json
+          if-no-files-found: warn
+          retention-days: 14

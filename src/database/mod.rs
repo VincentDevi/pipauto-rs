@@ -4,4 +4,5 @@
 //! business repository contracts, application workflows, HTTP behavior, or template behavior.
 
 pub mod client;
+pub mod migrations;
 pub mod settings;

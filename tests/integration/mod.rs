@@ -6,3 +6,4 @@
 mod auth;
 mod auth_repositories;
 mod database;
+mod migration;

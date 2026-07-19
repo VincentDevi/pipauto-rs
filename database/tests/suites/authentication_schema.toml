@@ -1,47 +1,63 @@
 name = "authentication_schema"
-tags = ["authentication"]
+tags = ["authentication", "metadata"]
 
 [[cases]]
-name = "user_catalog_is_complete"
+name = "authentication_tables_match"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE TABLE auth_session TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "DEFINE TABLE login_throttle TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "DEFINE TABLE user TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+]
+
+[[cases]]
+name = "user_table_fields_assertions_and_indexes_match"
 kind = "schema_metadata"
 table = "user"
 contains = [
-    "email_normalized",
-    "string::len($value) <= 254",
-    "string::starts_with($value, '$argon2id$')",
-    "READONLY",
-    "DEFAULT ALWAYS time::now()",
-    "user_email_normalized_unique",
-    "UNIQUE",
+    "DEFINE FIELD active ON user TYPE bool DEFAULT true PERMISSIONS FULL",
+    "DEFINE FIELD created_at ON user TYPE datetime DEFAULT time::now() READONLY PERMISSIONS FULL",
+    "DEFINE FIELD display_name ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 120 PERMISSIONS FULL",
+    "DEFINE FIELD email ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 254 PERMISSIONS FULL",
+    "DEFINE FIELD email_normalized ON user TYPE string ASSERT string::len($value) > 0 AND string::len($value) <= 254 PERMISSIONS FULL",
+    "DEFINE FIELD password_hash ON user TYPE string ASSERT string::starts_with($value, '$argon2id$') PERMISSIONS FULL",
+    "DEFINE FIELD updated_at ON user TYPE datetime DEFAULT ALWAYS time::now() PERMISSIONS FULL",
+    "DEFINE INDEX user_email_normalized_unique ON user FIELDS email_normalized UNIQUE",
 ]
 
 [[cases]]
-name = "auth_session_catalog_is_complete"
+name = "auth_session_table_fields_assertions_and_indexes_match"
 kind = "schema_metadata"
 table = "auth_session"
 contains = [
-    "record<user>",
-    "created_ip_digest",
-    "string::len($value) = 43",
-    "user_agent_summary",
-    "string::len($value) <= 256",
-    "auth_session_jti_unique",
-    "auth_session_user",
-    "auth_session_expires_at",
+    "DEFINE FIELD created_ip_digest ON auth_session TYPE none | string ASSERT $value = NONE OR string::len($value) = 43 PERMISSIONS FULL",
+    "DEFINE FIELD expires_at ON auth_session TYPE datetime PERMISSIONS FULL",
+    "DEFINE FIELD issued_at ON auth_session TYPE datetime PERMISSIONS FULL",
+    "DEFINE FIELD jti_digest ON auth_session TYPE string PERMISSIONS FULL",
+    "DEFINE FIELD last_seen_at ON auth_session TYPE none | datetime PERMISSIONS FULL",
+    "DEFINE FIELD revoked_at ON auth_session TYPE none | datetime PERMISSIONS FULL",
+    "DEFINE FIELD user ON auth_session TYPE record<user> PERMISSIONS FULL",
+    "DEFINE FIELD user_agent_summary ON auth_session TYPE none | string",
+    "$value = NONE OR string::len($value) <= 256",
+    "AND !$value.contains",
+    "DEFINE INDEX auth_session_expires_at ON auth_session FIELDS expires_at",
+    "DEFINE INDEX auth_session_jti_unique ON auth_session FIELDS jti_digest UNIQUE",
+    "DEFINE INDEX auth_session_user ON auth_session FIELDS user",
 ]
 
 [[cases]]
-name = "login_throttle_catalog_is_complete"
+name = "login_throttle_table_fields_assertions_and_indexes_match"
 kind = "schema_metadata"
 table = "login_throttle"
 contains = [
-    "identifier_digest",
-    "network_digest",
-    "string::len($value) = 43",
-    "failed_attempts",
-    "DEFAULT 0",
-    "login_throttle_key_unique",
-    "login_throttle_blocked_until",
+    "DEFINE FIELD blocked_until ON login_throttle TYPE none | datetime PERMISSIONS FULL",
+    "DEFINE FIELD failed_attempts ON login_throttle TYPE int DEFAULT 0 PERMISSIONS FULL",
+    "DEFINE FIELD identifier_digest ON login_throttle TYPE string ASSERT string::len($value) = 43 PERMISSIONS FULL",
+    "DEFINE FIELD network_digest ON login_throttle TYPE string ASSERT string::len($value) = 43 PERMISSIONS FULL",
+    "DEFINE FIELD window_started_at ON login_throttle TYPE datetime PERMISSIONS FULL",
+    "DEFINE INDEX login_throttle_blocked_until ON login_throttle FIELDS blocked_until",
+    "DEFINE INDEX login_throttle_key_unique ON login_throttle FIELDS identifier_digest, network_digest UNIQUE",
 ]
 
 [[cases]]
