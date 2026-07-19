@@ -14,6 +14,22 @@ The initial product is designed primarily for Filippo. He may use it while speak
 
 No broader roles, permissions model, multi-workshop organization, or customer-facing portal is defined by the current product brief. These should not be assumed without an explicit later decision.
 
+### Approved authentication boundary
+
+Pipauto uses administrator-provisioned email/password accounts. Every active user has identical
+application access. Browser sessions last a fixed 12 hours and require both a valid signed JWT and
+an active matching session-registry record in SurrealDB. Logout revokes the registry record, so a
+copied JWT cannot be replayed afterward.
+
+Authentication is server-enforced for the workshop shell and all non-public routes. Login is the
+only guest workflow; static assets and non-sensitive health endpoints remain public. Unsafe browser
+requests require origin-bound, expiring CSRF tokens, including equivalent standard-form and HTMX
+behavior. Production authentication requires HTTPS and secure `__Host-` cookies.
+
+Public registration, password recovery, email verification, social login, MFA, API keys, roles,
+granular permissions, refresh tokens, remember-me behavior, and a session-management UI are not in
+the initial-release authentication scope.
+
 ## Core domain
 
 ### Customers and vehicles
@@ -115,4 +131,3 @@ A future AI mechanic assistant could use accumulated service histories and techn
 - Use consistent domain language: customer, vehicle, intervention/job, service history, technical note, invoice, and payment.
 - Clearly distinguish confirmed requirements from suggestions, hypotheses, and future ideas.
 - Ask before expanding the initial-release scope or making consequential product assumptions.
-

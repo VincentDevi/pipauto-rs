@@ -9,6 +9,10 @@ use thiserror::Error;
 pub const DISPLAY_NAME_MAX_CHARS: usize = 120;
 /// Maximum number of Unicode scalar values stored in a non-authoritative user-agent summary.
 pub const USER_AGENT_SUMMARY_MAX_CHARS: usize = 256;
+/// Minimum password length measured in Unicode scalar values.
+pub const PASSWORD_MIN_SCALARS: usize = 12;
+/// Maximum password size measured in UTF-8 bytes to bound Argon2 work.
+pub const PASSWORD_MAX_BYTES: usize = 1_024;
 
 /// Stable application user record identifier.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -83,7 +87,6 @@ pub struct User {
 #[derive(Clone)]
 pub struct UserCredentials {
     pub user: User,
-    #[allow(dead_code)] // Consumed by the password-authentication service in the next milestone.
     pub(crate) password_hash: String,
 }
 
@@ -97,7 +100,6 @@ impl UserCredentials {
         }
     }
 
-    #[allow(dead_code)] // The repository contract intentionally precedes its authentication caller.
     pub(crate) fn password_hash(&self) -> &str {
         &self.password_hash
     }
@@ -251,6 +253,15 @@ pub struct NewAuthSession {
     pub user_agent_summary: Option<String>,
 }
 
+/// Presentation-safe authenticated request identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthenticatedUser {
+    pub id: UserId,
+    pub email: String,
+    pub display_name: String,
+    pub session_expires_at: DateTime<Utc>,
+}
+
 /// Domain validation error.
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 pub enum AuthModelError {
@@ -264,6 +275,8 @@ pub enum AuthModelError {
     InvalidThrottleDigest,
     #[error("display name must contain 1 to 120 characters")]
     InvalidDisplayName,
+    #[error("password does not meet the authentication policy")]
+    InvalidPassword,
     #[error("password hash is not an Argon2id PHC string")]
     InvalidPasswordHash,
 }
@@ -281,6 +294,26 @@ pub fn validate_display_name(value: &str) -> Result<String, AuthModelError> {
     Ok(value.to_owned())
 }
 
+/// Validate a password without changing its bytes.
+///
+/// # Errors
+///
+/// Enforces the approved length bounds and rejects control characters or the normalized email.
+pub fn validate_password(
+    password: &str,
+    normalized_email: &NormalizedEmail,
+) -> Result<(), AuthModelError> {
+    let scalar_count = password.chars().count();
+    let valid = scalar_count >= PASSWORD_MIN_SCALARS
+        && password.len() <= PASSWORD_MAX_BYTES
+        && !password.chars().any(char::is_control)
+        && password != normalized_email.as_str();
+    if !valid {
+        return Err(AuthModelError::InvalidPassword);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,6 +323,35 @@ mod tests {
         let email =
             NormalizedEmail::parse("  Filippo@Example.COM ").expect("email should normalize");
         assert_eq!(email.as_str(), "filippo@example.com");
+    }
+
+    #[test]
+    fn password_authentication_boundaries_are_enforced_without_rewriting() {
+        let email = NormalizedEmail::parse("filippo@example.com").expect("valid email");
+        assert!(validate_password(" workshop pass ", &email).is_ok());
+        assert_eq!(
+            validate_password("short", &email),
+            Err(AuthModelError::InvalidPassword)
+        );
+        assert_eq!(
+            validate_password("filippo@example.com", &email),
+            Err(AuthModelError::InvalidPassword)
+        );
+        assert!(validate_password("prefix-filippo@example.com-suffix", &email).is_ok());
+        assert!(validate_password(&"x".repeat(PASSWORD_MAX_BYTES), &email).is_ok());
+        assert_eq!(
+            validate_password(&"x".repeat(PASSWORD_MAX_BYTES + 1), &email),
+            Err(AuthModelError::InvalidPassword)
+        );
+        assert!(validate_password(&"é".repeat(512), &email).is_ok());
+        assert_eq!(
+            validate_password(&"é".repeat(513), &email),
+            Err(AuthModelError::InvalidPassword)
+        );
+        assert_eq!(
+            validate_password("valid length\n", &email),
+            Err(AuthModelError::InvalidPassword)
+        );
     }
 
     #[test]

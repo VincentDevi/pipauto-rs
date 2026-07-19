@@ -130,7 +130,7 @@ async fn auth_session_repository_is_unique_active_only_and_idempotently_revocabl
             user_id: user.id,
             jti_digest: expired.clone(),
             issued_at: now - TimeDelta::minutes(5),
-            expires_at: now,
+            expires_at: now - TimeDelta::seconds(1),
             created_ip_digest: None,
             user_agent_summary: None,
         },
@@ -143,6 +143,51 @@ async fn auth_session_repository_is_unique_active_only_and_idempotently_revocabl
         .expect("expired lookup should work")
         .is_none());
     assert_eq!(repository.delete_expired(now).await.expect("cleanup"), 1);
+}
+
+#[tokio::test]
+async fn purge_expired_auth_sessions_removes_only_past_expiry() {
+    let repository = repository().await;
+    let user = UserRepository::create(&repository, new_user("purge@example.com"))
+        .await
+        .expect("user should create");
+    let now = Utc::now();
+    for (digest_byte, expires_at) in [
+        ('c', now - TimeDelta::seconds(1)),
+        ('d', now),
+        ('e', now + TimeDelta::seconds(1)),
+    ] {
+        AuthSessionRepository::create(
+            &repository,
+            NewAuthSession {
+                user_id: user.id.clone(),
+                jti_digest: SessionDigest::parse(digest_byte.to_string().repeat(64))
+                    .expect("digest should parse"),
+                issued_at: now - TimeDelta::minutes(1),
+                expires_at,
+                created_ip_digest: None,
+                user_agent_summary: None,
+            },
+        )
+        .await
+        .expect("session should create");
+    }
+
+    assert_eq!(
+        repository
+            .delete_expired(now)
+            .await
+            .expect("purge should work"),
+        1
+    );
+    assert!(repository
+        .find_active(
+            &SessionDigest::parse("e".repeat(64)).expect("digest should parse"),
+            now,
+        )
+        .await
+        .expect("active lookup should work")
+        .is_some());
 }
 
 #[tokio::test]

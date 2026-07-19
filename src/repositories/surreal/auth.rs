@@ -316,7 +316,7 @@ impl AuthSessionRepository for SurrealAuthRepository {
     async fn delete_expired(&self, now: DateTime<Utc>) -> Result<u64, RepositoryError> {
         changed_count(
             self.client
-                .query("DELETE auth_session WHERE expires_at <= $now RETURN BEFORE;")
+                .query("DELETE auth_session WHERE expires_at < $now RETURN BEFORE;")
                 .bind(("now", now))
                 .await,
         )

@@ -1,7 +1,6 @@
 //! Authentication persistence maintenance tasks.
 
 use async_trait::async_trait;
-use chrono::Utc;
 use loco_rs::{
     app::AppContext,
     task::{Task, TaskInfo, Vars},
@@ -10,7 +9,7 @@ use loco_rs::{
 
 use crate::{
     database::{client::AppDatabase, schema::apply_auth_schema},
-    repositories::{auth::AuthSessionRepository, surreal::auth::SurrealAuthRepository},
+    services::auth::AuthService,
 };
 
 /// Idempotently apply strict authentication tables, fields, and indexes.
@@ -54,12 +53,12 @@ impl Task for PurgeExpiredAuthSessions {
             .shared_store
             .get::<AppDatabase>()
             .ok_or_else(|| Error::string("application database is not installed"))?;
-        let client = database.client().map_err(Error::msg)?;
-        let repository = SurrealAuthRepository::new(client);
-        let count = repository
-            .delete_expired(Utc::now())
-            .await
-            .map_err(Error::msg)?;
+        let _client = database.client().map_err(Error::msg)?;
+        let service = ctx
+            .shared_store
+            .get::<AuthService>()
+            .ok_or_else(|| Error::string("authentication service is not installed"))?;
+        let count = service.purge_expired_sessions().await.map_err(Error::msg)?;
         println!("removed {count} expired authentication sessions");
         Ok(())
     }

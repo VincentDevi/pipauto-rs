@@ -24,6 +24,18 @@ server:
   host: http://localhost
   # Out of the box middleware configuration. to disable middleware you can changed the `enable` field to `false` of comment the middleware block
   middlewares:
+    limit_payload:
+      enable: true
+      body_limit: 64kb
+    secure_headers:
+      enable: true
+      preset: empty
+      overrides:
+        Content-Security-Policy: "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'"
+        Referrer-Policy: no-referrer
+        X-Content-Type-Options: nosniff
+        X-Frame-Options: DENY
+        Permissions-Policy: "camera=(), microphone=(), geolocation=()"
     static:
       enable: true
       must_exist: false

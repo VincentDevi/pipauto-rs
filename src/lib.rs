@@ -1,6 +1,7 @@
 //! Pipauto's application library and architectural module boundaries.
 
 pub mod app;
+pub mod auth;
 pub mod controllers;
 pub mod database;
 pub mod errors;

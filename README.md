@@ -3,9 +3,9 @@
 Pipauto is a workshop-oriented Loco application for managing customers, vehicles, and accurate
 vehicle service histories.
 
-This repository currently contains only the Project Setup foundation. Authentication and workshop
-business features are outside this milestone. See the [architecture](docs/architecture.md) and the
-[Project Setup milestone](milestone1/GOAL.md) for its boundaries and decisions.
+The Project Setup foundation and password-based user authentication are implemented. Workshop
+business features begin in later milestones. See the [architecture](docs/architecture.md),
+[authentication guide](docs/authentication.md), and milestone specifications for their boundaries.
 
 ## Requirements
 
@@ -48,6 +48,13 @@ Copy the local development environment file. The Docker-only SurrealDB credentia
 cp .env.example .env
 ```
 
+Generate two independent secrets and paste them into `.env`:
+
+```bash
+openssl rand -base64 32
+openssl rand -base64 32
+```
+
 Load the environment variables into the current terminal:
 
 ```bash
@@ -65,6 +72,14 @@ Check the container state and database health:
 ```bash
 docker-compose ps
 docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
+```
+
+Apply the authentication schema explicitly, then create the first user. Passwords are requested
+twice through non-echoing terminal prompts and never belong in the command or environment:
+
+```bash
+cargo loco task apply_auth_schema
+cargo loco task create_user email:filippo@example.com display_name:Filippo
 ```
 
 Start Pipauto in development mode:
@@ -85,6 +100,7 @@ List all application routes in a second terminal with the environment still load
 
 ```bash
 cargo loco routes
+cargo loco task
 ```
 
 For subsequent development sessions, the complete startup sequence can also be run as one
@@ -148,6 +164,7 @@ cargo check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test
 cargo loco routes
+cargo loco task
 ```
 
 To apply Rust formatting instead of checking it:

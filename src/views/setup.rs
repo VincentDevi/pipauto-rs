@@ -16,6 +16,8 @@ pub struct SetupPage<'page> {
     heading: &'page str,
     summary: &'page str,
     detail: &'page str,
+    display_name: &'page str,
+    csrf_token: &'page str,
 }
 
 /// Database-status presentation data supplied to the setup-status fragment.
@@ -67,12 +69,16 @@ impl<'page> SetupPage<'page> {
         heading: &'page str,
         summary: &'page str,
         detail: &'page str,
+        display_name: &'page str,
+        csrf_token: &'page str,
     ) -> Self {
         Self {
             title,
             heading,
             summary,
             detail,
+            display_name,
+            csrf_token,
         }
     }
 

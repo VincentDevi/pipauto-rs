@@ -41,6 +41,7 @@ impl Hooks for App {
 
     async fn after_context(ctx: AppContext) -> Result<AppContext> {
         crate::initializers::surrealdb::install(&ctx).await?;
+        crate::initializers::auth::install(&ctx).await?;
         Ok(ctx)
     }
 
@@ -52,6 +53,7 @@ impl Hooks for App {
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
         AppRoutes::with_default_routes()
+            .add_route(crate::controllers::auth::routes())
             .add_route(crate::controllers::setup::routes())
             .add_route(crate::controllers::surrealdb_health::routes())
     }
@@ -61,6 +63,7 @@ impl Hooks for App {
     }
 
     fn register_tasks(tasks: &mut Tasks) {
+        tasks.register(crate::tasks::auth::CreateUser);
         tasks.register(crate::tasks::auth_persistence::ApplyAuthSchema);
         tasks.register(crate::tasks::auth_persistence::PurgeExpiredAuthSessions);
     }
