@@ -4,5 +4,6 @@
 //! must not implement business workflows, HTTP handling, or persistence rules.
 
 pub mod auth;
+pub mod business;
 pub mod surrealdb;
 pub mod view_engine;

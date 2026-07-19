@@ -108,6 +108,19 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /` | Authenticated | Workshop shell; guests are redirected to login with a safe local `next`. |
 | `GET /setup/status` | Authenticated | HTMX database-status fragment. |
 | `POST /logout` | Authenticated + session CSRF | Idempotently revokes the registry session and clears the cookie. |
+| `GET /api/v1/customers` | Authenticated | Search and page through customers. |
+| `POST /api/v1/customers` | Authenticated + session CSRF | Create a customer. |
+| `GET /api/v1/customers/{id}` | Authenticated | Read a customer, including archived records. |
+| `PATCH /api/v1/customers/{id}` | Authenticated + session CSRF | Update a customer. |
+| `POST /api/v1/customers/{id}/archive` | Authenticated + session CSRF | Idempotently archive a customer. |
+| `POST /api/v1/customers/{id}/restore` | Authenticated + session CSRF | Idempotently restore a customer. |
+| `GET /api/v1/customers/{id}/vehicles` | Authenticated | Page through a customer's vehicles, including archived records when requested. |
+| `GET /api/v1/vehicles` | Authenticated | Search and page through vehicles. |
+| `POST /api/v1/vehicles` | Authenticated + session CSRF | Create a vehicle for an active customer. |
+| `GET /api/v1/vehicles/{id}` | Authenticated | Read a vehicle, including archived records. |
+| `PATCH /api/v1/vehicles/{id}` | Authenticated + session CSRF | Update a vehicle or reassign its current customer. |
+| `POST /api/v1/vehicles/{id}/archive` | Authenticated + session CSRF | Idempotently archive a vehicle. |
+| `POST /api/v1/vehicles/{id}/restore` | Authenticated + session CSRF | Idempotently restore a vehicle. |
 | `/static/*` | Public | Committed same-origin CSS, JavaScript, and vendored HTMX. |
 | `GET /_health` | Public | Loco liveness response with no application data. |
 | `GET /_health/surrealdb` | Public | Non-sensitive database availability state only. |

@@ -1,6 +1,8 @@
 //! Database-independent customer model and write validation.
 
-use crate::domain::{normalize_email, normalize_phone, normalize_search_text};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{normalize_email, normalize_phone, normalize_search_text, CustomerId};
 
 pub const DISPLAY_NAME_MAX_CHARS: usize = 160;
 pub const EMAIL_MAX_CHARS: usize = 254;
@@ -61,6 +63,26 @@ pub struct NewCustomer {
     pub phone_normalized: Option<String>,
     pub address: Option<Address>,
     pub notes: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Customer {
+    pub id: CustomerId,
+    pub display_name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub address: Option<Address>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub archived_at: Option<DateTime<Utc>>,
+}
+
+impl Customer {
+    #[must_use]
+    pub const fn is_archived(&self) -> bool {
+        self.archived_at.is_some()
+    }
 }
 
 impl NewCustomer {

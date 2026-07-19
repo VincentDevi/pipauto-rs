@@ -81,6 +81,71 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         path: "/setup/status",
         class: AccessClass::Authenticated,
     },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/customers",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/customers",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/customers/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/customers/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/customers/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/customers/{id}/restore",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/customers/{id}/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/vehicles/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/vehicles/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/vehicles/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/vehicles/{id}/restore",
+        class: AccessClass::Authenticated,
+    },
 ];
 
 /// Pipauto's Loco application definition.
@@ -116,6 +181,7 @@ impl Hooks for App {
         ctx.shared_store.insert(business);
         crate::initializers::surrealdb::install(&ctx).await?;
         crate::initializers::auth::install(&ctx).await?;
+        crate::initializers::business::install(&ctx).await?;
         Ok(ctx)
     }
 

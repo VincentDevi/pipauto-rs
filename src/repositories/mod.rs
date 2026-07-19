@@ -8,7 +8,9 @@
 use thiserror::Error;
 
 pub mod auth;
+pub mod customer;
 pub mod surreal;
+pub mod vehicle;
 
 /// Technology-independent persistence failures.
 ///

@@ -1,6 +1,10 @@
 //! Database-independent vehicle model and write validation.
 
-use crate::domain::{normalize_search_text, CustomerId, NormalizedRegistration, NormalizedVin};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{
+    normalize_search_text, CustomerId, NormalizedRegistration, NormalizedVin, VehicleId,
+};
 
 pub const MAKE_MAX_CHARS: usize = 80;
 pub const MODEL_MAX_CHARS: usize = 80;
@@ -25,6 +29,30 @@ pub struct NewVehicle {
     pub current_mileage: Option<u64>,
     pub engine_type: Option<String>,
     pub notes: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Vehicle {
+    pub id: VehicleId,
+    pub customer_id: CustomerId,
+    pub make: String,
+    pub model: String,
+    pub year: Option<i32>,
+    pub registration: Option<String>,
+    pub vin: Option<String>,
+    pub current_mileage: Option<u64>,
+    pub engine_type: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub archived_at: Option<DateTime<Utc>>,
+}
+
+impl Vehicle {
+    #[must_use]
+    pub const fn is_archived(&self) -> bool {
+        self.archived_at.is_some()
+    }
 }
 
 impl NewVehicle {

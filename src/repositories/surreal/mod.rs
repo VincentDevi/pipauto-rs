@@ -4,4 +4,6 @@
 //! contracts. It must not contain HTTP handling, template rendering, or business workflow decisions.
 
 pub mod auth;
+pub mod customer;
 pub mod support;
+pub mod vehicle;

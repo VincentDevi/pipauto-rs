@@ -5,5 +5,6 @@
 
 mod auth;
 mod auth_repositories;
+mod customer_vehicle_repositories;
 mod database;
 mod migration;

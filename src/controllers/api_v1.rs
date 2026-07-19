@@ -23,7 +23,10 @@ pub fn mount(routes: Routes) -> Routes {
 /// VIN-49 and must also be declared authenticated in `ROUTE_ACCESS_POLICY`.
 #[must_use]
 pub fn routes() -> Vec<Routes> {
-    Vec::new()
+    vec![
+        mount(crate::controllers::customers::routes()),
+        mount(crate::controllers::vehicles::routes()),
+    ]
 }
 
 #[cfg(test)]

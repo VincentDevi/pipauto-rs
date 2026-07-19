@@ -5,5 +5,7 @@
 
 pub mod api_v1;
 pub mod auth;
+pub mod customers;
 pub mod setup;
 pub mod surrealdb_health;
+pub mod vehicles;
