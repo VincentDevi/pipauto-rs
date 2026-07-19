@@ -273,7 +273,50 @@ async fn login_throttle_repository_blocks_at_limit_and_success_clear_resets_stat
 }
 
 #[tokio::test]
-async fn authentication_registry_round_trip_revokes_a_copied_jwt() {
+async fn auth_service_login_issues_independent_redacted_twelve_hour_sessions() {
+    let boot = boot_test::<App>()
+        .await
+        .expect("test application should boot");
+    let service = boot
+        .app_context
+        .shared_store
+        .get::<AuthService>()
+        .expect("authentication service should be installed");
+    service
+        .create_user("login@example.com", "Login Test", "workshop password")
+        .await
+        .expect("user should be created");
+
+    let login = || async {
+        service
+            .login(LoginCommand {
+                email: "login@example.com".to_owned(),
+                password: "workshop password".to_owned(),
+                client_network: "socket:127.0.0.1".to_owned(),
+            })
+            .await
+            .expect("valid credentials should authenticate")
+    };
+    let before_login = Utc::now();
+    let first = login().await;
+    let second = login().await;
+
+    assert_ne!(first.encoded_jwt(), second.encoded_jwt());
+    let remaining = first.expires_at() - before_login;
+    assert!(remaining <= TimeDelta::hours(12));
+    assert!(remaining > TimeDelta::hours(12) - TimeDelta::seconds(1));
+    assert_eq!(first.user.session_expires_at, first.expires_at());
+    let debug = format!("{first:?}");
+    assert!(debug.contains("[REDACTED]"));
+    assert!(!debug.contains(first.encoded_jwt()));
+    assert_eq!(
+        format!("{:?}", first.csrf_token()),
+        "SecretCsrfToken([REDACTED])"
+    );
+}
+
+#[tokio::test]
+async fn auth_service_authenticate_registry_round_trip_revokes_a_copied_jwt() {
     let boot = boot_test::<App>()
         .await
         .expect("test application should boot");
@@ -318,6 +361,33 @@ async fn authentication_registry_round_trip_revokes_a_copied_jwt() {
             .logout(Some(&token))
             .await
             .expect("logout is idempotent"),
+        RevokeOutcome::AlreadyInactive
+    );
+}
+
+#[tokio::test]
+async fn auth_service_logout_is_idempotent_for_absent_and_malformed_tokens() {
+    let boot = boot_test::<App>()
+        .await
+        .expect("test application should boot");
+    let service = boot
+        .app_context
+        .shared_store
+        .get::<AuthService>()
+        .expect("authentication service should be installed");
+
+    assert_eq!(
+        service
+            .logout(None)
+            .await
+            .expect("absent logout should work"),
+        RevokeOutcome::AlreadyInactive
+    );
+    assert_eq!(
+        service
+            .logout(Some("not-a-jwt"))
+            .await
+            .expect("malformed logout should work"),
         RevokeOutcome::AlreadyInactive
     );
 }

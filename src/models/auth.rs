@@ -26,10 +26,13 @@ impl UserId {
     /// Rejects identifiers outside the `user` table or containing no key.
     pub fn parse(value: impl Into<String>) -> Result<Self, AuthModelError> {
         let value = value.into();
-        if !value
-            .strip_prefix("user:")
-            .is_some_and(|key| !key.trim().is_empty())
-        {
+        let valid = value.strip_prefix("user:").is_some_and(|key| {
+            !key.is_empty()
+                && key
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        });
+        if !valid {
             return Err(AuthModelError::InvalidUserId);
         }
         Ok(Self(value))

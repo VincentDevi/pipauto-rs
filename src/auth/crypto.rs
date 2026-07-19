@@ -1,6 +1,6 @@
 //! Loco cryptography adapters and production time/randomness sources.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -19,7 +19,8 @@ pub struct SystemClock;
 
 impl Clock for SystemClock {
     fn now(&self) -> DateTime<Utc> {
-        Utc::now()
+        DateTime::from_timestamp(Utc::now().timestamp(), 0)
+            .expect("current UTC timestamp should be representable")
     }
 }
 
@@ -105,15 +106,35 @@ impl LocoJwtCodec {
 }
 
 impl JwtCodec for LocoJwtCodec {
-    fn issue(&self, pid: &UserId, jti: &str, lifetime: Duration) -> Result<IssuedJwt, AuthError> {
+    fn issue(
+        &self,
+        pid: &UserId,
+        jti: &str,
+        expires_at: DateTime<Utc>,
+    ) -> Result<IssuedJwt, AuthError> {
         let mut claims = Map::new();
         claims.insert("jti".to_owned(), Value::String(jti.to_owned()));
-        let encoded = self
-            .jwt
-            .generate_token(lifetime.as_secs(), pid.as_str().to_owned(), claims)
-            .map_err(|_| AuthError::Unavailable)?;
-        let claims = self.validated_claims(&encoded)?;
-        Ok(IssuedJwt { encoded, claims })
+        for _attempt in 0..3 {
+            let now = Utc::now().timestamp();
+            let lifetime = expires_at
+                .timestamp()
+                .checked_sub(now)
+                .and_then(|seconds| u64::try_from(seconds).ok())
+                .filter(|seconds| *seconds > 0)
+                .ok_or(AuthError::Unavailable)?;
+            let encoded = self
+                .jwt
+                .generate_token(lifetime, pid.as_str().to_owned(), claims.clone())
+                .map_err(|_| AuthError::Unavailable)?;
+            let validated = self.validated_claims(&encoded)?;
+            if validated.expires_at == expires_at {
+                return Ok(IssuedJwt {
+                    encoded,
+                    claims: validated,
+                });
+            }
+        }
+        Err(AuthError::Unavailable)
     }
 
     fn validate(&self, encoded: &str) -> Result<ValidatedJwt, AuthError> {

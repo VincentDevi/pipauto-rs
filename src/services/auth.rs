@@ -11,7 +11,10 @@ use thiserror::Error;
 use tokio::time::timeout;
 
 use crate::{
-    auth::settings::AuthSettings,
+    auth::{
+        csrf::{CsrfService, SecretCsrfToken},
+        settings::AuthSettings,
+    },
     models::auth::{
         validate_display_name, validate_password, AuthenticatedUser, NewAuthSession, NewUserRecord,
         NormalizedEmail, SessionDigest, ThrottleDigest, User, UserId,
@@ -77,8 +80,13 @@ impl fmt::Debug for IssuedJwt {
 
 /// Loco JWT adapter seam.
 pub trait JwtCodec: Send + Sync {
-    /// Issue and immediately validate a signed token to recover its exact expiry.
-    fn issue(&self, pid: &UserId, jti: &str, lifetime: Duration) -> Result<IssuedJwt, AuthError>;
+    /// Issue and immediately validate a signed token with the pre-registered exact expiry.
+    fn issue(
+        &self,
+        pid: &UserId,
+        jti: &str,
+        expires_at: DateTime<Utc>,
+    ) -> Result<IssuedJwt, AuthError>;
     /// Validate signature, expiry, and required claim shapes.
     fn validate(&self, encoded: &str) -> Result<ValidatedJwt, AuthError>;
 }
@@ -107,6 +115,8 @@ impl fmt::Debug for LoginCommand {
 /// Successful login result containing secrets only through explicit accessors.
 pub struct LoginSuccess {
     encoded_jwt: String,
+    csrf_token: SecretCsrfToken,
+    expires_at: DateTime<Utc>,
     /// Presentation-safe user state.
     pub user: AuthenticatedUser,
 }
@@ -117,6 +127,18 @@ impl LoginSuccess {
     pub fn encoded_jwt(&self) -> &str {
         &self.encoded_jwt
     }
+
+    /// Explicitly expose the session-bound token for same-origin unsafe browser requests.
+    #[must_use]
+    pub fn csrf_token(&self) -> &SecretCsrfToken {
+        &self.csrf_token
+    }
+
+    /// Exact browser-session expiry used by the registry and presentation-safe user.
+    #[must_use]
+    pub fn expires_at(&self) -> DateTime<Utc> {
+        self.expires_at
+    }
 }
 
 impl fmt::Debug for LoginSuccess {
@@ -124,6 +146,8 @@ impl fmt::Debug for LoginSuccess {
         formatter
             .debug_struct("LoginSuccess")
             .field("encoded_jwt", &"[REDACTED]")
+            .field("csrf_token", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
             .field("user", &self.user)
             .finish()
     }
@@ -147,6 +171,7 @@ pub struct AuthService {
     jwt: Arc<dyn JwtCodec>,
     clock: Arc<dyn Clock>,
     random: Arc<dyn RandomSource>,
+    csrf: CsrfService,
     dummy_password_hash: String,
 }
 
@@ -165,6 +190,7 @@ impl AuthService {
         random: Arc<dyn RandomSource>,
         dummy_password_hash: String,
     ) -> Self {
+        let csrf = CsrfService::new(settings.clone());
         Self {
             settings,
             users,
@@ -174,6 +200,7 @@ impl AuthService {
             jwt,
             clock,
             random,
+            csrf,
             dummy_password_hash,
         }
     }
@@ -243,27 +270,47 @@ impl AuthService {
         let credentials = credentials?;
         let jti = self.random.session_identifier().map_err(LoginError::from)?;
         let digest = digest_jti(&jti).map_err(LoginError::from)?;
-        let issued = self
-            .jwt
-            .issue(&credentials.user.id, &jti, self.settings.session_lifetime())
-            .map_err(LoginError::from)?;
-        let issued_at = issued.claims.expires_at
-            - chrono::TimeDelta::from_std(self.settings.session_lifetime())
+        let issued_at = now;
+        let expires_at = issued_at
+            + chrono::TimeDelta::from_std(self.settings.session_lifetime())
                 .map_err(|_| LoginError::Unavailable)?;
         self.sessions
             .create(NewAuthSession {
                 user_id: credentials.user.id.clone(),
-                jti_digest: digest,
+                jti_digest: digest.clone(),
                 issued_at,
-                expires_at: issued.claims.expires_at,
+                expires_at,
                 created_ip_digest: None,
                 user_agent_summary: None,
             })
             .await
             .map_err(|_| LoginError::Unavailable)?;
+
+        let issued = match self.jwt.issue(&credentials.user.id, &jti, expires_at) {
+            Ok(issued)
+                if issued.claims.pid == credentials.user.id.as_str()
+                    && issued.claims.jti == jti
+                    && issued.claims.expires_at == expires_at =>
+            {
+                issued
+            }
+            Ok(_) | Err(_) => {
+                self.revoke_failed_login(&digest).await;
+                return Err(LoginError::Unavailable);
+            }
+        };
+        let csrf_token = match self.csrf.issue_authenticated(&jti, expires_at) {
+            Ok(token) => token,
+            Err(_) => {
+                self.revoke_failed_login(&digest).await;
+                return Err(LoginError::Unavailable);
+            }
+        };
         Ok(LoginSuccess {
             encoded_jwt: issued.encoded,
-            user: authenticated_user(credentials.user, issued.claims.expires_at),
+            csrf_token,
+            expires_at,
+            user: authenticated_user(credentials.user, expires_at),
         })
     }
 
@@ -332,7 +379,11 @@ impl AuthService {
             Err(AuthError::Unauthenticated) => return Ok(RevokeOutcome::AlreadyInactive),
             Err(error) => return Err(error),
         };
-        let digest = digest_jti(&claims.jti)?;
+        let digest = match digest_jti(&claims.jti) {
+            Ok(digest) => digest,
+            Err(AuthError::Unauthenticated) => return Ok(RevokeOutcome::AlreadyInactive),
+            Err(error) => return Err(error),
+        };
         self.sessions
             .revoke(&digest, self.clock.now())
             .await
@@ -384,6 +435,10 @@ impl AuthService {
         mac.update(value.as_bytes());
         ThrottleDigest::parse(URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
             .map_err(|_| LoginError::Unavailable)
+    }
+
+    async fn revoke_failed_login(&self, digest: &SessionDigest) {
+        let _result = self.sessions.revoke(digest, self.clock.now()).await;
     }
 }
 
@@ -461,7 +516,10 @@ fn authenticated_user(user: User, expires_at: DateTime<Utc>) -> AuthenticatedUse
 }
 
 fn digest_jti(jti: &str) -> Result<SessionDigest, AuthError> {
-    if jti.is_empty() {
+    let decoded = URL_SAFE_NO_PAD
+        .decode(jti)
+        .map_err(|_| AuthError::Unauthenticated)?;
+    if jti.len() != 43 || decoded.len() != 32 {
         return Err(AuthError::Unauthenticated);
     }
     let bytes = Sha256::digest(jti.as_bytes());
@@ -479,10 +537,12 @@ fn map_repository_error(_error: RepositoryError) -> AuthError {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
+
+    use loco_rs::environment::Environment;
 
     use super::*;
-    use crate::models::auth::UserCredentials;
+    use crate::models::auth::{AuthSession, UserCredentials};
 
     struct CredentialRepository {
         credentials: Option<UserCredentials>,
@@ -509,6 +569,152 @@ mod tests {
     struct RecordingPasswords {
         expected_password: String,
         verified_hashes: Mutex<Vec<String>>,
+    }
+
+    struct FixedClock(DateTime<Utc>);
+
+    impl Clock for FixedClock {
+        fn now(&self) -> DateTime<Utc> {
+            self.0
+        }
+    }
+
+    struct FixedRandom;
+
+    impl RandomSource for FixedRandom {
+        fn session_identifier(&self) -> Result<String, AuthError> {
+            Ok(URL_SAFE_NO_PAD.encode([7_u8; 32]))
+        }
+    }
+
+    struct FailingJwt {
+        events: Arc<Mutex<Vec<&'static str>>>,
+    }
+
+    impl JwtCodec for FailingJwt {
+        fn issue(
+            &self,
+            _pid: &UserId,
+            _jti: &str,
+            _expires_at: DateTime<Utc>,
+        ) -> Result<IssuedJwt, AuthError> {
+            self.events
+                .lock()
+                .expect("event record should lock")
+                .push("jwt:issue");
+            Err(AuthError::Unavailable)
+        }
+
+        fn validate(&self, _encoded: &str) -> Result<ValidatedJwt, AuthError> {
+            Err(AuthError::Unauthenticated)
+        }
+    }
+
+    struct WorkflowRepository {
+        credentials: UserCredentials,
+        events: Arc<Mutex<Vec<&'static str>>>,
+    }
+
+    #[async_trait]
+    impl UserRepository for WorkflowRepository {
+        async fn find_by_id(&self, _id: &UserId) -> Result<Option<User>, RepositoryError> {
+            Ok(Some(self.credentials.user.clone()))
+        }
+
+        async fn find_credentials_by_email(
+            &self,
+            _normalized_email: &NormalizedEmail,
+        ) -> Result<Option<UserCredentials>, RepositoryError> {
+            Ok(Some(self.credentials.clone()))
+        }
+
+        async fn create(&self, _new_user: NewUserRecord) -> Result<User, RepositoryError> {
+            Err(RepositoryError::Unavailable)
+        }
+    }
+
+    #[async_trait]
+    impl AuthSessionRepository for WorkflowRepository {
+        async fn create(&self, session: NewAuthSession) -> Result<AuthSession, RepositoryError> {
+            self.events
+                .lock()
+                .expect("event record should lock")
+                .push("session:create");
+            Ok(AuthSession {
+                user_id: session.user_id,
+                jti_digest: session.jti_digest,
+                issued_at: session.issued_at,
+                expires_at: session.expires_at,
+                revoked_at: None,
+                last_seen_at: None,
+                created_ip_digest: session.created_ip_digest,
+                user_agent_summary: session.user_agent_summary,
+            })
+        }
+
+        async fn find_active(
+            &self,
+            _jti_digest: &SessionDigest,
+            _now: DateTime<Utc>,
+        ) -> Result<Option<AuthSession>, RepositoryError> {
+            Ok(None)
+        }
+
+        async fn revoke(
+            &self,
+            _jti_digest: &SessionDigest,
+            _now: DateTime<Utc>,
+        ) -> Result<RevokeOutcome, RepositoryError> {
+            self.events
+                .lock()
+                .expect("event record should lock")
+                .push("session:revoke");
+            Ok(RevokeOutcome::Revoked)
+        }
+
+        async fn revoke_all_for_user(
+            &self,
+            _user_id: &UserId,
+            _now: DateTime<Utc>,
+        ) -> Result<u64, RepositoryError> {
+            Ok(0)
+        }
+
+        async fn delete_expired(&self, _now: DateTime<Utc>) -> Result<u64, RepositoryError> {
+            Ok(0)
+        }
+    }
+
+    #[async_trait]
+    impl LoginThrottleRepository for WorkflowRepository {
+        async fn state(
+            &self,
+            _identifier_digest: &ThrottleDigest,
+            _network_digest: &ThrottleDigest,
+            _now: DateTime<Utc>,
+        ) -> Result<ThrottleState, RepositoryError> {
+            Ok(ThrottleState::Allowed)
+        }
+
+        async fn record_failure(
+            &self,
+            _identifier_digest: &ThrottleDigest,
+            _network_digest: &ThrottleDigest,
+            _now: DateTime<Utc>,
+            _window: Duration,
+            _maximum_attempts: u32,
+            _block_duration: Duration,
+        ) -> Result<ThrottleState, RepositoryError> {
+            Ok(ThrottleState::Allowed)
+        }
+
+        async fn clear(
+            &self,
+            _identifier_digest: &ThrottleDigest,
+            _network_digest: &ThrottleDigest,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
     }
 
     #[async_trait]
@@ -595,5 +801,49 @@ mod tests {
                 Err(LoginError::InvalidCredentials)
             ));
         }
+    }
+
+    #[tokio::test]
+    async fn auth_service_login_persists_before_jwt_and_revokes_if_issuance_fails() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let repository = Arc::new(WorkflowRepository {
+            credentials: credentials(true),
+            events: events.clone(),
+        });
+        let now =
+            DateTime::from_timestamp(1_800_000_000, 0).expect("fixture timestamp should be valid");
+        let settings = AuthSettings::from_environment(&Environment::Test)
+            .expect("test settings should be valid");
+        let service = AuthService::new(
+            settings,
+            repository.clone(),
+            repository.clone(),
+            repository,
+            Arc::new(RecordingPasswords {
+                expected_password: "correct workshop password".to_owned(),
+                verified_hashes: Mutex::new(Vec::new()),
+            }),
+            Arc::new(FailingJwt {
+                events: events.clone(),
+            }),
+            Arc::new(FixedClock(now)),
+            Arc::new(FixedRandom),
+            "$argon2id$dummy".to_owned(),
+        );
+
+        assert!(matches!(
+            service
+                .login(LoginCommand {
+                    email: "filippo@example.com".to_owned(),
+                    password: "correct workshop password".to_owned(),
+                    client_network: "socket:127.0.0.1".to_owned(),
+                })
+                .await,
+            Err(LoginError::Unavailable)
+        ));
+        assert_eq!(
+            *events.lock().expect("event record should lock"),
+            ["session:create", "jwt:issue", "session:revoke"]
+        );
     }
 }

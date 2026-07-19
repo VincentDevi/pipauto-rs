@@ -12,8 +12,6 @@ const JWT_SECRET_ENV: &str = "PIPAUTO_JWT_SECRET";
 const CSRF_SECRET_ENV: &str = "PIPAUTO_CSRF_SECRET";
 const ORIGIN_ENV: &str = "PIPAUTO_CANONICAL_ORIGIN";
 const SESSION_SECONDS_ENV: &str = "PIPAUTO_SESSION_LIFETIME_SECONDS";
-const MIN_SESSION_SECONDS: u64 = 5 * 60;
-const MAX_SESSION_SECONDS: u64 = 24 * 60 * 60;
 const DEFAULT_SESSION_SECONDS: u64 = 12 * 60 * 60;
 const LOGIN_WINDOW_SECONDS: u64 = 15 * 60;
 const LOGIN_BLOCK_SECONDS: u64 = 15 * 60;
@@ -82,8 +80,8 @@ impl AuthSettings {
         if jwt_secret == csrf_secret {
             return Err(AuthSettingsError::SecretsMustDiffer);
         }
-        if !(MIN_SESSION_SECONDS..=MAX_SESSION_SECONDS).contains(&session_seconds) {
-            return Err(AuthSettingsError::SessionLifetimeOutOfRange);
+        if session_seconds != DEFAULT_SESSION_SECONDS {
+            return Err(AuthSettingsError::SessionLifetimeMustBeTwelveHours);
         }
 
         let canonical_origin =
@@ -218,9 +216,9 @@ pub enum AuthSettingsError {
     /// JWT and CSRF keys must have different material.
     #[error("JWT and CSRF secrets must differ")]
     SecretsMustDiffer,
-    /// The configured lifetime is outside the approved range.
-    #[error("session lifetime must be between 5 minutes and 24 hours")]
-    SessionLifetimeOutOfRange,
+    /// Browser sessions have one fixed, approved lifetime.
+    #[error("session lifetime must be exactly 12 hours")]
+    SessionLifetimeMustBeTwelveHours,
     /// The canonical origin is malformed or contains non-origin components.
     #[error("canonical origin must contain only scheme and authority")]
     InvalidCanonicalOrigin,

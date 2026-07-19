@@ -78,7 +78,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn development_session_and_deletion_cookies_share_security_attributes() {
+    fn auth_cookie_session_and_deletion_share_security_attributes() {
         let settings = AuthSettings::from_environment(&Environment::Test)
             .expect("test settings should be valid");
         let cookies = AuthCookies::new(settings);
