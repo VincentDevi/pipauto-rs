@@ -1,0 +1,66 @@
+name = "interventions_schema"
+tags = ["interventions", "metadata"]
+
+[[cases]]
+name = "intervention_tables_are_schemafull"
+kind = "schema_metadata"
+sql = "INFO FOR DB;"
+contains = [
+    "DEFINE TABLE intervention TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+    "DEFINE TABLE intervention_line TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
+]
+
+[[cases]]
+name = "intervention_fields_events_and_indexes_match"
+kind = "schema_metadata"
+table = "intervention"
+contains = [
+    "DEFINE FIELD cancelled_at ON intervention TYPE none | datetime",
+    "DEFINE FIELD completed_at ON intervention TYPE none | datetime",
+    "DEFINE FIELD created_at ON intervention TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD currency ON intervention TYPE string DEFAULT 'EUR'",
+    "DEFINE FIELD customer_reported_problem ON intervention TYPE none | string",
+    "DEFINE FIELD diagnostics ON intervention TYPE none | string",
+    "DEFINE FIELD mileage ON intervention TYPE none | int",
+    "DEFINE FIELD notes ON intervention TYPE none | string",
+    "DEFINE FIELD performed_work ON intervention TYPE none | string",
+    "DEFINE FIELD recommendations ON intervention TYPE none | string",
+    "DEFINE FIELD service_date ON intervention TYPE datetime",
+    "DEFINE FIELD status ON intervention TYPE string DEFAULT 'draft'",
+    "DEFINE FIELD updated_at ON intervention TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE FIELD vehicle ON intervention TYPE record<vehicle>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE INDEX intervention_recent_work ON intervention FIELDS service_date, created_at",
+    "DEFINE INDEX intervention_status ON intervention FIELDS status",
+    "DEFINE INDEX intervention_vehicle_service_history ON intervention FIELDS vehicle, service_date, created_at",
+    "DEFINE EVENT intervention_reject_delete ON intervention",
+    "DEFINE EVENT intervention_reject_line_currency_mismatch ON intervention",
+    "DEFINE EVENT intervention_reject_terminal_update ON intervention",
+    "DEFINE EVENT intervention_validate_mileage ON intervention",
+    "DEFINE EVENT intervention_validate_state ON intervention",
+]
+
+[[cases]]
+name = "intervention_line_fields_events_and_indexes_match"
+kind = "schema_metadata"
+table = "intervention_line"
+contains = [
+    "DEFINE FIELD category ON intervention_line TYPE string",
+    "DEFINE FIELD created_at ON intervention_line TYPE datetime DEFAULT time::now() READONLY",
+    "DEFINE FIELD currency ON intervention_line TYPE string",
+    "DEFINE FIELD description ON intervention_line TYPE string",
+    "DEFINE FIELD intervention ON intervention_line TYPE record<intervention>",
+    "REFERENCE ON DELETE REJECT",
+    "DEFINE FIELD position ON intervention_line TYPE int",
+    "DEFINE FIELD quantity ON intervention_line TYPE decimal",
+    "DEFINE FIELD total_cost_minor ON intervention_line TYPE none | int",
+    "DEFINE FIELD total_price_minor ON intervention_line TYPE int",
+    "DEFINE FIELD unit_cost_minor ON intervention_line TYPE none | int",
+    "DEFINE FIELD unit_label ON intervention_line TYPE string",
+    "DEFINE FIELD unit_price_minor ON intervention_line TYPE int",
+    "DEFINE FIELD updated_at ON intervention_line TYPE datetime DEFAULT ALWAYS time::now()",
+    "DEFINE INDEX intervention_line_intervention ON intervention_line FIELDS intervention",
+    "DEFINE INDEX intervention_line_position_unique ON intervention_line FIELDS intervention, position UNIQUE",
+    "DEFINE EVENT intervention_line_reject_terminal_mutation ON intervention_line",
+    "DEFINE EVENT intervention_line_validate_totals ON intervention_line",
+]

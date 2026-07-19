@@ -1,0 +1,166 @@
+name = "interventions_behavior"
+tags = ["interventions", "behavior"]
+
+[[cases]]
+name = "vehicle_reference_rejects_deletion"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:intervention_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:intervention_vehicle CONTENT { customer: customer:intervention_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:vehicle_delete_guard CONTENT { vehicle: vehicle:intervention_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+]
+action_sql = "DELETE vehicle:intervention_vehicle;"
+expect_success = false
+
+[[cases]]
+name = "completion_requires_work_and_consistent_timestamp"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:completion_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:completion_vehicle CONTENT { customer: customer:completion_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:completion_guard CONTENT { vehicle: vehicle:completion_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+]
+action_sql = "UPDATE intervention:completion_guard SET status = 'completed', completed_at = time::now();"
+expect_success = false
+
+[[cases]]
+name = "completed_intervention_and_lines_are_frozen_and_durable"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:durable_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:durable_vehicle CONTENT { customer: customer:durable_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:durable CONTENT { vehicle: vehicle:durable_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Oil service' };",
+    "CREATE intervention_line:durable_line CONTENT { intervention: intervention:durable, category: 'material', description: 'Engine oil', quantity: 4.5dec, unit_label: 'litre', currency: 'EUR', unit_price_minor: 1200, unit_cost_minor: 700, total_price_minor: 5400, total_cost_minor: 3150, position: 0 };",
+    "UPDATE intervention:durable SET status = 'completed', completed_at = time::now();",
+]
+action_sql = "DELETE intervention_line:durable_line;"
+expect_success = false
+verify_sql = "RETURN count(SELECT * FROM intervention:durable, intervention_line:durable_line);"
+
+[[cases.assertions]]
+path = ""
+equals = 2
+
+[[cases]]
+name = "completed_intervention_cannot_be_deleted"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:completed_delete_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:completed_delete_vehicle CONTENT { customer: customer:completed_delete_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:completed_delete_guard CONTENT { vehicle: vehicle:completed_delete_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Inspection completed' };",
+    "UPDATE intervention:completed_delete_guard SET status = 'completed', completed_at = time::now();",
+]
+action_sql = "DELETE intervention:completed_delete_guard;"
+expect_success = false
+verify_sql = "RETURN count(SELECT * FROM intervention WHERE id = intervention:completed_delete_guard AND status = 'completed' AND completed_at IS NOT NONE);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "terminal_timestamp_combination_is_required"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:timestamp_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:timestamp_vehicle CONTENT { customer: customer:timestamp_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:timestamp_guard CONTENT { vehicle: vehicle:timestamp_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Inspection completed' };",
+]
+action_sql = "UPDATE intervention:timestamp_guard SET status = 'completed';"
+expect_success = false
+
+[[cases]]
+name = "cancelled_intervention_is_timestamped_and_cannot_reopen"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:cancel_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:cancel_vehicle CONTENT { customer: customer:cancel_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:cancelled CONTENT { vehicle: vehicle:cancel_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "UPDATE intervention:cancelled SET status = 'cancelled', cancelled_at = time::now();",
+]
+action_sql = "UPDATE intervention:cancelled SET status = 'draft', cancelled_at = NONE;"
+expect_success = false
+verify_sql = "RETURN count(SELECT * FROM intervention WHERE id = intervention:cancelled AND status = 'cancelled' AND cancelled_at IS NOT NONE);"
+
+[[cases.assertions]]
+path = ""
+equals = 1
+
+[[cases]]
+name = "line_validates_category_quantity_currency_position_and_totals"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:line_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:line_vehicle CONTENT { customer: customer:line_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:line_parent CONTENT { vehicle: vehicle:line_vehicle, service_date: d'2026-07-01T00:00:00Z', currency: 'EUR' };",
+    "CREATE intervention_line:first CONTENT { intervention: intervention:line_parent, category: 'part', description: 'Brake pads', quantity: 1.5dec, unit_label: 'set', currency: 'EUR', unit_price_minor: 101, total_price_minor: 152, position: 0 };",
+]
+action_sql = "CREATE intervention_line:invalid CONTENT { intervention: intervention:line_parent, category: 'invalid', description: 'Invalid', quantity: 0dec, unit_label: 'set', currency: 'USD', unit_price_minor: 100, total_price_minor: 99, position: 0 };"
+expect_success = false
+
+[[cases]]
+name = "line_position_is_unique_within_parent"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:position_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:position_vehicle CONTENT { customer: customer:position_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:position_parent CONTENT { vehicle: vehicle:position_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention_line:position_first CONTENT { intervention: intervention:position_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
+]
+action_sql = "CREATE intervention_line:position_second CONTENT { intervention: intervention:position_parent, category: 'labour', description: 'More labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };"
+expect_success = false
+
+[[cases]]
+name = "line_total_cannot_drift_when_quantity_changes"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:total_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:total_vehicle CONTENT { customer: customer:total_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:total_parent CONTENT { vehicle: vehicle:total_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention_line:total_guard CONTENT { intervention: intervention:total_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
+]
+action_sql = "UPDATE intervention_line:total_guard SET quantity = 2dec;"
+expect_success = false
+verify_sql = "RETURN intervention_line:total_guard.total_price_minor;"
+
+[[cases.assertions]]
+path = ""
+equals = 5000
+
+[[cases]]
+name = "intervention_currency_cannot_conflict_with_existing_lines"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:currency_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:currency_vehicle CONTENT { customer: customer:currency_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:currency_parent CONTENT { vehicle: vehicle:currency_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention_line:currency_guard CONTENT { intervention: intervention:currency_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
+]
+action_sql = "UPDATE intervention:currency_parent SET currency = 'USD';"
+expect_success = false
+verify_sql = "RETURN intervention:currency_parent.currency;"
+
+[[cases.assertions]]
+path = ""
+equals = "EUR"
+
+[[cases]]
+name = "service_history_order_is_deterministic_for_equal_dates"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:history_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:history_vehicle CONTENT { customer: customer:history_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:history_a CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T00:00:00Z', created_at: d'2026-07-02T10:00:00Z' };",
+    "CREATE intervention:history_b CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T00:00:00Z', created_at: d'2026-07-02T10:00:00Z' };",
+]
+action_sql = "RETURN true;"
+expect_success = true
+verify_sql = "SELECT VALUE id FROM intervention WHERE vehicle = vehicle:history_vehicle ORDER BY service_date DESC, created_at DESC, id DESC;"
+
+[[cases.assertions]]
+path = "[0]"
+equals = "intervention:history_b"
+
+[[cases.assertions]]
+path = "[1]"
+equals = "intervention:history_a"

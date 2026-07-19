@@ -76,6 +76,23 @@ An intervention, also referred to as a job, represents a repair, maintenance act
 
 Together, a vehicle's interventions form its service history. Preserving the accuracy and chronology of this history is a central product requirement.
 
+Interventions begin as drafts and may then be completed or cancelled; neither terminal state can
+return to draft. Completion requires a performed-work narrative, records its transition time, and
+freezes ordinary intervention and line-item edits. Cancellation is only available from draft,
+records its transition time, and preserves the job rather than deleting it. Service history is
+ordered by service date, creation time, and intervention identifier, all descending, so jobs on the
+same date remain deterministic.
+
+An intervention stores the odometer reading observed for that job independently of the vehicle's
+current mileage. Non-cancelled readings must remain non-decreasing through the deterministic
+service-history chronology; this applies to current and backdated jobs. Changing a vehicle's
+current mileage never rewrites a historical intervention reading.
+
+Intervention lines explicitly order labour, parts, materials, and other charges. Each line stores a
+positive quantity with up to three fractional digits, its unit label, non-negative unit price,
+optional non-negative unit cost, and persisted calculated price and cost totals. Line currency must
+match its intervention currency. Lines remain mutable only while their intervention is a draft.
+
 ### Technical knowledge
 
 Pipauto should preserve the practical knowledge Filippo develops through his work. Technical notes should be searchable and reusable when he encounters a similar vehicle, engine, or problem. They may cover:
