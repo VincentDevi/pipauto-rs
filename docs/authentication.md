@@ -64,6 +64,10 @@ baseline, and fails if row contents, record IDs, timestamps, hashes, active stat
 throttle state change. Output names only the failed phase/table and never prints catalog exports,
 credentials, password hashes, sessions, or tokens.
 
+After adoption, shared development, staging, and production databases use only the phased rollout
+and recovery procedures in [Database migration and recovery operations](database-operations.md).
+Production rollout start requires the checksummed logical export documented there.
+
 Provision users interactively. The two password prompts do not echo; never put a password in a
 shell argument or environment variable:
 

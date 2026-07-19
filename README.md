@@ -5,7 +5,9 @@ vehicle service histories.
 
 The Project Setup foundation and password-based user authentication are implemented. Workshop
 business features begin in later milestones. See the [architecture](docs/architecture.md),
-[authentication guide](docs/authentication.md), and milestone specifications for their boundaries.
+[authentication guide](docs/authentication.md),
+[database operations runbook](docs/database-operations.md), and milestone specifications for their
+boundaries.
 
 ## Requirements
 
@@ -136,7 +138,7 @@ authentication troubleshooting.
   the direct socket address; trusted-proxy support has not been configured.
 - Run `./scripts/surrealkit sync` for a new development database before starting the application.
   Server startup does not apply schema changes. Existing or shared databases must use the
-  catalog-gated baseline/rollout workflow in the authentication operations guide.
+  catalog-gated baseline or phased rollout workflow in the database operations runbook.
 
 For subsequent development sessions, the complete startup sequence can also be run as one
 command:

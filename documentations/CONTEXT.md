@@ -131,3 +131,17 @@ A future AI mechanic assistant could use accumulated service histories and techn
 - Use consistent domain language: customer, vehicle, intervention/job, service history, technical note, invoice, and payment.
 - Clearly distinguish confirmed requirements from suggestions, hypotheses, and future ideas.
 - Ask before expanding the initial-release scope or making consequential product assumptions.
+
+## Approved database migration boundary
+
+Schema execution is an explicit action and is never part of application startup, health checks, or
+ordinary web-server restarts. Tests use isolated disposable synchronization; personal development
+may explicitly synchronize a disposable or developer-owned database. Shared development, staging,
+and production preserve data through reviewed phased rollouts. Production rollout start additionally
+requires a successful checksummed logical export stored outside the repository.
+
+Application deployment for a required rollout is allowed only between its successful additive and
+contract phases, while its status is `ready_to_complete`, and only after compatible code is ready.
+Smoke tests precede the contract phase. Rollout rollback is available before completion; after a
+rollout is terminal, recovery uses a new forward rollout or a backup restored into an isolated
+database. Restore rehearsals never overwrite the live production database.
