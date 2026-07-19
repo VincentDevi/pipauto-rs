@@ -8,6 +8,7 @@ pub mod attachments;
 pub mod auth;
 pub mod customers;
 pub mod interventions;
+pub mod invoices;
 pub mod setup;
 pub mod surrealdb_health;
 pub mod technical_notes;

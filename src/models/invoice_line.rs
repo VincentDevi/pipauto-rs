@@ -1,6 +1,10 @@
 //! Database-independent invoice-line snapshots and persisted totals.
 
-use crate::domain::{CurrencyCode, InterventionLineId, InvoiceId, Money, MoneyError, Quantity};
+use chrono::{DateTime, Utc};
+
+use crate::domain::{
+    CurrencyCode, InterventionLineId, InvoiceId, InvoiceLineId, Money, MoneyError, Quantity,
+};
 
 pub const DESCRIPTION_MAX_CHARS: usize = 500;
 pub const UNIT_LABEL_MAX_CHARS: usize = 32;
@@ -15,6 +19,14 @@ pub struct InvoiceLine {
     pub unit_price: Money,
     pub line_total: Money,
     pub position: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvoiceLineRecord {
+    pub id: InvoiceLineId,
+    pub line: InvoiceLine,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl InvoiceLine {

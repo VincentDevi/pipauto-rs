@@ -260,6 +260,15 @@ The authenticated JSON route inventory includes `GET /api/v1/vehicles/{id}/servi
 `DELETE /api/v1/interventions/{id}/lines/{line_id}`. They require an active session; unsafe
 methods additionally require the standard origin-bound CSRF token.
 
+Invoice and append-only payment routes are `GET /api/v1/invoices`, `POST /api/v1/invoices`,
+`GET /api/v1/invoices/{id}`, `PATCH /api/v1/invoices/{id}`,
+`POST /api/v1/invoices/{id}/issue`, `POST /api/v1/invoices/{id}/void`,
+`GET /api/v1/invoices/{id}/lines`, `POST /api/v1/invoices/{id}/lines`,
+`PATCH /api/v1/invoices/{id}/lines/{line_id}`,
+`DELETE /api/v1/invoices/{id}/lines/{line_id}`, `GET /api/v1/invoices/{id}/payments`,
+`POST /api/v1/invoices/{id}/payments`, and `GET /api/v1/payments/{id}`. They require an active
+session; every unsafe method additionally requires the standard origin-bound CSRF token.
+
 Run the automated gate:
 
 ```bash

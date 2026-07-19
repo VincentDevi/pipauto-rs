@@ -266,6 +266,71 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         path: "/api/v1/attachments/{id}",
         class: AccessClass::Authenticated,
     },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/invoices",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/invoices",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/invoices/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/invoices/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/invoices/{id}/issue",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/invoices/{id}/void",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/invoices/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/invoices/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "PATCH",
+        path: "/api/v1/invoices/{id}/lines/{line_id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "DELETE",
+        path: "/api/v1/invoices/{id}/lines/{line_id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/invoices/{id}/payments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/invoices/{id}/payments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/payments/{id}",
+        class: AccessClass::Authenticated,
+    },
 ];
 
 /// Pipauto's Loco application definition.

@@ -7,6 +7,7 @@ mod api_foundation;
 mod auth;
 mod customers_vehicles;
 mod interventions;
+mod invoices;
 mod setup;
 mod surrealdb_health;
 mod technical_notes_attachments;

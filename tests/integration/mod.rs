@@ -8,5 +8,6 @@ mod auth_repositories;
 mod customer_vehicle_repositories;
 mod database;
 mod interventions;
+mod invoices;
 mod migration;
 mod technical_note_attachment_repositories;

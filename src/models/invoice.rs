@@ -2,7 +2,9 @@
 
 use chrono::{DateTime, Datelike as _, NaiveDate, Utc};
 
-use crate::domain::{CurrencyCode, CustomerId, InterventionId, Money, MoneyError, VehicleId};
+use crate::domain::{
+    CurrencyCode, CustomerId, InterventionId, InvoiceId, Money, MoneyError, VehicleId,
+};
 
 pub const CUSTOMER_DISPLAY_MAX_CHARS: usize = 160;
 pub const NOTES_MAX_CHARS: usize = 10_000;
@@ -26,6 +28,27 @@ pub enum PaymentStatus {
 pub struct InvoiceNumber(String);
 
 impl InvoiceNumber {
+    /// Parse a persisted final invoice number.
+    ///
+    /// # Errors
+    ///
+    /// Rejects values outside the `YYYY-NNNNN` format.
+    pub fn parse(value: impl Into<String>) -> Result<Self, InvoiceError> {
+        let value = value.into();
+        let Some((year, sequence)) = value.split_once('-') else {
+            return Err(InvoiceError::InvalidIssueNumber);
+        };
+        let valid = year.len() == 4
+            && year.bytes().all(|byte| byte.is_ascii_digit())
+            && sequence.len() >= 5
+            && sequence.bytes().all(|byte| byte.is_ascii_digit())
+            && sequence.bytes().any(|byte| byte != b'0');
+        if !valid {
+            return Err(InvoiceError::InvalidIssueNumber);
+        }
+        Ok(Self(value))
+    }
+
     /// Format `YYYY-NNNNN` from the UTC issue year and a positive sequence value.
     ///
     /// The sequence portion expands beyond five digits rather than wrapping.
@@ -44,6 +67,24 @@ impl InvoiceNumber {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+/// Persisted invoice identity paired with its lifecycle value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvoiceRecord {
+    pub id: InvoiceId,
+    pub invoice: Invoice,
+}
+
+/// Invoice read model with immutable lines and derived payment amounts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvoiceView {
+    pub invoice: InvoiceRecord,
+    pub lines: Vec<crate::models::invoice_line::InvoiceLineRecord>,
+    pub payments: Vec<crate::models::payment::PaymentRecord>,
+    pub paid: Money,
+    pub outstanding: Money,
+    pub payment_status: PaymentStatus,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

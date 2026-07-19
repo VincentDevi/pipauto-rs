@@ -11,9 +11,10 @@ use crate::{
         attachment::AttachmentRepository,
         customer::CustomerRepository,
         intervention::InterventionRepository,
+        invoice::InvoiceRepository,
         surreal::{
             attachment::SurrealAttachmentRepository, customer::SurrealCustomerRepository,
-            intervention::SurrealInterventionRepository,
+            intervention::SurrealInterventionRepository, invoice::SurrealInvoiceRepository,
             technical_note::SurrealTechnicalNoteRepository, vehicle::SurrealVehicleRepository,
         },
         technical_note::TechnicalNoteRepository,
@@ -21,8 +22,8 @@ use crate::{
     },
     services::{
         attachment::AttachmentService, customer::CustomerService,
-        intervention::InterventionService, technical_note::TechnicalNoteService,
-        vehicle::VehicleService,
+        intervention::InterventionService, invoice::InvoiceService,
+        technical_note::TechnicalNoteService, vehicle::VehicleService,
     },
 };
 
@@ -40,6 +41,9 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
             include_str!("../../database/schema/business/intervention_line.surql"),
             include_str!("../../database/schema/business/technical_note.surql"),
             include_str!("../../database/schema/business/attachment.surql"),
+            include_str!("../../database/schema/business/invoice.surql"),
+            include_str!("../../database/schema/business/invoice_line.surql"),
+            include_str!("../../database/schema/business/payment.surql"),
         ]
         .join("\n");
         client
@@ -61,13 +65,15 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         Arc::new(SurrealInterventionRepository::new(client.clone()));
     let notes: Arc<dyn TechnicalNoteRepository> =
         Arc::new(SurrealTechnicalNoteRepository::new(client.clone()));
+    let invoices: Arc<dyn InvoiceRepository> =
+        Arc::new(SurrealInvoiceRepository::new(client.clone()));
     let attachments: Arc<dyn AttachmentRepository> =
         Arc::new(SurrealAttachmentRepository::new(client));
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
     ctx.shared_store.insert(VehicleService::new(
         vehicles.clone(),
-        customers,
+        customers.clone(),
         cursors.clone(),
     ));
     ctx.shared_store.insert(InterventionService::new(
@@ -79,7 +85,14 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         notes,
         vehicles.clone(),
         interventions.clone(),
-        cursors,
+        cursors.clone(),
+    ));
+    ctx.shared_store.insert(InvoiceService::new(
+        invoices,
+        customers.clone(),
+        vehicles.clone(),
+        interventions.clone(),
+        cursors.clone(),
     ));
     ctx.shared_store
         .insert(AttachmentService::new(attachments, vehicles, interventions));

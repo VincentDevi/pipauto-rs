@@ -11,6 +11,7 @@ pub mod attachment;
 pub mod auth;
 pub mod customer;
 pub mod intervention;
+pub mod invoice;
 pub mod surreal;
 pub mod technical_note;
 pub mod vehicle;

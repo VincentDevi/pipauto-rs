@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::{
-    domain::{InvoiceId, Money},
+    domain::{InvoiceId, Money, PaymentId},
     models::{
         auth::UserId,
         invoice::{payment_summary, InvoiceError, InvoiceStatus},
@@ -28,6 +28,12 @@ pub struct Payment {
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
     pub created_by: UserId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PaymentRecord {
+    pub id: PaymentId,
+    pub payment: Payment,
 }
 
 impl Payment {

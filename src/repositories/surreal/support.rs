@@ -49,6 +49,10 @@ pub fn classify_query_error(error: &surrealdb::Error) -> RepositoryError {
         "draft",
         "state transition",
         "currency cannot conflict",
+        "transaction",
+        "outstanding balance",
+        "recorded payments",
+        "non-empty",
     ]
     .iter()
     .any(|needle| message.contains(needle))
