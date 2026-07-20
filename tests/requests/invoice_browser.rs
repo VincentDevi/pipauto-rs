@@ -310,6 +310,290 @@ async fn invoice_line_browser_authoritative_totals_sources_and_order() {
     }
 }
 
+#[tokio::test]
+async fn invoice_lifecycle_browser_issues_once_locks_snapshots_and_retains_void_history() {
+    let (router, session, csrf) = authenticated_app().await;
+    let (invoice_id, customer_id) =
+        invoice_ready_to_issue(&router, &session, &csrf, "Lifecycle Owner").await;
+
+    let confirmation = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}/issue"), &session, false),
+    )
+    .await;
+    assert_eq!(confirmation.0, StatusCode::OK, "{}", confirmation.1);
+    for expected in [
+        "Lifecycle Owner",
+        "Line count</dt><dd>1",
+        "EUR 125.00",
+        "Issue and lock invoice",
+        "cannot return to Draft",
+    ] {
+        assert!(confirmation.1.contains(expected), "missing {expected}");
+    }
+
+    let issued = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/issue"),
+            &session,
+            issue_invoice_form(&csrf, "2026-07-20", "2026-08-20"),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(issued.0, StatusCode::SEE_OTHER, "{}", issued.1);
+
+    write_json(
+        &router,
+        Method::PATCH,
+        &format!("/api/v1/customers/{customer_id}"),
+        &session,
+        &csrf,
+        json!({"display_name": "Changed source customer"}),
+    )
+    .await;
+    let detail = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}"), &session, false),
+    )
+    .await;
+    assert_eq!(detail.0, StatusCode::OK, "{}", detail.1);
+    assert!(detail.1.contains("Invoice 2026-"));
+    assert!(detail.1.contains("Lifecycle Owner"));
+    assert!(detail.1.contains("Workshopstraat 61"));
+    assert!(detail.1.contains("2026-07-20"));
+    assert!(detail.1.contains("2026-08-20"));
+    for forbidden in ["Edit header", "Add line", ">Edit<", ">Remove<"] {
+        assert!(!detail.1.contains(forbidden), "found {forbidden}");
+    }
+
+    let repeat = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/issue"),
+            &session,
+            issue_invoice_form(&csrf, "2026-07-20", ""),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(repeat.0, StatusCode::CONFLICT, "{}", repeat.1);
+    assert!(repeat.1.contains("no invoice number was requested again"));
+    assert!(repeat.1.contains("Invoice 2026-"));
+
+    let voided = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/void"),
+            &session,
+            void_invoice_form(&csrf, "Customer cancelled duplicate work"),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(voided.0, StatusCode::SEE_OTHER, "{}", voided.1);
+    let detail = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}"), &session, false),
+    )
+    .await;
+    assert!(detail.1.contains("Void record"));
+    assert!(detail.1.contains("Customer cancelled duplicate work"));
+    assert!(detail.1.contains("Invoice 2026-"));
+    assert!(!detail.1.contains("Record payment"));
+    assert!(detail.1.contains("Invoice export is unavailable"));
+    assert!(!detail.1.contains("type=\"submit\">Export"));
+}
+
+#[tokio::test]
+async fn payment_browser_is_append_only_balance_aware_and_removes_ineligible_actions() {
+    let (router, session, csrf) = authenticated_app().await;
+    let (invoice_id, _) = invoice_ready_to_issue(&router, &session, &csrf, "Payment Owner").await;
+    send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/issue"),
+            &session,
+            issue_invoice_form(&csrf, "2026-07-20", ""),
+            false,
+        ),
+    )
+    .await;
+
+    let form = send(
+        &router,
+        get(
+            &format!("/invoices/{invoice_id}/payments/new"),
+            &session,
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(form.0, StatusCode::OK, "{}", form.1);
+    for expected in [
+        "EUR 125.00",
+        "Currency is fixed to EUR",
+        "Cash",
+        "Bank transfer",
+        "Card",
+        "Other",
+        "append-only",
+        "never retried automatically",
+    ] {
+        assert!(form.1.contains(expected), "missing {expected}");
+    }
+    assert!(!form.1.contains("name=\"currency\""));
+
+    let overpayment = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/payments"),
+            &session,
+            payment_form(
+                &csrf,
+                "126.00",
+                "2026-07-20T12:30",
+                "card",
+                "OVER",
+                "Preserve me",
+            ),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(overpayment.0, StatusCode::CONFLICT, "{}", overpayment.1);
+    assert!(overpayment
+        .1
+        .contains("Latest outstanding balance: EUR 125.00"));
+    assert!(overpayment.1.contains("value=\"126.00\""));
+    assert!(overpayment.1.contains("Preserve me"));
+
+    let partial = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/payments"),
+            &session,
+            payment_form(
+                &csrf,
+                "25.00",
+                "2026-07-20T12:30",
+                "bank_transfer",
+                "TRX-61",
+                "Deposit",
+            ),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(partial.0, StatusCode::SEE_OTHER, "{}", partial.1);
+    let detail = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}"), &session, false),
+    )
+    .await;
+    for expected in [
+        "Partially paid",
+        "EUR 25.00",
+        "EUR 100.00",
+        "Bank transfer",
+        "TRX-61",
+        "Deposit",
+        "by Filippo",
+    ] {
+        assert!(detail.1.contains(expected), "missing {expected}");
+    }
+    assert!(!detail.1.contains("Void invoice"));
+    assert!(!detail.1.contains("Edit payment"));
+    assert!(!detail.1.contains("Delete payment"));
+
+    let void_attempt = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}/void"), &session, false),
+    )
+    .await;
+    assert_eq!(void_attempt.0, StatusCode::SEE_OTHER);
+
+    let paid = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/invoices/{invoice_id}/payments"),
+            &session,
+            payment_form(&csrf, "100.00", "2026-07-20T13:00", "cash", "", "Balance"),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(paid.0, StatusCode::SEE_OTHER, "{}", paid.1);
+    let detail = send(
+        &router,
+        get(&format!("/invoices/{invoice_id}"), &session, false),
+    )
+    .await;
+    assert!(detail.1.contains(">Paid<"));
+    assert!(detail.1.contains("EUR 0.00"));
+    assert!(!detail.1.contains("Record payment"));
+}
+
+async fn invoice_ready_to_issue(
+    router: &axum::Router,
+    session: &str,
+    csrf: &str,
+    owner: &str,
+) -> (String, String) {
+    let customer = write_json(
+        router,
+        Method::POST,
+        "/api/v1/customers",
+        session,
+        csrf,
+        json!({
+            "display_name": owner,
+            "address": {
+                "line_1": "Workshopstraat 61",
+                "postal_code": "9000",
+                "city": "Gent",
+                "country_code": "BE"
+            }
+        }),
+    )
+    .await;
+    let customer_id = id(&customer);
+    let draft = write_json(
+        router,
+        Method::POST,
+        "/api/v1/invoices",
+        session,
+        csrf,
+        json!({"customer_id": customer_id}),
+    )
+    .await;
+    let invoice_id = id(&draft);
+    write_json(
+        router,
+        Method::POST,
+        &format!("/api/v1/invoices/{invoice_id}/lines"),
+        session,
+        csrf,
+        json!({
+            "description": "Lifecycle labour",
+            "quantity": "1",
+            "unit_label": "job",
+            "unit_price_minor": 12500,
+            "position": 0
+        }),
+    )
+    .await;
+    (invoice_id, customer_id)
+}
+
 async fn authenticated_app() -> (axum::Router, String, String) {
     let boot = boot_test::<App>().await.expect("application should boot");
     boot.app_context
@@ -384,6 +668,44 @@ fn invoice_line_form(
         ("unit_price", unit_price),
         ("position", position),
     ] {
+        body.append_pair(key, value);
+    }
+    body.finish()
+}
+
+fn issue_invoice_form(csrf: &str, issue_date: &str, due_date: &str) -> String {
+    encoded_form(&[
+        ("_csrf", csrf),
+        ("issue_date", issue_date),
+        ("due_date", due_date),
+    ])
+}
+
+fn payment_form(
+    csrf: &str,
+    amount: &str,
+    received_at: &str,
+    method: &str,
+    reference: &str,
+    notes: &str,
+) -> String {
+    encoded_form(&[
+        ("_csrf", csrf),
+        ("amount", amount),
+        ("received_at", received_at),
+        ("method", method),
+        ("reference", reference),
+        ("notes", notes),
+    ])
+}
+
+fn void_invoice_form(csrf: &str, reason: &str) -> String {
+    encoded_form(&[("_csrf", csrf), ("reason", reason)])
+}
+
+fn encoded_form(values: &[(&str, &str)]) -> String {
+    let mut body = url::form_urlencoded::Serializer::new(String::new());
+    for (key, value) in values {
         body.append_pair(key, value);
     }
     body.finish()

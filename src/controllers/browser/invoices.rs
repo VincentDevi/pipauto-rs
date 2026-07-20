@@ -1,6 +1,7 @@
 //! Server-rendered invoice discovery, draft, and ordered line workflows.
 
 use axum::{extract::Query, http::StatusCode, response::Response};
+use chrono::{NaiveDate, NaiveDateTime};
 use loco_rs::{
     controller::{
         extractor::shared_store::SharedStore, views::engines::TeraView, views::ViewEngine, Routes,
@@ -24,8 +25,9 @@ use crate::{
     models::{
         customer::Customer,
         intervention::Intervention,
-        invoice::{InvoiceStatus, InvoiceView},
+        invoice::{InvoiceStatus, InvoiceView, NOTES_MAX_CHARS},
         invoice_line::{DESCRIPTION_MAX_CHARS, UNIT_LABEL_MAX_CHARS},
+        payment::PaymentMethod,
         vehicle::Vehicle,
     },
     repositories::{
@@ -37,7 +39,10 @@ use crate::{
     services::{
         customer::CustomerService,
         intervention::InterventionService,
-        invoice::{CreateInvoice, InvoiceService, UpdateInvoice, WriteInvoiceLine},
+        invoice::{
+            CreateInvoice, InvoiceService, IssueInvoiceCommand, RecordPayment, UpdateInvoice,
+            WriteInvoiceLine,
+        },
         vehicle::VehicleService,
         WorkflowError,
     },
@@ -45,7 +50,9 @@ use crate::{
     views::{
         invoice::{
             InvoiceDetailPage, InvoiceFilterValues, InvoiceFormPage, InvoiceFormValues,
-            InvoiceLineFormPage, InvoiceLineFormValues, InvoiceListPage,
+            InvoiceLineFormPage, InvoiceLineFormValues, InvoiceListPage, IssueInvoiceFormValues,
+            IssueInvoicePage, PaymentFormPage, PaymentFormValues, VoidInvoiceFormValues,
+            VoidInvoicePage,
         },
         layout::AuthenticatedLayout,
     },
@@ -66,6 +73,9 @@ const LINE_FORM_FIELDS: &[&str] = &[
     "unit_price",
     "position",
 ];
+const ISSUE_FORM_FIELDS: &[&str] = &["issue_date", "due_date"];
+const PAYMENT_FORM_FIELDS: &[&str] = &["amount", "received_at", "method", "reference", "notes"];
+const VOID_FORM_FIELDS: &[&str] = &["reason"];
 
 #[derive(Clone, Debug, Default, Deserialize)]
 struct NewInvoiceQuery {
@@ -368,9 +378,6 @@ async fn render_detail(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(context, error, "invoice")),
     };
-    if view.invoice.invoice.status != InvoiceStatus::Draft {
-        return Ok(responses::not_implemented(context.response_preference));
-    }
     let customer = match customers.get(&view.invoice.invoice.customer_id).await {
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(context, error, "invoice customer")),
@@ -395,6 +402,8 @@ async fn render_detail(
         customer,
         vehicle,
         intervention,
+        &context.actor_id,
+        &context.current_user.display_name,
         conflict,
     );
     Ok(responses::render(
@@ -524,6 +533,422 @@ async fn update(
         }
         Err(error) => Ok(workflow_response(&context, error, "invoice draft")),
     }
+}
+
+async fn issue_form(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    SharedStore(customers): SharedStore<CustomerService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    render_issue_form(
+        &context,
+        &engine,
+        &invoices,
+        &customers,
+        &vehicles,
+        &interventions,
+        &id,
+        FormState::new(IssueInvoiceFormValues {
+            issue_date: chrono::Utc::now().date_naive().to_string(),
+            due_date: String::new(),
+        }),
+        None,
+        StatusCode::OK,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn issue_invoice(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    SharedStore(customers): SharedStore<CustomerService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+    form: AuthenticatedForm<IssueInvoiceFormValues>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let values = form.fields;
+    let command = match issue_command(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_issue_form(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &vehicles,
+                &interventions,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await;
+        }
+    };
+    match invoices.issue(&id, command).await {
+        Ok(_) => Ok(detail_redirect(&context, &id)),
+        Err(WorkflowError::Conflict | WorkflowError::NotFound) => {
+            render_detail(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &vehicles,
+                &interventions,
+                &id,
+                Some("The invoice lifecycle, lines, or authoritative total changed. Current state was reloaded; no invoice number was requested again.".into()),
+                StatusCode::CONFLICT,
+            )
+            .await
+        }
+        Err(WorkflowError::Validation(errors)) => {
+            render_issue_form(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &vehicles,
+                &interventions,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await
+        }
+        Err(error) => Ok(workflow_response(&context, error, "invoice issuance")),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn render_issue_form(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    invoices: &InvoiceService,
+    customers: &CustomerService,
+    vehicles: &VehicleService,
+    interventions: &InterventionService,
+    id: &InvoiceId,
+    form: FormState<IssueInvoiceFormValues>,
+    conflict: Option<String>,
+    status: StatusCode,
+) -> Result<Response> {
+    let view = match invoices.get(id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(context, error, "invoice")),
+    };
+    if view.invoice.invoice.status != InvoiceStatus::Draft || view.lines.is_empty() {
+        return render_detail(
+            context,
+            engine,
+            invoices,
+            customers,
+            vehicles,
+            interventions,
+            id,
+            Some("Issuance is unavailable because the invoice is no longer an eligible non-empty draft. Current lifecycle and totals were reloaded.".into()),
+            StatusCode::CONFLICT,
+        )
+        .await;
+    }
+    let customer = match customers.get(&view.invoice.invoice.customer_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(context, error, "invoice customer")),
+    };
+    let vehicle = match &view.invoice.invoice.vehicle_id {
+        Some(id) => match vehicles.get(id).await {
+            Ok(value) => Some(value),
+            Err(error) => return Ok(workflow_response(context, error, "invoice vehicle")),
+        },
+        None => None,
+    };
+    let intervention = match &view.invoice.invoice.intervention_id {
+        Some(id) => match interventions.get(id).await {
+            Ok(value) => Some(value),
+            Err(error) => return Ok(workflow_response(context, error, "invoice intervention")),
+        },
+        None => None,
+    };
+    let page = IssueInvoicePage::new(
+        layout(context),
+        view,
+        customer,
+        vehicle,
+        intervention,
+        form.with_known_fields(ISSUE_FORM_FIELDS),
+        conflict,
+    );
+    Ok(responses::render(
+        context.response_preference,
+        status,
+        page.render_page(engine)?,
+        page.render_form(engine)?,
+    ))
+}
+
+async fn payment_form(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    render_payment_form(
+        &context,
+        &engine,
+        &invoices,
+        &id,
+        FormState::new(PaymentFormValues {
+            received_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M").to_string(),
+            method: "cash".into(),
+            ..PaymentFormValues::default()
+        }),
+        None,
+        StatusCode::OK,
+    )
+    .await
+}
+
+async fn record_payment(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+    form: AuthenticatedForm<PaymentFormValues>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let values = form.fields;
+    let invoice = match invoices.get(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "invoice")),
+    };
+    let command = match payment_command(&values, invoice.invoice.invoice.currency) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_payment_form(
+                &context,
+                &engine,
+                &invoices,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await;
+        }
+    };
+    match invoices
+        .record_payment(&id, command, context.actor_id.clone())
+        .await
+    {
+        Ok(_) => Ok(detail_redirect(&context, &id)),
+        Err(WorkflowError::Conflict | WorkflowError::NotFound) => {
+            render_payment_form(
+                &context,
+                &engine,
+                &invoices,
+                &id,
+                FormState::new(values),
+                Some("Another payment or lifecycle change updated this invoice. The latest outstanding balance is shown; correct the amount and explicitly submit again.".into()),
+                StatusCode::CONFLICT,
+            )
+            .await
+        }
+        Err(WorkflowError::Validation(errors)) => {
+            render_payment_form(
+                &context,
+                &engine,
+                &invoices,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await
+        }
+        Err(WorkflowError::Unavailable) => Ok(responses::unavailable(
+            context.response_preference,
+            "Payment outcome is uncertain. No automatic retry was made. Reload this invoice before recording another payment.",
+        )),
+        Err(error) => Ok(workflow_response(&context, error, "payment")),
+    }
+}
+
+async fn render_payment_form(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    invoices: &InvoiceService,
+    id: &InvoiceId,
+    form: FormState<PaymentFormValues>,
+    conflict: Option<String>,
+    status: StatusCode,
+) -> Result<Response> {
+    let view = match invoices.get(id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(context, error, "invoice")),
+    };
+    if view.invoice.invoice.status != InvoiceStatus::Issued || view.outstanding.minor_units() == 0 {
+        return Ok(detail_redirect(context, id));
+    }
+    let page = PaymentFormPage::new(
+        layout(context),
+        view,
+        form.with_known_fields(PAYMENT_FORM_FIELDS),
+        conflict,
+    );
+    Ok(responses::render(
+        context.response_preference,
+        status,
+        page.render_page(engine)?,
+        page.render_form(engine)?,
+    ))
+}
+
+async fn void_form(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    SharedStore(customers): SharedStore<CustomerService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    render_void_form(
+        &context,
+        &engine,
+        &invoices,
+        &customers,
+        &id,
+        FormState::new(VoidInvoiceFormValues::default()),
+        None,
+        StatusCode::OK,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn void_invoice(
+    context: BrowserRequestContext,
+    SharedStore(invoices): SharedStore<InvoiceService>,
+    SharedStore(customers): SharedStore<CustomerService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+    form: AuthenticatedForm<VoidInvoiceFormValues>,
+) -> Result<Response> {
+    let id = match invoice_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let values = form.fields;
+    let reason = match void_reason(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_void_form(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await;
+        }
+    };
+    match invoices.void(&id, reason).await {
+        Ok(_) => Ok(detail_redirect(&context, &id)),
+        Err(WorkflowError::Conflict | WorkflowError::NotFound) => {
+            render_detail(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &vehicles,
+                &interventions,
+                &id,
+                Some("Void eligibility changed. Current lifecycle, payment history, and balance were reloaded; the invoice was not voided.".into()),
+                StatusCode::CONFLICT,
+            )
+            .await
+        }
+        Err(WorkflowError::Validation(errors)) => {
+            render_void_form(
+                &context,
+                &engine,
+                &invoices,
+                &customers,
+                &id,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+            .await
+        }
+        Err(error) => Ok(workflow_response(&context, error, "invoice void")),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn render_void_form(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    invoices: &InvoiceService,
+    customers: &CustomerService,
+    id: &InvoiceId,
+    form: FormState<VoidInvoiceFormValues>,
+    conflict: Option<String>,
+    status: StatusCode,
+) -> Result<Response> {
+    let view = match invoices.get(id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(context, error, "invoice")),
+    };
+    if view.invoice.invoice.status == InvoiceStatus::Void || view.paid.minor_units() != 0 {
+        return Ok(detail_redirect(context, id));
+    }
+    let customer = match customers.get(&view.invoice.invoice.customer_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(context, error, "invoice customer")),
+    };
+    let page = VoidInvoicePage::new(
+        layout(context),
+        view,
+        customer,
+        form.with_known_fields(VOID_FORM_FIELDS),
+        conflict,
+    );
+    Ok(responses::render(
+        context.response_preference,
+        status,
+        page.render_page(engine)?,
+        page.render_form(engine)?,
+    ))
 }
 
 async fn new_line_form(
@@ -931,6 +1356,8 @@ async fn render_line_region(
         customer,
         vehicle,
         intervention,
+        &context.actor_id,
+        &context.current_user.display_name,
         conflict,
     );
     Ok(responses::fragment(status, page.render_lines(engine)?))
@@ -954,6 +1381,108 @@ fn create_command(
         currency,
         notes: optional_text(&values.notes),
     })
+}
+
+fn issue_command(
+    values: &IssueInvoiceFormValues,
+) -> std::result::Result<IssueInvoiceCommand, ValidationErrors> {
+    let mut errors = Vec::new();
+    let issue_date = NaiveDate::parse_from_str(&values.issue_date, "%Y-%m-%d").map_err(|_| {
+        errors.push(validation_error("issue_date", "Enter a valid issue date."));
+    });
+    let due_date = if values.due_date.trim().is_empty() {
+        Ok(None)
+    } else {
+        NaiveDate::parse_from_str(&values.due_date, "%Y-%m-%d")
+            .map(Some)
+            .map_err(|_| {
+                errors.push(validation_error("due_date", "Enter a valid due date."));
+            })
+    };
+    if let (Ok(issue_date), Ok(Some(due_date))) = (&issue_date, &due_date) {
+        if due_date < issue_date {
+            errors.push(validation_error(
+                "due_date",
+                "Due date cannot precede the issue date.",
+            ));
+        }
+    }
+    if let Some(errors) = ValidationErrors::from_vec(errors) {
+        return Err(errors);
+    }
+    Ok(IssueInvoiceCommand {
+        issue_date: issue_date.expect("validated issue date"),
+        due_date: due_date.expect("validated due date"),
+    })
+}
+
+fn payment_command(
+    values: &PaymentFormValues,
+    currency: CurrencyCode,
+) -> std::result::Result<RecordPayment, ValidationErrors> {
+    let mut errors = Vec::new();
+    let amount_minor =
+        parse_money_input(&values.amount).and_then(
+            |amount| {
+                if amount > 0 {
+                    Ok(amount)
+                } else {
+                    Err(())
+                }
+            },
+        );
+    if amount_minor.is_err() {
+        errors.push(validation_error(
+            "amount",
+            "Enter a positive amount with at most two decimal places.",
+        ));
+    }
+    let received_at = NaiveDateTime::parse_from_str(&values.received_at, "%Y-%m-%dT%H:%M")
+        .map(|received_at| received_at.and_utc());
+    if received_at.is_err() {
+        errors.push(validation_error(
+            "received_at",
+            "Enter the received date and time in UTC.",
+        ));
+    }
+    let method = match values.method.as_str() {
+        "cash" => Ok(PaymentMethod::Cash),
+        "bank_transfer" => Ok(PaymentMethod::BankTransfer),
+        "card" => Ok(PaymentMethod::Card),
+        "other" => Ok(PaymentMethod::Other),
+        _ => Err(()),
+    };
+    if method.is_err() {
+        errors.push(validation_error("method", "Choose a payment method."));
+    }
+    if let Some(errors) = ValidationErrors::from_vec(errors) {
+        return Err(errors);
+    }
+    Ok(RecordPayment {
+        amount_minor: amount_minor.expect("validated amount"),
+        currency,
+        received_at: received_at.expect("validated received time"),
+        method: method.expect("validated payment method"),
+        reference: optional_text(&values.reference),
+        notes: optional_text(&values.notes),
+    })
+}
+
+fn void_reason(values: &VoidInvoiceFormValues) -> std::result::Result<String, ValidationErrors> {
+    let value = values.reason.trim();
+    if value.is_empty() {
+        return Err(ValidationErrors::one(validation_error(
+            "reason",
+            "Enter the reason for voiding this invoice.",
+        )));
+    }
+    if value.chars().count() > NOTES_MAX_CHARS {
+        return Err(ValidationErrors::one(validation_error(
+            "reason",
+            "Use 10,000 characters or fewer.",
+        )));
+    }
+    Ok(value.to_owned())
 }
 
 fn update_command(
@@ -1357,6 +1886,21 @@ pub fn routes() -> Routes {
         .add("/invoices", post(create).layer(body_limit()))
         .add("/invoices/new", get(new_form))
         .add("/invoices/{id}", get(show))
+        .add("/invoices/{id}/issue", get(issue_form))
+        .add(
+            "/invoices/{id}/issue",
+            post(issue_invoice).layer(body_limit()),
+        )
+        .add("/invoices/{id}/payments/new", get(payment_form))
+        .add(
+            "/invoices/{id}/payments",
+            post(record_payment).layer(body_limit()),
+        )
+        .add("/invoices/{id}/void", get(void_form))
+        .add(
+            "/invoices/{id}/void",
+            post(void_invoice).layer(body_limit()),
+        )
         .add("/invoices/{id}/edit", get(edit_form))
         .add("/invoices/{id}/edit", post(update).layer(body_limit()))
         .add("/invoices/{id}/lines/new", get(new_line_form))

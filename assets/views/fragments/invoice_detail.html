@@ -1,7 +1,41 @@
 <article class="customer-workflow" aria-labelledby="invoice-heading">
-  <header class="page-header"><div><p class="eyebrow"><span class="badge badge--warning">Draft</span> · Reference {{ id }}</p><h1 id="invoice-heading">Invoice draft</h1><p class="summary">Unnumbered until issuance. This draft cannot receive payments.</p></div><a class="button button--secondary" href="/invoices/{{ id }}/edit">Edit header</a></header>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow"><span class="badge badge--{{ lifecycle_class }}">{{ lifecycle }}</span>{% if is_draft %} · Reference {{ id }}{% endif %}</p>
+      <h1 id="invoice-heading">{{ heading }}</h1>
+      {% if is_draft %}<p class="summary">Unnumbered until issuance. This draft cannot receive payments.</p>{% else %}<p class="summary">Number, customer and billing snapshots, dates, and invoice lines are locked.</p>{% endif %}
+    </div>
+    <div class="metadata-actions">
+      {% if is_draft %}<a class="button button--secondary" href="/invoices/{{ id }}/edit">Edit header</a>{% endif %}
+      {% if can_issue %}<a class="button" href="/invoices/{{ id }}/issue">Review issuance</a>{% endif %}
+      {% if can_record_payment %}<a class="button" href="/invoices/{{ id }}/payments/new">Record payment</a>{% endif %}
+      {% if can_void %}<a class="button button--destructive" href="/invoices/{{ id }}/void">Void invoice</a>{% endif %}
+    </div>
+  </header>
   {% if conflict %}<div class="panel-state panel-state--error card" role="alert"><h2>Authoritative invoice state</h2><p>{{ conflict }}</p></div>{% endif %}
-  <section class="detail-grid" aria-label="Invoice draft relationships"><div class="card"><h2>Customer</h2><p><a href="{{ customer_href }}">{{ customer }}</a></p></div><div class="card"><h2>Vehicle</h2><p>{% if vehicle %}<a href="{{ vehicle_href }}">{{ vehicle }}</a>{% else %}—{% endif %}</p></div><div class="card"><h2>Intervention</h2><p>{% if intervention %}<a href="{{ intervention_href }}">{{ intervention }}</a>{% else %}—{% endif %}</p></div><div class="card"><h2>Currency</h2><p>{{ currency }}</p></div><div class="card"><h2>Notes</h2><p>{% if notes %}{{ notes }}{% else %}—{% endif %}</p></div></section>
+  {% if is_draft and not can_issue %}<div class="panel-state card"><h2>Issuance unavailable</h2><p>Add at least one invoice line before reviewing issuance.</p></div>{% endif %}
+  <section class="detail-grid" aria-label="Invoice relationships and snapshots">
+    <div class="card"><h2>Customer{% if not is_draft %} snapshot{% endif %}</h2><p><a href="{{ customer_href }}">{{ customer }}</a></p></div>
+    <div class="card"><h2>Vehicle</h2><p>{% if vehicle %}<a href="{{ vehicle_href }}">{{ vehicle }}</a>{% else %}—{% endif %}</p></div>
+    <div class="card"><h2>Intervention</h2><p>{% if intervention %}<a href="{{ intervention_href }}">{{ intervention }}</a>{% else %}—{% endif %}</p></div>
+    <div class="card"><h2>Currency</h2><p>{{ currency }}</p></div>
+    {% if not is_draft %}<div class="card"><h2>Issue date</h2><p>{% if issue_date %}{{ issue_date }}{% else %}—{% endif %}</p></div>
+    <div class="card"><h2>Due date</h2><p>{% if due_date %}{{ due_date }}{% else %}—{% endif %}</p></div>
+    <div class="card"><h2>Billing address snapshot</h2>{% if billing_address %}<address>{{ billing_address.line_1 }}{% if billing_address.line_2 %}<br>{{ billing_address.line_2 }}{% endif %}<br>{{ billing_address.postal_code }} {{ billing_address.city }}<br>{{ billing_address.country_code }}</address>{% else %}<p>—</p>{% endif %}</div>{% endif %}
+    <div class="card"><h2>Notes</h2><p>{% if notes %}{{ notes }}{% else %}—{% endif %}</p></div>
+  </section>
   {% include "fragments/invoice_line_region.html" %}
-  <section class="card"><h2>Record timestamps</h2><dl class="metadata-list"><div><dt>Created</dt><dd>{{ created_at }}</dd></div><div><dt>Updated</dt><dd>{{ updated_at }}</dd></div></dl></section>
+  {% if not is_draft %}
+  <section class="card" aria-labelledby="payment-summary-heading">
+    <h2 id="payment-summary-heading">Payment summary</h2>
+    <dl class="metadata-list"><div><dt>Total</dt><dd>{{ total }}</dd></div><div><dt>Paid</dt><dd>{{ paid }}</dd></div><div><dt>Outstanding</dt><dd>{{ outstanding }}</dd></div><div><dt>Payment state</dt><dd><span class="badge badge--{{ payment_class }}">{{ payment_state }}</span></dd></div></dl>
+  </section>
+  <section class="card" aria-labelledby="payments-heading">
+    <header class="section-header"><div><h2 id="payments-heading">Payments</h2><p class="muted">Payments are append-only and cannot be edited or deleted.</p></div></header>
+    {% if payments | length > 0 %}<table class="data-table"><thead><tr><th>Received</th><th>Amount</th><th>Method</th><th>Reference and notes</th><th>Recorded</th></tr></thead><tbody>{% for payment in payments %}<tr><td data-label="Received">{{ payment.received_at }}</td><td data-label="Amount">{{ payment.amount }}</td><td data-label="Method">{{ payment.method }}</td><td data-label="Reference and notes">{% if payment.reference %}{{ payment.reference }}{% else %}—{% endif %}{% if payment.notes %}<br><span class="muted">{{ payment.notes }}</span>{% endif %}</td><td data-label="Recorded">{{ payment.recorded_at }}<br><span class="muted">by {{ payment.recorded_by }}</span></td></tr>{% endfor %}</tbody></table>{% else %}<p>No payments recorded.</p>{% endif %}
+  </section>
+  {% endif %}
+  {% if lifecycle == "Void" %}<section class="card"><h2>Void record</h2><dl class="metadata-list"><div><dt>Number</dt><dd>{% if number %}{{ number }}{% else %}Unnumbered draft{% endif %}</dd></div><div><dt>Voided</dt><dd>{{ voided_at }}</dd></div><div><dt>Reason</dt><dd>{{ void_reason }}</dd></div></dl><p>This invoice remains in workshop records and cannot receive payments.</p></section>{% endif %}
+  <section class="card"><h2>Invoice export</h2><p>Invoice export is unavailable in this release.</p></section>
+  <section class="card"><h2>Record timestamps</h2><dl class="metadata-list"><div><dt>Created</dt><dd>{{ created_at }}</dd></div><div><dt>Updated</dt><dd>{{ updated_at }}</dd></div>{% if issued_at %}<div><dt>Issued</dt><dd>{{ issued_at }}</dd></div>{% endif %}</dl></section>
 </article>

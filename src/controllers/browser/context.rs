@@ -15,6 +15,7 @@ use crate::{
         extractors::CurrentUser,
         settings::AuthSettings,
     },
+    models::auth::UserId,
     services::auth::AuthService,
     views::context::PresentationUser,
 };
@@ -71,6 +72,8 @@ impl ResponsePreference {
 /// Complete presentation-safe state shared by authenticated browser controllers.
 #[derive(Debug, Serialize)]
 pub struct BrowserRequestContext {
+    #[serde(skip)]
+    pub actor_id: UserId,
     pub current_user: PresentationUser,
     pub csrf_token: SecretCsrfToken,
     pub current_path: String,
@@ -107,6 +110,7 @@ where
             .and_then(|value| LocalReturnPath::parse(&value));
 
         Ok(Self {
+            actor_id: user.id,
             current_user: PresentationUser {
                 display_name: user.display_name,
             },
