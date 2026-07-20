@@ -15,3 +15,22 @@ document.addEventListener("htmx:beforeSwap", function (event) {
     event.detail.isError = false;
   }
 });
+
+document.addEventListener("click", function (event) {
+  const openButton = event.target.closest("[data-dialog-open]");
+  if (openButton) {
+    const dialog = document.getElementById(openButton.dataset.dialogOpen);
+    if (dialog?.showModal) dialog.showModal();
+    return;
+  }
+  const closeButton = event.target.closest("[data-dialog-close]");
+  if (closeButton) closeButton.closest("dialog")?.close();
+});
+
+document.addEventListener("keydown", function (event) {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".more-menu[open]").forEach(function (menu) {
+    menu.removeAttribute("open");
+    menu.querySelector("summary")?.focus();
+  });
+});

@@ -87,7 +87,7 @@ async fn security_headers_are_compatible_with_the_self_hosted_login_page() {
 }
 
 #[tokio::test]
-async fn authenticated_layout_contains_only_safe_shell_identity_csrf_and_path() {
+async fn authenticated_shell_contains_only_safe_identity_and_complete_navigation() {
     let boot = boot_test::<App>().await.expect("application should boot");
     let service = boot
         .app_context
@@ -102,6 +102,7 @@ async fn authenticated_layout_contains_only_safe_shell_identity_csrf_and_path() 
     let session = login_session(&router).await;
 
     let response = router
+        .clone()
         .oneshot(get_with_cookie("/", &session))
         .await
         .expect("private request should complete");
@@ -118,10 +119,41 @@ async fn authenticated_layout_contains_only_safe_shell_identity_csrf_and_path() 
     assert!(!html.contains("filippo@example.com"));
     assert!(!html.contains("user:"));
     assert!(!html.contains("pipauto_session"));
-    assert!(html.contains("href=\"/\" aria-current=\"page\">Workshop</a>"));
+    assert!(html.contains("class=\"skip-link\" href=\"#main-content\""));
+    assert!(html.contains("href=\"/\" aria-current=\"page\">Dashboard</a>"));
+    for destination in [
+        "Customers",
+        "Vehicles",
+        "Interventions",
+        "Knowledge",
+        "Invoices",
+        "Home",
+        "Jobs",
+        "More",
+    ] {
+        assert!(
+            html.contains(destination),
+            "missing {destination} navigation"
+        );
+    }
+    assert!(html.contains("id=\"main-content\""));
+    assert!(html.contains("id=\"notifications\""));
+    assert!(html.contains("class=\"phone-navigation\""));
     assert!(html.contains("<meta name=\"csrf-token\""));
     assert!(html.contains("name=\"_csrf\""));
     assert!(html.contains("method=\"post\" action=\"/logout\""));
+
+    let record_response = router
+        .oneshot(get_with_cookie(
+            "/vehicles/vehicle%3Aexample/edit",
+            &session,
+        ))
+        .await
+        .expect("record placeholder should complete");
+    assert_eq!(record_response.status(), StatusCode::NOT_IMPLEMENTED);
+    let record_html = body_text(record_response).await;
+    assert!(record_html.contains("href=\"/vehicles\" aria-current=\"page\""));
+    assert!(!record_html.contains("filippo@example.com"));
 }
 
 #[tokio::test]

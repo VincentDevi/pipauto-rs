@@ -52,9 +52,10 @@ async fn setup_stylesheet_is_served_from_static_assets() {
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_content_type(response.headers(), "text/css");
-    assert!(response_text(response)
-        .await
-        .contains("@media (max-width: 22rem)"));
+    let stylesheet = response_text(response).await;
+    assert!(stylesheet.contains("@media (min-width: 64rem)"));
+    assert!(stylesheet.contains("@media (prefers-reduced-motion: reduce)"));
+    assert!(stylesheet.contains("--focus-ring:"));
 }
 
 #[tokio::test]

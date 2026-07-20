@@ -226,6 +226,8 @@ local return path, and HTMX/full-page preference. Unsafe HTML forms are URL-enco
 protected, and body-limited; API routes retain their JSON extractor and response contract.
 
 All planned first-release browser routes are authenticated and auditable before their pages are
-implemented. Unowned pages may return safe unavailable placeholders and must not appear as active
-navigation. Full-page and HTMX responses share authentication, CSRF, and `no-store` rules. Browser
-views receive presentation models only, never persistence rows, credentials, or session records.
+implemented. The approved workshop shell may link planned destinations before their pages are
+implemented; those routes return safe unavailable placeholders and retain their owning navigation
+area as active. Full-page and HTMX responses share authentication, CSRF, and `no-store` rules.
+Browser views receive presentation models only, never persistence rows, credentials, or session
+records.

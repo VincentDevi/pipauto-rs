@@ -1,15 +1,33 @@
 //! Safe placeholders for planned browser pages not yet owned by an implementation issue.
 
-use axum::response::Response;
-use loco_rs::{controller::Routes, prelude::get};
+use axum::{http::StatusCode, response::Response};
+use loco_rs::{
+    controller::{views::engines::TeraView, views::ViewEngine, Routes},
+    prelude::get,
+    Result,
+};
 
 use super::{context::BrowserRequestContext, responses};
+use crate::views::{layout::AuthenticatedLayout, unavailable::UnavailablePage};
 
-async fn unavailable(context: BrowserRequestContext) -> Response {
-    responses::not_implemented(context.response_preference)
+async fn unavailable(
+    context: BrowserRequestContext,
+    ViewEngine(engine): ViewEngine<TeraView>,
+) -> Result<Response> {
+    let view = UnavailablePage::new(AuthenticatedLayout::new(
+        &context.current_user,
+        context.csrf_token.expose(),
+        &context.current_path,
+    ));
+    Ok(responses::render(
+        context.response_preference,
+        StatusCode::NOT_IMPLEMENTED,
+        view.render_page(&engine)?,
+        view.render_panel(&engine)?,
+    ))
 }
 
-/// Planned routes are intentionally absent from active navigation until implemented.
+/// Planned routes retain safe placeholders until their owning issue implements them.
 #[must_use]
 pub fn routes() -> Routes {
     Routes::new()

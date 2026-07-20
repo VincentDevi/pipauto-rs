@@ -27,5 +27,9 @@ export default defineConfig({
       name: 'no-javascript',
       use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },
+    {
+      name: 'phone-chromium',
+      use: { ...devices['Pixel 5'] },
+    },
   ],
 });

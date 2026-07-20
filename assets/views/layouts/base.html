@@ -7,26 +7,68 @@
     <link rel="stylesheet" href="/static/css/app.css">
     {% if csrf_token is defined and csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
   </head>
-  <body>
-    <header class="site-header">
-      <div class="shell header-content">
-        <a class="brand" href="/" aria-label="Pipauto home">Pipauto</a>
-        {% if current_user is defined and current_user %}
-          <nav aria-label="Primary navigation" class="account-navigation">
-            <a href="/"{% if current_path == "/" %} aria-current="page"{% endif %}>Workshop</a>
-            <span>{{ current_user.display_name }}</span>
+  <body{% if current_user is defined and current_user %} class="authenticated-page"{% endif %}>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    {% if current_user is defined and current_user %}
+      <div class="app-shell">
+        <aside class="sidebar" aria-label="Workshop navigation">
+          <a class="brand sidebar-brand" href="/" aria-label="Pipauto dashboard">Pipauto</a>
+          <nav class="desktop-navigation" aria-label="Primary navigation">
+            <a href="/"{% if active_navigation == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a>
+            <a href="/customers"{% if active_navigation == "customers" %} aria-current="page"{% endif %}>Customers</a>
+            <a href="/vehicles"{% if active_navigation == "vehicles" %} aria-current="page"{% endif %}>Vehicles</a>
+            <a href="/interventions"{% if active_navigation == "interventions" %} aria-current="page"{% endif %}>Interventions</a>
+            <a href="/knowledge"{% if active_navigation == "knowledge" %} aria-current="page"{% endif %}>Knowledge</a>
+            <a href="/invoices"{% if active_navigation == "invoices" %} aria-current="page"{% endif %}>Invoices</a>
+          </nav>
+          <div class="sidebar-account">
+            <span class="display-name">{{ current_user.display_name }}</span>
             <form method="post" action="/logout" hx-post="/logout">
               <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-              <button type="submit" class="button-link">Sign out</button>
+              <button type="submit" class="button button--quiet">Sign out</button>
             </form>
-          </nav>
-        {% endif %}
+          </div>
+        </aside>
+        <div class="workspace">
+          <header class="workspace-header">
+            <a class="brand phone-brand" href="/" aria-label="Pipauto dashboard">Pipauto</a>
+            <nav aria-label="Breadcrumb"><span aria-current="page">{{ current_area }}</span></nav>
+          </header>
+          <main id="main-content" class="main-content" tabindex="-1">
+    {% else %}
+      <header class="guest-header"><div class="content-width"><a class="brand" href="/login">Pipauto</a></div></header>
+      <main id="main-content" class="guest-main content-width" tabindex="-1">
+    {% endif %}
+        {% block content %}{% endblock content %}
+    {% if current_user is defined and current_user %}
+          </main>
+          <div id="notifications" class="notification-region" role="region" aria-label="Notifications" aria-live="polite" aria-atomic="true"></div>
+        </div>
       </div>
-    </header>
-    <main id="main-content" class="shell">
-      {% block content %}{% endblock content %}
-    </main>
+      <nav class="phone-navigation" aria-label="Primary navigation">
+        <a href="/"{% if active_navigation == "dashboard" %} aria-current="page"{% endif %}>Home</a>
+        <a href="/vehicles"{% if active_navigation == "vehicles" %} aria-current="page"{% endif %}>Vehicles</a>
+        <a href="/interventions"{% if active_navigation == "interventions" %} aria-current="page"{% endif %}>Jobs</a>
+        <details class="more-menu">
+          <summary{% if active_navigation == "customers" or active_navigation == "knowledge" or active_navigation == "invoices" %} aria-current="page"{% endif %}>More</summary>
+          <div class="sheet" role="group" aria-label="More navigation">
+            <strong>More</strong>
+            <a href="/customers"{% if active_navigation == "customers" %} aria-current="page"{% endif %}>Customers</a>
+            <a href="/knowledge"{% if active_navigation == "knowledge" %} aria-current="page"{% endif %}>Knowledge</a>
+            <a href="/invoices"{% if active_navigation == "invoices" %} aria-current="page"{% endif %}>Invoices</a>
+            <span class="display-name">{{ current_user.display_name }}</span>
+            <form method="post" action="/logout" hx-post="/logout">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <button type="submit" class="button button--quiet">Sign out</button>
+            </form>
+          </div>
+        </details>
+      </nav>
+    {% else %}
+      </main>
+      <div id="notifications" class="notification-region" role="region" aria-label="Notifications" aria-live="polite" aria-atomic="true"></div>
+    {% endif %}
     <script src="/static/vendor/htmx.min.js" defer></script>
-    <script src="/static/js/app.js?v=2" defer></script>
+    <script src="/static/js/app.js?v=3" defer></script>
   </body>
 </html>
