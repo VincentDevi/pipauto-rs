@@ -7,8 +7,9 @@ The initial core backend is implemented: password authentication, customers, veh
 interventions and deterministic service history, searchable technical notes, attachment metadata,
 invoices, and append-only payments. See the [architecture](docs/architecture.md),
 [JSON API v1](docs/api-v1.md), [authentication guide](docs/authentication.md), and
-[migration and recovery runbook](docs/migrations.md). Frontend maintainers should also read the
-[frontend guide](docs/frontend.md).
+[migration and recovery runbook](docs/migrations.md). For a concise local workflow, see the
+[local development quick start](docs/local-development.md). Frontend maintainers should also read
+the [frontend guide](docs/frontend.md).
 
 ## Requirements
 
