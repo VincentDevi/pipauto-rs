@@ -24,7 +24,8 @@ use crate::{
     repositories::{
         customer::RepositoryPage,
         intervention::{
-            InterventionFilter, InterventionRepository, LineMutation, LineMutationResult,
+            InterventionFilter, InterventionRepository, LineMoveDirection, LineMutation,
+            LineMutationResult,
         },
         RepositoryError,
     },
@@ -395,7 +396,7 @@ impl InterventionRepository for SurrealInterventionRepository {
             LineMutation::Create(line) | LineMutation::Update { line, .. } => {
                 Some(&line.intervention_id)
             }
-            LineMutation::Delete { .. } => None,
+            LineMutation::Delete { .. } | LineMutation::Move { .. } => None,
         };
         if mutation_parent.is_some_and(|id| id != intervention_id) {
             return Err(RepositoryError::Conflict);
@@ -423,7 +424,11 @@ impl InterventionRepository for SurrealInterventionRepository {
                 mutate_line_with_transaction(&transaction, intervention_id, mutation).await?;
             let lines = list_lines_with_client(&transaction, intervention_id).await?;
             let totals = calculate_totals(currency, &lines)?;
-            Ok(LineMutationResult { line, totals })
+            Ok(LineMutationResult {
+                line,
+                lines,
+                totals,
+            })
         }
         .await;
         finish_transaction(transaction, result).await
@@ -437,6 +442,42 @@ impl InterventionRepository for SurrealInterventionRepository {
             return Err(RepositoryError::NotFound);
         }
         list_lines_with_client(&self.client, intervention_id).await
+    }
+
+    async fn line_workspace(
+        &self,
+        intervention_id: &InterventionId,
+    ) -> Result<LineMutationResult, RepositoryError> {
+        let transaction = self
+            .client
+            .clone()
+            .begin()
+            .await
+            .map_err(|error| support::classify_query_error(&error))?;
+        let result = async {
+            let mut response = support::checked_response(
+                transaction
+                    .query("SELECT currency FROM ONLY $intervention;")
+                    .bind((
+                        "intervention",
+                        support::record_id("intervention", intervention_id.as_str())?,
+                    ))
+                    .await,
+            )?;
+            let currency: Option<DbCurrency> = support::take(&mut response, 0)?;
+            let currency =
+                CurrencyCode::parse(&currency.ok_or(RepositoryError::NotFound)?.currency)
+                    .map_err(|_| RepositoryError::CorruptData)?;
+            let lines = list_lines_with_client(&transaction, intervention_id).await?;
+            let totals = calculate_totals(currency, &lines)?;
+            Ok(LineMutationResult {
+                line: None,
+                lines,
+                totals,
+            })
+        }
+        .await;
+        finish_transaction(transaction, result).await
     }
 }
 
@@ -555,7 +596,58 @@ async fn mutate_line_with_transaction(
             )?;
             Ok(None)
         }
+        LineMutation::Move { id, direction } => {
+            let lines = list_lines_with_client(transaction, intervention_id).await?;
+            let current = lines
+                .iter()
+                .position(|line| line.id == id)
+                .ok_or(RepositoryError::NotFound)?;
+            let adjacent = match direction {
+                LineMoveDirection::Up => current.checked_sub(1),
+                LineMoveDirection::Down => current
+                    .checked_add(1)
+                    .filter(|position| *position < lines.len()),
+            };
+            let Some(adjacent) = adjacent else {
+                return Ok(Some(lines[current].clone()));
+            };
+            let temporary = (0..=u32::MAX)
+                .find(|position| lines.iter().all(|line| line.position != *position))
+                .ok_or(RepositoryError::Conflict)?;
+            swap_line_positions(transaction, &lines[current], &lines[adjacent], temporary).await?;
+            find_line_with_client(
+                transaction,
+                &support::record_id("intervention_line", id.as_str())?,
+            )
+            .await
+            .map(Some)
+        }
     }
+}
+
+async fn swap_line_positions(
+    transaction: &surrealdb::method::Transaction<Any>,
+    line: &InterventionLine,
+    adjacent: &InterventionLine,
+    temporary: u32,
+) -> Result<(), RepositoryError> {
+    for (id, position) in [
+        (&line.id, i64::from(temporary)),
+        (&adjacent.id, i64::from(line.position)),
+        (&line.id, i64::from(adjacent.position)),
+    ] {
+        support::checked_response(
+            transaction
+                .query("UPDATE ONLY $record SET position = $position;")
+                .bind((
+                    "record",
+                    support::record_id("intervention_line", id.as_str())?,
+                ))
+                .bind(("position", position))
+                .await,
+        )?;
+    }
+    Ok(())
 }
 
 async fn line_query(
@@ -619,6 +711,19 @@ async fn find_line_with_client(
     row.ok_or(RepositoryError::NotFound)?.try_into()
 }
 
+fn calculate_totals(
+    currency: CurrencyCode,
+    lines: &[InterventionLine],
+) -> Result<InterventionTotals, RepositoryError> {
+    lines
+        .iter()
+        .try_fold(
+            InterventionTotals::zero(currency).map_err(|_| RepositoryError::CorruptData)?,
+            |totals, line| totals.checked_add(line.total_price, line.total_cost),
+        )
+        .map_err(|_| RepositoryError::Conflict)
+}
+
 async fn totals_with_client(
     client: &impl QueryClient,
     intervention_id: &InterventionId,
@@ -637,19 +742,6 @@ async fn totals_with_client(
         .map_err(|_| RepositoryError::CorruptData)?;
     let lines = list_lines_with_client(client, intervention_id).await?;
     calculate_totals(currency, &lines)
-}
-
-fn calculate_totals(
-    currency: CurrencyCode,
-    lines: &[InterventionLine],
-) -> Result<InterventionTotals, RepositoryError> {
-    lines
-        .iter()
-        .try_fold(
-            InterventionTotals::zero(currency).map_err(|_| RepositoryError::CorruptData)?,
-            |totals, line| totals.checked_add(line.total_price, line.total_cost),
-        )
-        .map_err(|_| RepositoryError::Conflict)
 }
 
 async fn finish_transaction<T>(

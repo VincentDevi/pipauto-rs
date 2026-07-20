@@ -12,7 +12,9 @@ use crate::{
     models::{
         attachment::AttachmentMetadata,
         customer::Customer,
-        intervention::{Intervention, InterventionStatus, ServiceHistorySummary},
+        intervention::{
+            Intervention, InterventionStatus, InterventionTotals, ServiceHistorySummary,
+        },
         intervention_line::{InterventionLine, InterventionLineCategory},
         vehicle::Vehicle,
     },
@@ -28,6 +30,9 @@ const DETAIL_PAGE: &str = "pages/intervention_detail.html";
 const DETAIL_FRAGMENT: &str = "fragments/intervention_detail.html";
 const TRANSITION_PAGE: &str = "pages/intervention_transition.html";
 const TRANSITION_FRAGMENT: &str = "fragments/intervention_transition.html";
+const LINE_FORM_PAGE: &str = "pages/intervention_line_form.html";
+const LINE_FORM_FRAGMENT: &str = "fragments/intervention_line_form.html";
+const LINE_REGION_FRAGMENT: &str = "fragments/intervention_line_region.html";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct InterventionFilterValues {
@@ -273,19 +278,32 @@ impl<'page> InterventionFormPage<'page> {
 
 #[derive(Debug, Serialize)]
 struct LineItem {
+    id: String,
     category: &'static str,
     description: String,
     quantity: String,
     unit_label: String,
+    unit_price: String,
+    unit_cost: Option<String>,
     total: String,
+    position: u32,
+    edit_href: String,
+    delete_action: String,
+    move_up_action: String,
+    move_down_action: String,
+    can_move_up: bool,
+    can_move_down: bool,
 }
 
 #[derive(Debug, Serialize)]
 struct AttachmentItem {
+    id: String,
     display_name: String,
     media_type: &'static str,
     byte_size: Option<u64>,
     caption: Option<String>,
+    edit_href: String,
+    delete_action: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -311,7 +329,8 @@ pub struct InterventionDetailPage<'page> {
     recommendations: Option<String>,
     notes: Option<String>,
     lines: Vec<LineItem>,
-    total: String,
+    price_total: String,
+    cost_total: String,
     attachments: Vec<AttachmentItem>,
     created_at: String,
     updated_at: String,
@@ -330,7 +349,7 @@ impl<'page> InterventionDetailPage<'page> {
         owner: Customer,
         lines: Vec<InterventionLine>,
         attachments: Vec<AttachmentMetadata>,
-        total: Money,
+        totals: InterventionTotals,
         conflict: Option<String>,
     ) -> Self {
         let (status, status_class) = status(intervention.status);
@@ -356,15 +375,28 @@ impl<'page> InterventionDetailPage<'page> {
             performed_work: intervention.performed_work,
             recommendations: intervention.recommendations,
             notes: intervention.notes,
-            lines: lines.into_iter().map(line_item).collect(),
-            total: money(total),
+            lines: line_items(lines, &intervention.id),
+            price_total: money(totals.price),
+            cost_total: money(totals.cost),
             attachments: attachments
                 .into_iter()
-                .map(|attachment| AttachmentItem {
-                    display_name: attachment.display_name,
-                    media_type: attachment.media_type.as_str(),
-                    byte_size: attachment.byte_size,
-                    caption: attachment.caption,
+                .map(|attachment| {
+                    let id = attachment.id.as_str().to_owned();
+                    AttachmentItem {
+                        id: id.clone(),
+                        display_name: attachment.display_name,
+                        media_type: attachment.media_type.as_str(),
+                        byte_size: attachment.byte_size,
+                        caption: attachment.caption,
+                        edit_href: format!(
+                            "/interventions/{}/attachments/{id}/edit",
+                            intervention.id.as_str()
+                        ),
+                        delete_action: format!(
+                            "/interventions/{}/attachments/{id}/delete",
+                            intervention.id.as_str()
+                        ),
+                    }
                 })
                 .collect(),
             created_at: timestamp(intervention.created_at),
@@ -381,6 +413,136 @@ impl<'page> InterventionDetailPage<'page> {
 
     pub fn render_content(&self, engine: &TeraView) -> Result<String> {
         engine.render(DETAIL_FRAGMENT, self)
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct InterventionLineRegion<'page> {
+    #[serde(flatten)]
+    layout: AuthenticatedLayout<'page>,
+    id: String,
+    is_draft: bool,
+    lines: Vec<LineItem>,
+    price_total: String,
+    cost_total: String,
+}
+
+impl<'page> InterventionLineRegion<'page> {
+    #[must_use]
+    pub fn new(
+        layout: AuthenticatedLayout<'page>,
+        intervention: &Intervention,
+        lines: Vec<InterventionLine>,
+        totals: InterventionTotals,
+    ) -> Self {
+        Self {
+            layout,
+            id: intervention.id.as_str().to_owned(),
+            is_draft: intervention.status == InterventionStatus::Draft,
+            lines: line_items(lines, &intervention.id),
+            price_total: money(totals.price),
+            cost_total: money(totals.cost),
+        }
+    }
+
+    pub fn render(&self, engine: &TeraView) -> Result<String> {
+        engine.render(LINE_REGION_FRAGMENT, self)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct InterventionLineFormValues {
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub quantity: String,
+    #[serde(default)]
+    pub unit_label: String,
+    #[serde(default)]
+    pub unit_price: String,
+    #[serde(default)]
+    pub unit_cost: String,
+    #[serde(default)]
+    pub position: String,
+}
+
+impl From<&InterventionLine> for InterventionLineFormValues {
+    fn from(line: &InterventionLine) -> Self {
+        Self {
+            category: category_value(line.category).to_owned(),
+            description: line.description.clone(),
+            quantity: line.quantity.to_string(),
+            unit_label: line.unit_label.clone(),
+            unit_price: money_input(line.unit_price),
+            unit_cost: line.unit_cost.map_or_else(String::new, money_input),
+            position: line.position.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct InterventionLineFormPage<'page> {
+    #[serde(flatten)]
+    layout: AuthenticatedLayout<'page>,
+    title: &'static str,
+    heading: &'static str,
+    action: String,
+    cancel_href: String,
+    submit_label: &'static str,
+    intervention_id: String,
+    currency: String,
+    form: FormState<InterventionLineFormValues>,
+    conflict: Option<String>,
+}
+
+impl<'page> InterventionLineFormPage<'page> {
+    #[must_use]
+    pub fn new(
+        layout: AuthenticatedLayout<'page>,
+        intervention: &Intervention,
+        line_id: Option<&str>,
+        form: FormState<InterventionLineFormValues>,
+        conflict: Option<String>,
+    ) -> Self {
+        let id = intervention.id.as_str();
+        let editing = line_id.is_some();
+        Self {
+            layout,
+            title: if editing {
+                "Edit line item · Pipauto"
+            } else {
+                "Add line item · Pipauto"
+            },
+            heading: if editing {
+                "Edit line item"
+            } else {
+                "Add line item"
+            },
+            action: line_id.map_or_else(
+                || format!("/interventions/{id}/lines"),
+                |line_id| format!("/interventions/{id}/lines/{line_id}/edit"),
+            ),
+            cancel_href: format!("/interventions/{id}"),
+            submit_label: if editing {
+                "Save line item"
+            } else {
+                "Add line item"
+            },
+            intervention_id: id.to_owned(),
+            currency: intervention.currency.as_str().to_owned(),
+            form,
+            conflict,
+        }
+    }
+
+    pub fn render_page(&self, engine: &TeraView) -> Result<String> {
+        engine.render(LINE_FORM_PAGE, self)
+    }
+
+    pub fn render_form(&self, engine: &TeraView) -> Result<String> {
+        engine.render(LINE_FORM_FRAGMENT, self)
     }
 }
 
@@ -481,18 +643,49 @@ fn list_item(entry: ServiceHistorySummary, vehicle: Vehicle) -> ListItem {
     }
 }
 
-fn line_item(line: InterventionLine) -> LineItem {
-    LineItem {
-        category: match line.category {
-            InterventionLineCategory::Labour => "Labour",
-            InterventionLineCategory::Part => "Part",
-            InterventionLineCategory::Material => "Material",
-            InterventionLineCategory::Other => "Other",
-        },
-        description: line.description,
-        quantity: line.quantity.to_string(),
-        unit_label: line.unit_label,
-        total: money(line.total_price),
+fn line_items(
+    lines: Vec<InterventionLine>,
+    intervention_id: &crate::domain::InterventionId,
+) -> Vec<LineItem> {
+    let last = lines.len().saturating_sub(1);
+    lines
+        .into_iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let id = line.id.as_str().to_owned();
+            let base = format!("/interventions/{}/lines/{id}", intervention_id.as_str());
+            LineItem {
+                id,
+                category: match line.category {
+                    InterventionLineCategory::Labour => "Labour",
+                    InterventionLineCategory::Part => "Part",
+                    InterventionLineCategory::Material => "Material",
+                    InterventionLineCategory::Other => "Other",
+                },
+                description: line.description,
+                quantity: line.quantity.to_string(),
+                unit_label: line.unit_label,
+                unit_price: money(line.unit_price),
+                unit_cost: line.unit_cost.map(money),
+                total: money(line.total_price),
+                position: line.position,
+                edit_href: format!("{base}/edit"),
+                delete_action: format!("{base}/delete"),
+                move_up_action: format!("{base}/move-up"),
+                move_down_action: format!("{base}/move-down"),
+                can_move_up: index > 0,
+                can_move_down: index < last,
+            }
+        })
+        .collect()
+}
+
+fn category_value(value: InterventionLineCategory) -> &'static str {
+    match value {
+        InterventionLineCategory::Labour => "labour",
+        InterventionLineCategory::Part => "part",
+        InterventionLineCategory::Material => "material",
+        InterventionLineCategory::Other => "other",
     }
 }
 
@@ -521,6 +714,11 @@ fn money(value: Money) -> String {
         minor / 100,
         minor % 100
     )
+}
+
+fn money_input(value: Money) -> String {
+    let minor = value.minor_units();
+    format!("{}.{:02}", minor / 100, minor % 100)
 }
 
 fn timestamp(value: chrono::DateTime<chrono::Utc>) -> String {

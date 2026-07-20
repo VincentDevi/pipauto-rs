@@ -12,26 +12,31 @@ use loco_rs::{
 
 use crate::{
     controllers::browser::{
-        context::BrowserRequestContext,
+        context::{BrowserRequestContext, ResponsePreference},
         forms::{body_limit, AuthenticatedForm, FormState},
         responses,
     },
     domain::{
-        InterventionId, Money, OpaqueCursor, Page, PageLimit, PageRequest, ValidationCode,
-        ValidationError, ValidationErrors, VehicleId,
+        AttachmentId, InterventionId, InterventionLineId, OpaqueCursor, Page, PageLimit,
+        PageRequest, Quantity, ValidationCode, ValidationError, ValidationErrors, VehicleId,
     },
     models::{
-        attachment::AttachmentOwner,
+        attachment::{AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
         intervention::{Intervention, InterventionStatus},
+        intervention_line::{
+            InterventionLine, InterventionLineCategory, DESCRIPTION_MAX_CHARS, UNIT_LABEL_MAX_CHARS,
+        },
         vehicle::Vehicle,
     },
     repositories::{
-        customer::ArchiveFilter, intervention::InterventionFilter, vehicle::VehicleFilter,
+        customer::ArchiveFilter,
+        intervention::{InterventionFilter, LineMoveDirection, LineMutationResult},
+        vehicle::VehicleFilter,
     },
     services::{
-        attachment::AttachmentService,
+        attachment::{AttachmentService, WriteAttachmentMetadata},
         customer::CustomerService,
-        intervention::{CreateIntervention, InterventionService, UpdateIntervention},
+        intervention::{CreateIntervention, InterventionService, UpdateIntervention, WriteLine},
         vehicle::VehicleService,
         WorkflowError,
     },
@@ -39,9 +44,11 @@ use crate::{
     views::{
         intervention::{
             InterventionDetailPage, InterventionFilterValues, InterventionFormPage,
-            InterventionFormValues, InterventionListPage, InterventionTransitionPage,
+            InterventionFormValues, InterventionLineFormPage, InterventionLineFormValues,
+            InterventionLineRegion, InterventionListPage, InterventionTransitionPage,
         },
         layout::AuthenticatedLayout,
+        vehicle::{AttachmentFormPage, AttachmentFormValues},
     },
 };
 
@@ -55,6 +62,16 @@ const FORM_FIELDS: &[&str] = &[
     "notes",
     "intervention",
 ];
+const LINE_FORM_FIELDS: &[&str] = &[
+    "category",
+    "description",
+    "quantity",
+    "unit_label",
+    "unit_price",
+    "unit_cost",
+    "position",
+];
+const ATTACHMENT_FORM_FIELDS: &[&str] = &["display_name", "media_type", "byte_size", "caption"];
 
 async fn list(
     context: BrowserRequestContext,
@@ -373,7 +390,7 @@ async fn render_detail(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(context, error, "vehicle owner")),
     };
-    let lines = match interventions.list_lines(id).await {
+    let workspace = match interventions.line_workspace(id).await {
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(context, error, "intervention lines")),
     };
@@ -384,18 +401,14 @@ async fn render_detail(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(context, error, "attachment metadata")),
     };
-    let total = match total(&intervention, &lines) {
-        Ok(value) => value,
-        Err(error) => return Ok(workflow_response(context, error, "intervention total")),
-    };
     let view = InterventionDetailPage::new(
         layout(context),
         intervention,
         vehicle,
         owner,
-        lines,
+        workspace.lines,
         metadata,
-        total,
+        workspace.totals,
         conflict,
     );
     Ok(responses::render(
@@ -586,6 +599,580 @@ fn render_edit_form(
     ))
 }
 
+async fn new_line_form(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+) -> Result<Response> {
+    let id = match intervention_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let intervention = match interventions.get(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention")),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(responses::redirect(
+            context.response_preference,
+            &format!("/interventions/{}", id.as_str()),
+        ));
+    }
+    let workspace = match interventions.line_workspace(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention lines")),
+    };
+    let position = (0..=u32::MAX)
+        .find(|position| {
+            workspace
+                .lines
+                .iter()
+                .all(|line| line.position != *position)
+        })
+        .unwrap_or_default();
+    render_line_form(
+        &context,
+        &engine,
+        &intervention,
+        None,
+        FormState::new(InterventionLineFormValues {
+            quantity: "1".to_owned(),
+            position: position.to_string(),
+            ..InterventionLineFormValues::default()
+        }),
+        None,
+        StatusCode::OK,
+    )
+}
+
+async fn create_line(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+    form: AuthenticatedForm<InterventionLineFormValues>,
+) -> Result<Response> {
+    let id = match intervention_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let intervention = match interventions.get(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention")),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(responses::redirect(
+            context.response_preference,
+            &format!("/interventions/{}", id.as_str()),
+        ));
+    }
+    let values = form.fields;
+    let command = match line_command(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_line_form(
+                &context,
+                &engine,
+                &intervention,
+                None,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+        }
+    };
+    match interventions.create_line(&id, command).await {
+        Ok(_) => Ok(detail_redirect(&context, &id)),
+        Err(WorkflowError::Validation(errors)) => render_line_form(
+            &context,
+            &engine,
+            &intervention,
+            None,
+            FormState::with_validation(values, &errors),
+            None,
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        Err(WorkflowError::Conflict) => render_line_form(
+            &context,
+            &engine,
+            &intervention,
+            None,
+            FormState::new(values),
+            Some("The intervention or line order changed before this line was saved. Review the authoritative workspace and try again.".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        Err(error) => Ok(workflow_response(&context, error, "intervention line")),
+    }
+}
+
+async fn edit_line_form(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_line_id)): Path<(String, String)>,
+) -> Result<Response> {
+    let (intervention, line) =
+        match intervention_line(&interventions, raw_id, raw_line_id, &context).await {
+            Ok(value) => value,
+            Err(response) => return Ok(response),
+        };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &intervention.id));
+    }
+    let line_id = line.id.as_str().to_owned();
+    render_line_form(
+        &context,
+        &engine,
+        &intervention,
+        Some(&line_id),
+        FormState::new((&line).into()),
+        None,
+        StatusCode::OK,
+    )
+}
+
+async fn update_line(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_line_id)): Path<(String, String)>,
+    form: AuthenticatedForm<InterventionLineFormValues>,
+) -> Result<Response> {
+    let (intervention, line) =
+        match intervention_line(&interventions, raw_id, raw_line_id, &context).await {
+            Ok(value) => value,
+            Err(response) => return Ok(response),
+        };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &intervention.id));
+    }
+    let line_id = line.id.as_str().to_owned();
+    let values = form.fields;
+    let command = match line_command(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_line_form(
+                &context,
+                &engine,
+                &intervention,
+                Some(&line_id),
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+        }
+    };
+    match interventions.update_line(&intervention.id, line.id, command).await {
+        Ok(_) => Ok(detail_redirect(&context, &intervention.id)),
+        Err(WorkflowError::Validation(errors)) => render_line_form(
+            &context,
+            &engine,
+            &intervention,
+            Some(&line_id),
+            FormState::with_validation(values, &errors),
+            None,
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        Err(WorkflowError::Conflict) => render_line_form(
+            &context,
+            &engine,
+            &intervention,
+            Some(&line_id),
+            FormState::new(values),
+            Some("The intervention or line order changed while this line was being saved. Authoritative values were not overwritten.".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        Err(error) => Ok(workflow_response(&context, error, "intervention line")),
+    }
+}
+
+async fn delete_line(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_line_id)): Path<(String, String)>,
+    _form: AuthenticatedForm<EmptyForm>,
+) -> Result<Response> {
+    let (intervention, line) =
+        match intervention_line(&interventions, raw_id, raw_line_id, &context).await {
+            Ok(value) => value,
+            Err(response) => return Ok(response),
+        };
+    match interventions.delete_line(&intervention.id, line.id).await {
+        Ok(result) => line_mutation_response(&context, &engine, &intervention, result),
+        Err(WorkflowError::Conflict) => Ok(detail_redirect(&context, &intervention.id)),
+        Err(error) => Ok(workflow_response(&context, error, "intervention line")),
+    }
+}
+
+async fn move_line_up(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_line_id)): Path<(String, String)>,
+    _form: AuthenticatedForm<EmptyForm>,
+) -> Result<Response> {
+    move_line(
+        context,
+        interventions,
+        engine,
+        raw_id,
+        raw_line_id,
+        LineMoveDirection::Up,
+    )
+    .await
+}
+
+async fn move_line_down(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_line_id)): Path<(String, String)>,
+    _form: AuthenticatedForm<EmptyForm>,
+) -> Result<Response> {
+    move_line(
+        context,
+        interventions,
+        engine,
+        raw_id,
+        raw_line_id,
+        LineMoveDirection::Down,
+    )
+    .await
+}
+
+async fn move_line(
+    context: BrowserRequestContext,
+    interventions: InterventionService,
+    engine: TeraView,
+    raw_id: String,
+    raw_line_id: String,
+    direction: LineMoveDirection,
+) -> Result<Response> {
+    let (intervention, line) =
+        match intervention_line(&interventions, raw_id, raw_line_id, &context).await {
+            Ok(value) => value,
+            Err(response) => return Ok(response),
+        };
+    match interventions
+        .move_line(&intervention.id, line.id, direction)
+        .await
+    {
+        Ok(result) => line_mutation_response(&context, &engine, &intervention, result),
+        Err(WorkflowError::Conflict) => Ok(detail_redirect(&context, &intervention.id)),
+        Err(error) => Ok(workflow_response(
+            &context,
+            error,
+            "intervention line order",
+        )),
+    }
+}
+
+fn line_mutation_response(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    intervention: &Intervention,
+    result: LineMutationResult,
+) -> Result<Response> {
+    if context.response_preference == ResponsePreference::FullPage {
+        return Ok(detail_redirect(context, &intervention.id));
+    }
+    let view =
+        InterventionLineRegion::new(layout(context), intervention, result.lines, result.totals);
+    Ok(responses::fragment(StatusCode::OK, view.render(engine)?))
+}
+
+fn render_line_form(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    intervention: &Intervention,
+    line_id: Option<&str>,
+    form: FormState<InterventionLineFormValues>,
+    conflict: Option<String>,
+    status: StatusCode,
+) -> Result<Response> {
+    let view = InterventionLineFormPage::new(
+        layout(context),
+        intervention,
+        line_id,
+        form.with_known_fields(LINE_FORM_FIELDS),
+        conflict,
+    );
+    Ok(responses::render(
+        context.response_preference,
+        status,
+        view.render_page(engine)?,
+        view.render_form(engine)?,
+    ))
+}
+
+async fn new_attachment_form(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+) -> Result<Response> {
+    let id = match intervention_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let intervention = match interventions.get(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention")),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &id));
+    }
+    let vehicle = match vehicles.get(&intervention.vehicle_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
+    };
+    render_intervention_attachment_form(
+        &context,
+        &engine,
+        &intervention,
+        &vehicle,
+        None,
+        FormState::new(AttachmentFormValues::default()),
+        None,
+        StatusCode::OK,
+    )
+}
+
+async fn create_attachment(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path(raw_id): Path<String>,
+    form: AuthenticatedForm<AttachmentFormValues>,
+) -> Result<Response> {
+    let id = match intervention_id(raw_id, &context) {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    let intervention = match interventions.get(&id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention")),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &id));
+    }
+    let vehicle = match vehicles.get(&intervention.vehicle_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
+    };
+    let values = form.fields;
+    let command = match attachment_command(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_intervention_attachment_form(
+                &context,
+                &engine,
+                &intervention,
+                &vehicle,
+                None,
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+        }
+    };
+    match attachments
+        .create(AttachmentOwner::Intervention(id.clone()), command)
+        .await
+    {
+        Ok(_) => Ok(detail_redirect(&context, &id)),
+        Err(WorkflowError::Validation(errors)) => render_intervention_attachment_form(
+            &context,
+            &engine,
+            &intervention,
+            &vehicle,
+            None,
+            FormState::with_validation(values, &errors),
+            None,
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        Err(WorkflowError::Conflict) => render_intervention_attachment_form(
+            &context,
+            &engine,
+            &intervention,
+            &vehicle,
+            None,
+            FormState::new(values),
+            Some("The intervention changed state before this metadata was saved.".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+    }
+}
+
+async fn edit_attachment_form(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_attachment_id)): Path<(String, String)>,
+) -> Result<Response> {
+    let (intervention, attachment) = match intervention_attachment(
+        &interventions,
+        &attachments,
+        raw_id,
+        raw_attachment_id,
+        &context,
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &intervention.id));
+    }
+    let vehicle = match vehicles.get(&intervention.vehicle_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
+    };
+    let attachment_id = attachment.id.as_str().to_owned();
+    render_intervention_attachment_form(
+        &context,
+        &engine,
+        &intervention,
+        &vehicle,
+        Some(&attachment_id),
+        FormState::new(attachment.into()),
+        None,
+        StatusCode::OK,
+    )
+}
+
+async fn update_attachment(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    SharedStore(vehicles): SharedStore<VehicleService>,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    ViewEngine(engine): ViewEngine<TeraView>,
+    Path((raw_id, raw_attachment_id)): Path<(String, String)>,
+    form: AuthenticatedForm<AttachmentFormValues>,
+) -> Result<Response> {
+    let (intervention, attachment) = match intervention_attachment(
+        &interventions,
+        &attachments,
+        raw_id,
+        raw_attachment_id,
+        &context,
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    if intervention.status != InterventionStatus::Draft {
+        return Ok(detail_redirect(&context, &intervention.id));
+    }
+    let vehicle = match vehicles.get(&intervention.vehicle_id).await {
+        Ok(value) => value,
+        Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
+    };
+    let attachment_id = attachment.id.as_str().to_owned();
+    let values = form.fields;
+    let command = match attachment_command(&values) {
+        Ok(value) => value,
+        Err(errors) => {
+            return render_intervention_attachment_form(
+                &context,
+                &engine,
+                &intervention,
+                &vehicle,
+                Some(&attachment_id),
+                FormState::with_validation(values, &errors),
+                None,
+                StatusCode::UNPROCESSABLE_ENTITY,
+            )
+        }
+    };
+    match attachments.update(&attachment.id, command).await {
+        Ok(_) => Ok(detail_redirect(&context, &intervention.id)),
+        Err(WorkflowError::Validation(errors)) => render_intervention_attachment_form(
+            &context,
+            &engine,
+            &intervention,
+            &vehicle,
+            Some(&attachment_id),
+            FormState::with_validation(values, &errors),
+            None,
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        Err(WorkflowError::Conflict) => render_intervention_attachment_form(
+            &context,
+            &engine,
+            &intervention,
+            &vehicle,
+            Some(&attachment_id),
+            FormState::new(values),
+            Some("The intervention changed state before this metadata was saved.".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+    }
+}
+
+async fn delete_attachment(
+    context: BrowserRequestContext,
+    SharedStore(interventions): SharedStore<InterventionService>,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    Path((raw_id, raw_attachment_id)): Path<(String, String)>,
+    _form: AuthenticatedForm<EmptyForm>,
+) -> Result<Response> {
+    let (intervention, attachment) = match intervention_attachment(
+        &interventions,
+        &attachments,
+        raw_id,
+        raw_attachment_id,
+        &context,
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(response) => return Ok(response),
+    };
+    match attachments.delete(&attachment.id).await {
+        Ok(()) | Err(WorkflowError::Conflict) => Ok(detail_redirect(&context, &intervention.id)),
+        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_intervention_attachment_form(
+    context: &BrowserRequestContext,
+    engine: &TeraView,
+    intervention: &Intervention,
+    vehicle: &Vehicle,
+    attachment_id: Option<&str>,
+    form: FormState<AttachmentFormValues>,
+    conflict: Option<String>,
+    status: StatusCode,
+) -> Result<Response> {
+    let view = AttachmentFormPage::for_intervention(
+        layout(context),
+        intervention,
+        vehicle,
+        attachment_id,
+        form.with_known_fields(ATTACHMENT_FORM_FIELDS),
+        conflict,
+    );
+    Ok(responses::render(
+        context.response_preference,
+        status,
+        view.render_page(engine)?,
+        view.render_form(engine)?,
+    ))
+}
+
 async fn complete_confirmation(
     context: BrowserRequestContext,
     SharedStore(interventions): SharedStore<InterventionService>,
@@ -632,19 +1219,15 @@ async fn transition_confirmation(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
     };
-    let lines = match interventions.list_lines(&id).await {
+    let workspace = match interventions.line_workspace(&id).await {
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "intervention lines")),
-    };
-    let total = match total(&intervention, &lines) {
-        Ok(value) => value,
-        Err(error) => return Ok(workflow_response(&context, error, "intervention total")),
     };
     let view = InterventionTransitionPage::new(
         layout(&context),
         &intervention,
         &vehicle,
-        total,
+        workspace.totals.price,
         completion,
     );
     Ok(responses::render(
@@ -860,6 +1443,171 @@ fn validate_form(
     }
 }
 
+fn line_command(
+    values: &InterventionLineFormValues,
+) -> std::result::Result<WriteLine, ValidationErrors> {
+    let mut errors = Vec::new();
+    let category = match values.category.as_str() {
+        "labour" => Some(InterventionLineCategory::Labour),
+        "part" => Some(InterventionLineCategory::Part),
+        "material" => Some(InterventionLineCategory::Material),
+        "other" => Some(InterventionLineCategory::Other),
+        _ => {
+            errors.push(validation_error(
+                "category",
+                "Choose Labour, Part, Material, or Other.",
+            ));
+            None
+        }
+    };
+    validate_required_length(
+        &mut errors,
+        "description",
+        &values.description,
+        DESCRIPTION_MAX_CHARS,
+        "Enter a line description.",
+        "Use 500 characters or fewer.",
+    );
+    validate_required_length(
+        &mut errors,
+        "unit_label",
+        &values.unit_label,
+        UNIT_LABEL_MAX_CHARS,
+        "Enter a unit label.",
+        "Use 32 characters or fewer.",
+    );
+    let quantity = Quantity::parse(&values.quantity).map_err(|_| {
+        errors.push(validation_error(
+            "quantity",
+            "Enter a positive quantity with up to three decimal places.",
+        ));
+    });
+    let unit_price = parse_money_input(&values.unit_price).map_err(|_| {
+        errors.push(validation_error(
+            "unit_price",
+            "Enter a non-negative amount with at most two decimal places.",
+        ));
+    });
+    let unit_cost = if values.unit_cost.is_empty() {
+        Ok(None)
+    } else {
+        parse_money_input(&values.unit_cost).map(Some).map_err(|_| {
+            errors.push(validation_error(
+                "unit_cost",
+                "Enter a non-negative amount with at most two decimal places.",
+            ));
+        })
+    };
+    let position = values.position.parse::<u32>().map_err(|_| {
+        errors.push(validation_error(
+            "position",
+            "Enter a non-negative whole-number position.",
+        ));
+    });
+    if let Some(errors) = ValidationErrors::from_vec(errors) {
+        return Err(errors);
+    }
+    Ok(WriteLine {
+        category: category.expect("validated category"),
+        description: values.description.clone(),
+        quantity: quantity.expect("validated quantity"),
+        unit_label: values.unit_label.clone(),
+        unit_price_minor: unit_price.expect("validated unit price"),
+        unit_cost_minor: unit_cost.expect("validated unit cost"),
+        position: position.expect("validated position"),
+    })
+}
+
+fn parse_money_input(value: &str) -> std::result::Result<i64, ()> {
+    if value.is_empty() || value.trim() != value || value.starts_with('+') {
+        return Err(());
+    }
+    let (whole, fraction) = value.split_once('.').map_or((value, ""), |parts| parts);
+    if whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || fraction.len() > 2
+        || (value.contains('.') && fraction.is_empty())
+        || !fraction.bytes().all(|byte| byte.is_ascii_digit())
+        || value.matches('.').count() > 1
+    {
+        return Err(());
+    }
+    let whole = whole.parse::<i64>().map_err(|_| ())?;
+    let fraction = match fraction.len() {
+        0 => 0,
+        1 => fraction.parse::<i64>().map_err(|_| ())? * 10,
+        2 => fraction.parse::<i64>().map_err(|_| ())?,
+        _ => return Err(()),
+    };
+    whole
+        .checked_mul(100)
+        .and_then(|minor| minor.checked_add(fraction))
+        .ok_or(())
+}
+
+fn validate_required_length(
+    errors: &mut Vec<ValidationError>,
+    field: &str,
+    value: &str,
+    maximum: usize,
+    required_message: &str,
+    length_message: &str,
+) {
+    if value.trim().is_empty() {
+        errors.push(validation_error(field, required_message));
+    } else if value.trim().chars().count() > maximum {
+        errors.push(validation_error(field, length_message));
+    }
+}
+
+fn attachment_command(
+    values: &AttachmentFormValues,
+) -> std::result::Result<WriteAttachmentMetadata, ValidationErrors> {
+    let mut errors = Vec::new();
+    validate_required_length(
+        &mut errors,
+        "display_name",
+        &values.display_name,
+        DISPLAY_NAME_MAX_CHARS,
+        "Enter a display name.",
+        "Use 255 characters or fewer.",
+    );
+    if values.caption.trim().chars().count() > CAPTION_MAX_CHARS {
+        errors.push(validation_error(
+            "caption",
+            "Use 1,000 characters or fewer.",
+        ));
+    }
+    if !matches!(
+        values.media_type.as_str(),
+        "application/pdf" | "image/heic" | "image/heif" | "image/jpeg" | "image/png" | "image/webp"
+    ) {
+        errors.push(validation_error(
+            "media_type",
+            "Choose a supported PDF or image content type.",
+        ));
+    }
+    let byte_size = if values.byte_size.trim().is_empty() {
+        Ok(None)
+    } else {
+        values.byte_size.parse::<u64>().map(Some).map_err(|_| {
+            errors.push(validation_error(
+                "byte_size",
+                "Enter a non-negative whole-number byte size.",
+            ));
+        })
+    };
+    if let Some(errors) = ValidationErrors::from_vec(errors) {
+        return Err(errors);
+    }
+    Ok(WriteAttachmentMetadata {
+        display_name: values.display_name.clone(),
+        media_type: values.media_type.clone(),
+        byte_size: byte_size.expect("validated byte size"),
+        caption: (!values.caption.trim().is_empty()).then(|| values.caption.clone()),
+    })
+}
+
 fn validation_error(field: &str, message: &str) -> ValidationError {
     ValidationError::new(field, ValidationCode::InvalidFormat, message)
         .expect("static validation metadata is valid")
@@ -931,24 +1679,70 @@ fn empty_page() -> Page<crate::models::intervention::ServiceHistorySummary> {
     }
 }
 
-fn total(
-    intervention: &Intervention,
-    lines: &[crate::models::intervention_line::InterventionLine],
-) -> std::result::Result<Money, WorkflowError> {
-    let mut total = Money::new(0, intervention.currency).map_err(|_| WorkflowError::Internal)?;
-    for line in lines {
-        total = total
-            .checked_add(line.total_price)
-            .map_err(|_| WorkflowError::Internal)?;
-    }
-    Ok(total)
-}
-
 fn mileage_error(errors: &ValidationErrors) -> bool {
     errors
         .as_slice()
         .iter()
         .any(|error| error.field().as_str() == "mileage")
+}
+
+async fn intervention_line(
+    interventions: &InterventionService,
+    raw_id: String,
+    raw_line_id: String,
+    context: &BrowserRequestContext,
+) -> std::result::Result<(Intervention, InterventionLine), Response> {
+    let id = intervention_id(raw_id, context)?;
+    let line_id = InterventionLineId::parse(raw_line_id)
+        .map_err(|_| responses::not_found(context.response_preference, "intervention line"))?;
+    let intervention = interventions
+        .get(&id)
+        .await
+        .map_err(|error| workflow_response(context, error, "intervention"))?;
+    let workspace = interventions
+        .line_workspace(&id)
+        .await
+        .map_err(|error| workflow_response(context, error, "intervention lines"))?;
+    let line = workspace
+        .lines
+        .into_iter()
+        .find(|line| line.id == line_id)
+        .ok_or_else(|| responses::not_found(context.response_preference, "intervention line"))?;
+    Ok((intervention, line))
+}
+
+async fn intervention_attachment(
+    interventions: &InterventionService,
+    attachments: &AttachmentService,
+    raw_id: String,
+    raw_attachment_id: String,
+    context: &BrowserRequestContext,
+) -> std::result::Result<(Intervention, crate::models::attachment::AttachmentMetadata), Response> {
+    let id = intervention_id(raw_id, context)?;
+    let attachment_id = AttachmentId::parse(raw_attachment_id)
+        .map_err(|_| responses::not_found(context.response_preference, "attachment metadata"))?;
+    let intervention = interventions
+        .get(&id)
+        .await
+        .map_err(|error| workflow_response(context, error, "intervention"))?;
+    let attachment = attachments
+        .get(&attachment_id)
+        .await
+        .map_err(|error| workflow_response(context, error, "attachment metadata"))?;
+    if attachment.owner != AttachmentOwner::Intervention(id) {
+        return Err(responses::not_found(
+            context.response_preference,
+            "intervention attachment metadata",
+        ));
+    }
+    Ok((intervention, attachment))
+}
+
+fn detail_redirect(context: &BrowserRequestContext, id: &InterventionId) -> Response {
+    responses::redirect(
+        context.response_preference,
+        &format!("/interventions/{}", id.as_str()),
+    )
 }
 
 async fn vehicle(
@@ -1010,6 +1804,51 @@ pub fn routes() -> Routes {
         .add("/interventions/{id}", get(show))
         .add("/interventions/{id}/edit", get(edit_form))
         .add("/interventions/{id}/edit", post(update).layer(body_limit()))
+        .add("/interventions/{id}/lines/new", get(new_line_form))
+        .add(
+            "/interventions/{id}/lines",
+            post(create_line).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/lines/{line_id}/edit",
+            get(edit_line_form),
+        )
+        .add(
+            "/interventions/{id}/lines/{line_id}/edit",
+            post(update_line).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/lines/{line_id}/delete",
+            post(delete_line).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/lines/{line_id}/move-up",
+            post(move_line_up).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/lines/{line_id}/move-down",
+            post(move_line_down).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/attachments/new",
+            get(new_attachment_form),
+        )
+        .add(
+            "/interventions/{id}/attachments",
+            post(create_attachment).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/attachments/{attachment_id}/edit",
+            get(edit_attachment_form),
+        )
+        .add(
+            "/interventions/{id}/attachments/{attachment_id}/edit",
+            post(update_attachment).layer(body_limit()),
+        )
+        .add(
+            "/interventions/{id}/attachments/{attachment_id}/delete",
+            post(delete_attachment).layer(body_limit()),
+        )
         .add("/interventions/{id}/complete", get(complete_confirmation))
         .add(
             "/interventions/{id}/complete",

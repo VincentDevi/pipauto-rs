@@ -21,7 +21,8 @@ use crate::{
     },
     repositories::{
         intervention::{
-            InterventionFilter, InterventionRepository, LineMutation, LineMutationResult,
+            InterventionFilter, InterventionRepository, LineMoveDirection, LineMutation,
+            LineMutationResult,
         },
         vehicle::VehicleRepository,
     },
@@ -242,12 +243,41 @@ impl InterventionService {
             .map_err(Into::into)
     }
 
+    pub async fn move_line(
+        &self,
+        intervention_id: &InterventionId,
+        line_id: InterventionLineId,
+        direction: LineMoveDirection,
+    ) -> Result<LineMutationResult, WorkflowError> {
+        self.require_draft(intervention_id).await?;
+        self.interventions
+            .mutate_line(
+                intervention_id,
+                LineMutation::Move {
+                    id: line_id,
+                    direction,
+                },
+            )
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn list_lines(
         &self,
         intervention_id: &InterventionId,
     ) -> Result<Vec<InterventionLine>, WorkflowError> {
         self.interventions
             .list_lines(intervention_id)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn line_workspace(
+        &self,
+        intervention_id: &InterventionId,
+    ) -> Result<LineMutationResult, WorkflowError> {
+        self.interventions
+            .line_workspace(intervention_id)
             .await
             .map_err(Into::into)
     }

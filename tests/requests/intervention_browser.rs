@@ -312,6 +312,225 @@ async fn intervention_browser_validation_and_chronology_preserve_fragment_values
     assert!(missing.1.contains("requested intervention was not found"));
 }
 
+#[tokio::test]
+async fn intervention_line_browser_exact_totals_order_and_safe_validation() {
+    let (router, session, csrf) = authenticated_app().await;
+    let vehicle_id = vehicle_fixture(&router, &session, &csrf).await;
+    let draft = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/interventions",
+        &session,
+        &csrf,
+        json!({
+            "vehicle_id": vehicle_id,
+            "service_date": "2026-07-20",
+            "performed_work": "Line workflow verification"
+        }),
+    )
+    .await;
+    let intervention_id = draft["data"]["id"].as_str().expect("draft id");
+    let line_url = format!("/interventions/{intervention_id}/lines");
+
+    for (description, position, price, cost) in [
+        ("Exact brake labour", "10", "10.01", "2.00"),
+        ("Second ordered line", "20", "3.50", ""),
+    ] {
+        let created = send(
+            &router,
+            form_request(
+                Method::POST,
+                &line_url,
+                &session,
+                line_form(
+                    &csrf,
+                    "labour",
+                    description,
+                    "1.005",
+                    "hour",
+                    price,
+                    cost,
+                    position,
+                ),
+                false,
+            ),
+        )
+        .await;
+        assert_eq!(created.0, StatusCode::SEE_OTHER, "{}", created.1);
+    }
+
+    let lines = read_json(
+        &router,
+        &format!("/api/v1/interventions/{intervention_id}/lines"),
+        &session,
+    )
+    .await;
+    let second_id = lines["data"][1]["id"].as_str().expect("second line id");
+    let detail = send(
+        &router,
+        get(
+            &format!("/interventions/{intervention_id}"),
+            &session,
+            false,
+        ),
+    )
+    .await;
+    assert!(detail.1.contains("EUR 10.06"));
+    assert!(detail.1.contains("EUR 2.01"));
+    assert!(detail.1.contains("Move up"));
+    assert!(detail.1.contains("Remove line “Exact brake labour”?"));
+
+    let moved = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/interventions/{intervention_id}/lines/{second_id}/move-up"),
+            &session,
+            csrf_only(&csrf),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(moved.0, StatusCode::SEE_OTHER);
+    let reordered = send(
+        &router,
+        get(
+            &format!("/interventions/{intervention_id}"),
+            &session,
+            false,
+        ),
+    )
+    .await;
+    assert!(reordered.1.find("Second ordered line") < reordered.1.find("Exact brake labour"));
+
+    let invalid = send(
+        &router,
+        form_request(
+            Method::POST,
+            &line_url,
+            &session,
+            line_form(
+                &csrf,
+                "invalid-category",
+                "Preserved unsafe-looking & safe text",
+                "1.0001",
+                "hour",
+                "1.999",
+                "-2",
+                "not-a-position",
+            ),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(invalid.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(invalid.1.starts_with("<form id=\"intervention-line-form\""));
+    for value in [
+        "1.0001",
+        "1.999",
+        "-2",
+        "not-a-position",
+        "Preserved unsafe-looking &amp; safe text",
+    ] {
+        assert!(invalid.1.contains(value), "missing preserved {value}");
+    }
+}
+
+#[tokio::test]
+async fn intervention_attachment_browser_metadata_only_owner_and_terminal_lock() {
+    let (router, session, csrf) = authenticated_app().await;
+    let vehicle_id = vehicle_fixture(&router, &session, &csrf).await;
+    let draft = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/interventions",
+        &session,
+        &csrf,
+        json!({
+            "vehicle_id": vehicle_id,
+            "service_date": "2026-07-20",
+            "performed_work": "Attachment workflow verification"
+        }),
+    )
+    .await;
+    let intervention_id = draft["data"]["id"].as_str().expect("draft id");
+    let form_page = send(
+        &router,
+        get(
+            &format!("/interventions/{intervention_id}/attachments/new"),
+            &session,
+            false,
+        ),
+    )
+    .await;
+    assert!(form_page
+        .1
+        .contains("Metadata only — no file has been uploaded."));
+    assert!(!form_page.1.contains("type=\"file\""));
+    assert!(!form_page.1.contains("name=\"owner"));
+    assert!(!form_page.1.contains("name=\"storage"));
+
+    let mut body = url::form_urlencoded::Serializer::new(String::new());
+    for (key, value) in [
+        ("_csrf", csrf.as_str()),
+        ("display_name", "Workshop photo metadata"),
+        ("media_type", "image/jpeg"),
+        ("byte_size", "12345"),
+        ("caption", "Metadata only caption"),
+        ("owner_type", "vehicle"),
+        ("vehicle_id", vehicle_id.as_str()),
+        ("storage_state", "uploaded"),
+    ] {
+        body.append_pair(key, value);
+    }
+    let created = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/interventions/{intervention_id}/attachments"),
+            &session,
+            body.finish(),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(created.0, StatusCode::SEE_OTHER, "{}", created.1);
+    let attachments = read_json(
+        &router,
+        &format!("/api/v1/interventions/{intervention_id}/attachments"),
+        &session,
+    )
+    .await;
+    assert_eq!(attachments["data"][0]["owner_type"], "intervention");
+    assert_eq!(attachments["data"][0]["storage_state"], "metadata_only");
+
+    let completed = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/interventions/{intervention_id}/complete"),
+            &session,
+            csrf_only(&csrf),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(completed.0, StatusCode::SEE_OTHER);
+    let terminal = send(
+        &router,
+        get(
+            &format!("/interventions/{intervention_id}"),
+            &session,
+            false,
+        ),
+    )
+    .await;
+    assert!(terminal.1.contains("Workshop photo metadata"));
+    assert!(!terminal.1.contains("Add attachment metadata"));
+    assert!(!terminal.1.contains("Delete metadata"));
+    assert!(!terminal.1.contains("Add line item"));
+}
+
 async fn authenticated_app() -> (axum::Router, String, String) {
     let boot = boot_test::<App>().await.expect("application should boot");
     boot.app_context
@@ -392,6 +611,33 @@ fn csrf_only(csrf: &str) -> String {
     body.finish()
 }
 
+#[allow(clippy::too_many_arguments)]
+fn line_form(
+    csrf: &str,
+    category: &str,
+    description: &str,
+    quantity: &str,
+    unit_label: &str,
+    unit_price: &str,
+    unit_cost: &str,
+    position: &str,
+) -> String {
+    let mut body = url::form_urlencoded::Serializer::new(String::new());
+    for (key, value) in [
+        ("_csrf", csrf),
+        ("category", category),
+        ("description", description),
+        ("quantity", quantity),
+        ("unit_label", unit_label),
+        ("unit_price", unit_price),
+        ("unit_cost", unit_cost),
+        ("position", position),
+    ] {
+        body.append_pair(key, value);
+    }
+    body.finish()
+}
+
 fn form_request(
     method: Method,
     uri: &str,
@@ -458,6 +704,21 @@ async fn write_json(
         ))
         .await
         .expect("JSON request");
+    assert!(response.status().is_success(), "request failed: {uri}");
+    serde_json::from_slice(
+        &to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("JSON body"),
+    )
+    .expect("JSON response")
+}
+
+async fn read_json(router: &axum::Router, uri: &str, session: &str) -> Value {
+    let response = router
+        .clone()
+        .oneshot(get(uri, session, false))
+        .await
+        .expect("JSON read request");
     assert!(response.status().is_success(), "request failed: {uri}");
     serde_json::from_slice(
         &to_bytes(response.into_body(), usize::MAX)

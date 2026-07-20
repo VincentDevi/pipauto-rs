@@ -88,7 +88,8 @@ impl AttachmentService {
     }
 
     pub async fn delete(&self, id: &AttachmentId) -> Result<(), WorkflowError> {
-        self.get(id).await?;
+        let current = self.get(id).await?;
+        self.require_active_owner(&current.owner).await?;
         self.attachments.delete(id).await.map_err(Into::into)
     }
 
@@ -109,6 +110,9 @@ impl AttachmentService {
             AttachmentOwner::Vehicle(id) => self.vehicle(id).await?,
             AttachmentOwner::Intervention(id) => {
                 let intervention = self.intervention(id).await?;
+                if intervention.status != crate::models::intervention::InterventionStatus::Draft {
+                    return Err(WorkflowError::Conflict);
+                }
                 self.vehicle(&intervention.vehicle_id).await?
             }
         };

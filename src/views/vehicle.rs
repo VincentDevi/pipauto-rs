@@ -560,8 +560,8 @@ pub struct AttachmentFormPage<'page> {
     layout: AuthenticatedLayout<'page>,
     title: &'static str,
     heading: &'static str,
-    vehicle_id: String,
-    vehicle_name: String,
+    owner_name: String,
+    owner_description: &'static str,
     action: String,
     cancel_href: String,
     submit_label: &'static str,
@@ -579,6 +579,57 @@ impl<'page> AttachmentFormPage<'page> {
         conflict_message: Option<String>,
     ) -> Self {
         let id = vehicle.id.as_str();
+        Self::build(
+            layout,
+            attachment_id,
+            form,
+            conflict_message,
+            format!("{} {}", vehicle.make, vehicle.model),
+            "vehicle",
+            format!("/vehicles/{id}"),
+            format!("/vehicles/{id}/attachments"),
+            "/attachments".to_owned(),
+        )
+    }
+
+    #[must_use]
+    pub fn for_intervention(
+        layout: AuthenticatedLayout<'page>,
+        intervention: &crate::models::intervention::Intervention,
+        vehicle: &Vehicle,
+        attachment_id: Option<&str>,
+        form: FormState<AttachmentFormValues>,
+        conflict_message: Option<String>,
+    ) -> Self {
+        let id = intervention.id.as_str();
+        Self::build(
+            layout,
+            attachment_id,
+            form,
+            conflict_message,
+            format!(
+                "{} {} · {}",
+                vehicle.make, vehicle.model, intervention.service_date
+            ),
+            "intervention",
+            format!("/interventions/{id}"),
+            format!("/interventions/{id}/attachments"),
+            format!("/interventions/{id}/attachments"),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build(
+        layout: AuthenticatedLayout<'page>,
+        attachment_id: Option<&str>,
+        form: FormState<AttachmentFormValues>,
+        conflict_message: Option<String>,
+        owner_name: String,
+        owner_description: &'static str,
+        cancel_href: String,
+        create_action: String,
+        edit_action_prefix: String,
+    ) -> Self {
         let editing = attachment_id.is_some();
         Self {
             layout,
@@ -592,13 +643,13 @@ impl<'page> AttachmentFormPage<'page> {
             } else {
                 "Add attachment metadata"
             },
-            vehicle_id: id.to_owned(),
-            vehicle_name: format!("{} {}", vehicle.make, vehicle.model),
+            owner_name,
+            owner_description,
             action: attachment_id.map_or_else(
-                || format!("/vehicles/{id}/attachments"),
-                |attachment_id| format!("/attachments/{attachment_id}/edit"),
+                || create_action,
+                |attachment_id| format!("{edit_action_prefix}/{attachment_id}/edit"),
             ),
-            cancel_href: format!("/vehicles/{id}"),
+            cancel_href,
             submit_label: if editing {
                 "Save metadata"
             } else {

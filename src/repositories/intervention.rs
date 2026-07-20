@@ -51,11 +51,22 @@ pub enum LineMutation {
     Delete {
         id: InterventionLineId,
     },
+    Move {
+        id: InterventionLineId,
+        direction: LineMoveDirection,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LineMoveDirection {
+    Up,
+    Down,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineMutationResult {
     pub line: Option<InterventionLine>,
+    pub lines: Vec<InterventionLine>,
     pub totals: InterventionTotals,
 }
 
@@ -104,4 +115,8 @@ pub trait InterventionRepository: Send + Sync {
         &self,
         intervention_id: &InterventionId,
     ) -> Result<Vec<InterventionLine>, RepositoryError>;
+    async fn line_workspace(
+        &self,
+        intervention_id: &InterventionId,
+    ) -> Result<LineMutationResult, RepositoryError>;
 }
