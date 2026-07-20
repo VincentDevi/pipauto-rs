@@ -6,12 +6,13 @@ and API contracts keep later business areas consistent without coupling them to 
 ## Dependency direction
 
 ```text
-controllers → API DTOs
-      ↓
-services → domain ← repository contracts
-                       ↑
-              SurrealDB adapters
-views ← controllers
+JSON controllers → API DTOs
+        ↓
+      services → domain ← repository contracts
+        ↑                         ↑
+HTML controllers          SurrealDB adapters
+        ↓
+presentation models → views/templates
 app/initializers → compose all infrastructure
 ```
 
@@ -62,6 +63,12 @@ local return path, and full-page/HTMX preference. URL-encoded unsafe forms use t
 `AuthenticatedForm<T>` extractor and an explicit body limit; JSON routes keep their existing JSON
 extractor. Browser views receive typed presentation models, never database rows, credentials, or
 session records.
+
+This no-loopback rule is explicit: `/api/v1` is a sibling delivery adapter, not an internal client
+boundary. HTML controllers may share services, domain types, and repository contracts with JSON
+controllers, but must not send HTTP requests to Pipauto itself or deserialize API DTOs to render a
+page. Mapping flows one way from service results into presentation models and then templates;
+templates and presentation models do not depend on controllers, API DTOs, or persistence rows.
 
 Money is stored as checked, non-negative minor units plus an assigned uppercase ISO 4217 code.
 Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.

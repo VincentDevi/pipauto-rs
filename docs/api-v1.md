@@ -1,7 +1,13 @@
 # Pipauto JSON API v1
 
-The `/api/v1` API is the authenticated backend for Pipauto's workshop workflows. It is an
-application API, not a public or third-party integration contract. All responses that contain
+This document covers only the JSON routes mounted below `/api/v1`. The server-rendered browser
+routes (`/`, `/customers`, `/vehicles`, `/interventions`, `/knowledge`, `/invoices`, and their
+resource/action paths) are independent HTML controllers documented in the
+[frontend guide](frontend.md#browser-route-inventory). They call application services directly;
+they do not use `/api/v1` as a loopback backend.
+
+The `/api/v1` contract itself is unchanged. It is the authenticated JSON interface for Pipauto's
+workshop workflows, not a public or third-party integration contract. All responses that contain
 user-specific data include `Cache-Control: no-store`.
 
 ## Authentication and CSRF

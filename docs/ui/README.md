@@ -3,9 +3,9 @@
 
 ## Status and purpose
 
-This directory is the implementation contract for the Linear milestone **Create the wireframe of
-the UI, of the APP**. It defines the first-release browser experience that the later Tera and HTMX
-frontend must implement. It does not implement HTML, CSS, controllers, APIs, or database changes.
+This directory preserves the UI material used to implement the first-release frontend. It does not
+record an approval history, and the presence of a document here must not be presented as evidence
+that a separate review or approval occurred.
 
 The design is optimized for one authenticated workshop user moving between a phone, tablet, and
 desktop. Fast vehicle lookup and accurate service history take priority over reporting or
@@ -13,17 +13,22 @@ administrative features.
 
 ## How to use this package
 
-Read the shared specifications first, then the page group being implemented:
+The original index linked to shared `sitemap.md`, `user-flows.md`, and `interactions.md` files and
+to a `pages/` directory. Those paths are absent from the repository. Do not fabricate their
+contents or infer approval history from the broken links.
 
-1. [Sitemap and navigation](sitemap.md)
-2. [Primary user flows](user-flows.md)
-3. [Design system](design-system.md)
-4. [Interaction and state rules](interactions.md)
-5. [Authentication, shell, and dashboard](pages/auth-shell-dashboard.md)
-6. [Customers and vehicles](pages/customers-vehicles.md)
-7. [Interventions and service history](pages/interventions.md)
-8. [Technical knowledge](pages/technical-knowledge.md)
-9. [Invoices and payments](pages/invoices-payments.md)
+The six UI documents actually present and used by this milestone are:
+
+1. [Design system](design-system.md)
+2. [Authentication, shell, and dashboard](auth-shell-dashboard.md)
+3. [Customers and vehicles](customers-vehicles.md)
+4. [Interventions and service history](interventions.md)
+5. [Technical knowledge](technical-knowledge.md)
+6. [Invoices and payments](invoices-payments.md)
+
+The implemented browser route inventory and current component/test contracts live in the
+[frontend guide](../frontend.md), which is authoritative when these preserved design documents
+describe a path or file that is absent.
 
 Page documents use proposed browser routes. The implementation may use route helper names that fit
 Loco conventions, but changing a path must update the sitemap, page specification, links, and tests
@@ -112,4 +117,3 @@ roles, multi-workshop support, vectors, and AI. These features must not appear a
 - Focus order, visible focus, labels, status announcements, touch targets, and contrast meet the
   rules in the design system.
 - No control implies support for a deferred feature.
-

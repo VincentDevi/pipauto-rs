@@ -59,6 +59,11 @@ test('@hardening shell is accessible, keyboard usable, responsive, and motion sa
 test('@hardening HTMX failures recover controls and expired sessions leave private pages', async ({ page }, testInfo) => {
   await signIn(page);
 
+  const missing = await page.goto('/interventions/not-an-id');
+  expect(missing?.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: 'Not found' })).toBeVisible();
+  await expect(page.getByText('The requested intervention was not found.')).toBeVisible();
+
   if (testInfo.project.name === 'no-javascript') {
     await page.context().clearCookies();
     await page.goto('/customers');

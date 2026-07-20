@@ -7,7 +7,8 @@ The initial core backend is implemented: password authentication, customers, veh
 interventions and deterministic service history, searchable technical notes, attachment metadata,
 invoices, and append-only payments. See the [architecture](docs/architecture.md),
 [JSON API v1](docs/api-v1.md), [authentication guide](docs/authentication.md), and
-[migration and recovery runbook](docs/migrations.md).
+[migration and recovery runbook](docs/migrations.md). Frontend maintainers should also read the
+[frontend guide](docs/frontend.md).
 
 ## Requirements
 
@@ -17,6 +18,7 @@ invoices, and append-only payments. See the [architecture](docs/architecture.md)
 - Loco CLI compatible with the pinned `loco-rs 0.16.4` application dependency.
 - SurrealKit `0.7.0`; the wrapper rejects every other version.
 - SurrealDB `3.2.1`, supplied by the pinned Compose image.
+- Node.js 18 or newer and npm. CI uses Node.js 22.
 - `curl` and `shasum` to refresh and verify the vendored HTMX file.
 
 Confirm the installed versions:
@@ -28,6 +30,8 @@ rustfmt --version
 cargo clippy --version
 docker-compose version
 curl --version
+node --version
+npm --version
 ```
 
 Install the Loco and pinned SurrealKit command-line tools:
@@ -42,6 +46,14 @@ Confirm that Cargo can run the project CLI:
 ```bash
 cargo loco --version
 surrealkit --version
+```
+
+Install the exact frontend test dependency graph recorded in `package-lock.json`, then install the
+Chromium revision pinned by Playwright together with its system dependencies:
+
+```bash
+npm ci
+npx playwright install --with-deps chromium
 ```
 
 ## First-time setup
@@ -227,6 +239,35 @@ To apply Rust formatting instead of checking it:
 cargo fmt
 ```
 
+### Frontend browser checks
+
+Run the complete Playwright and Axe suite from the repository root after `npm ci` and the Chromium
+installation above:
+
+```bash
+npx playwright test
+```
+
+The Playwright server command starts a dedicated in-memory SurrealDB container, creates the
+`pipauto_browser/browser_smoke` disposable database, applies the committed schema with
+`./scripts/surrealkit sync`, verifies the dry run is clean, provisions one synthetic fixture user,
+and starts Pipauto. It always removes the container and volume when the run ends. It refuses to
+reuse an existing application server and never targets the preserved development database.
+
+The suite runs serially against desktop, tablet, JavaScript-disabled desktop, and phone Chromium
+projects. Axe assertions are part of the browser specs; there is no separate accessibility command.
+Screenshots, videos, and traces are disabled so session cookies, CSRF values, and entered fixture
+credentials are not retained. See the [frontend guide](docs/frontend.md#browser-tests-and-fixtures)
+for scenario coverage and safe fixture rules.
+
+To run a focused project or tagged workflow:
+
+```bash
+npx playwright test --project=phone-chromium
+npx playwright test --project=no-javascript
+npx playwright test --grep @invoice-lifecycle
+```
+
 ## Vendored browser assets
 
 HTMX is served by Pipauto itself; the application has no runtime CDN dependency.
@@ -341,3 +382,32 @@ Startup intentionally fails if connection, authentication, namespace/database se
 initial health query fails or exceeds the configured five-second timeout. Use
 `docker-compose logs --tail 100 surrealdb` alongside the Pipauto startup output to distinguish a
 stopped service from invalid settings.
+
+### Playwright cannot start Chromium
+
+Reinstall the browser revision and operating-system libraries selected by the locked Playwright
+package, then retry:
+
+```bash
+npm ci
+npx playwright install --with-deps chromium
+npx playwright test
+```
+
+If installation fails, confirm Node.js is at least version 18 and that the machine can reach the
+npm registry and Playwright browser download host. Do not replace `npm ci` with `npm install` in CI.
+
+### Browser tests cannot start the disposable database
+
+The browser suite needs Docker, ports `18000` and `5150`, the pinned `surrealkit` command, and no
+already-running Pipauto server. Inspect listeners and the isolated Compose project, then rerun:
+
+```bash
+lsof -nP -iTCP:18000 -sTCP:LISTEN
+lsof -nP -iTCP:5150 -sTCP:LISTEN
+docker-compose --project-name pipauto-browser-smoke --file compose.browser.yaml ps
+npx playwright test
+```
+
+The harness cleans its disposable volume on normal exit and before every run. Never point it at a
+development, staging, or production database to recover a failed test.

@@ -4,13 +4,19 @@ set -eu
 project="pipauto-browser-smoke"
 compose_file="compose.browser.yaml"
 
+if docker compose version >/dev/null 2>&1; then
+  compose() { docker compose "$@"; }
+else
+  compose() { docker-compose "$@"; }
+fi
+
 cleanup() {
-  docker-compose --project-name "$project" --file "$compose_file" down --volumes >/dev/null 2>&1 || true
+  compose --project-name "$project" --file "$compose_file" down --volumes >/dev/null 2>&1 || true
 }
 trap cleanup EXIT HUP INT TERM
 
 cleanup
-docker-compose --project-name "$project" --file "$compose_file" up --detach --wait surrealdb >/dev/null
+compose --project-name "$project" --file "$compose_file" up --detach --wait surrealdb >/dev/null
 
 response=$(curl --fail --silent --show-error --user root:browser-smoke-only \
   --header 'accept: application/json' \
@@ -23,33 +29,16 @@ case "$response" in
     ;;
 esac
 
-for schema in \
-  database/schema/authentication/user.surql \
-  database/schema/authentication/auth_session.surql \
-  database/schema/authentication/login_throttle.surql \
-  database/schema/business/customer.surql \
-  database/schema/business/vehicle.surql \
-  database/schema/business/intervention.surql \
-  database/schema/business/intervention_line.surql \
-  database/schema/business/technical_note.surql \
-  database/schema/business/attachment.surql \
-  database/schema/business/invoice.surql \
-  database/schema/business/invoice_line.surql \
-  database/schema/business/payment.surql
-do
-  response=$(curl --fail --silent --show-error --user root:browser-smoke-only \
-    --header 'surreal-ns: pipauto_browser' --header 'surreal-db: browser_smoke' \
-    --header 'accept: application/json' --data-binary "@$schema" \
-    http://127.0.0.1:18000/sql)
-  case "$response" in
-    *'"status":"ERR"'*)
-      printf '%s\n' "Browser schema application failed for $schema." >&2
-      exit 1
-      ;;
-  esac
-done
+export SURREALDB_ROOT_USERNAME="root"
+export SURREALDB_ROOT_PASSWORD="browser-smoke-only"
+export SURREALDB_ENDPOINT="ws://127.0.0.1:18000"
+export SURREALDB_NAMESPACE="pipauto_browser"
+export SURREALDB_DATABASE="browser_smoke"
 
-docker-compose --project-name "$project" --file "$compose_file" exec -T surrealdb \
+./scripts/surrealkit sync
+./scripts/surrealkit sync --dry-run
+
+compose --project-name "$project" --file "$compose_file" exec -T surrealdb \
   /surreal sql --endpoint http://localhost:8000 --username root \
   --password browser-smoke-only --namespace pipauto_browser --database browser_smoke \
   --hide-welcome --multi >/dev/null <<'SQL'
@@ -66,9 +55,4 @@ PIPAUTO_JWT_SECRET=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
 PIPAUTO_CSRF_SECRET=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= \
 PIPAUTO_CANONICAL_ORIGIN=http://localhost:5150 \
 PIPAUTO_SESSION_LIFETIME_SECONDS=43200 \
-SURREALDB_ROOT_USERNAME=root \
-SURREALDB_ROOT_PASSWORD=browser-smoke-only \
-SURREALDB_ENDPOINT=ws://127.0.0.1:18000 \
-SURREALDB_NAMESPACE=pipauto_browser \
-SURREALDB_DATABASE=browser_smoke \
 cargo loco start

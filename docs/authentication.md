@@ -171,6 +171,12 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /invoices/{id}` | Authenticated | Read an invoice draft and its service-calculated ordered lines and totals. |
 | `GET /invoices/{id}/edit` | Authenticated | Edit fields supported by the draft invoice service command. |
 | `POST /invoices/{id}/edit` | Authenticated + session CSRF | Save a valid draft header without predicting an issue number. |
+| `GET /invoices/{id}/issue` | Authenticated | Review the authoritative draft snapshot before issuance. |
+| `POST /invoices/{id}/issue` | Authenticated + session CSRF | Issue, number, snapshot, and lock an eligible draft. |
+| `GET /invoices/{id}/payments/new` | Authenticated | Record-payment form for an issued invoice with an outstanding balance. |
+| `POST /invoices/{id}/payments` | Authenticated + session CSRF | Append a payment without exceeding the latest authoritative balance. |
+| `GET /invoices/{id}/void` | Authenticated | Review void eligibility and collect the required reason. |
+| `POST /invoices/{id}/void` | Authenticated + session CSRF | Void an eligible draft or unpaid issued invoice. |
 | `GET /invoices/{id}/lines/new` | Authenticated | Add-line form with invoice-fixed currency and related source-line choices. |
 | `POST /invoices/{id}/lines` | Authenticated + session CSRF | Atomically add a draft line and recalculate authoritative totals. |
 | `GET /invoices/{id}/lines/{line_id}/edit` | Authenticated | Edit a draft invoice line. |

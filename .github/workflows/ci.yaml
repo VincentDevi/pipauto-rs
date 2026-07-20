@@ -17,11 +17,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - uses: Swatinem/rust-cache@v2
       - name: Install pinned SurrealKit
         run: cargo install surrealkit --version 0.7.0 --locked
       - name: Run the disposable migration and Rust gate
         run: ./scripts/ci-check
+      - name: Install locked frontend test dependencies
+        run: npm ci
+      - name: Install pinned Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright and Axe against disposable data
+        run: npx playwright test
       - name: Upload secret-safe migration report
         if: failure()
         uses: actions/upload-artifact@v4

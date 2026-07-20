@@ -8,6 +8,7 @@ export default defineConfig({
   forbidOnly: true,
   retries: 0,
   reporter: 'list',
+  globalTeardown: './tests/browser/global-teardown.ts',
   use: {
     baseURL: 'http://localhost:5150',
     screenshot: 'off',
