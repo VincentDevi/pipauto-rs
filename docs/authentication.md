@@ -105,7 +105,9 @@ sessions. Restore `active = true` only after the account is safe.
 | --- | --- | --- |
 | `GET /login` | Guest-only | Complete sign-in page; authenticated users return to `/`. |
 | `POST /login` | Guest-only + login CSRF | Generic invalid-credentials response; success creates a 12-hour session. |
-| `GET /` | Authenticated | Workshop shell; guests are redirected to login with a safe local `next`. |
+| `GET /` | Authenticated | Workshop dashboard with independent recent and draft intervention previews. |
+| `GET /dashboard/recent-interventions` | Authenticated | Bounded HTMX refresh for recent service history; standard requests return to its dashboard section. |
+| `GET /dashboard/draft-interventions` | Authenticated | Bounded HTMX refresh for draft interventions; standard requests return to its dashboard section. |
 | `GET /setup/status` | Authenticated | HTMX database-status fragment. |
 | `POST /logout` | Authenticated + session CSRF | Idempotently revokes the registry session and clears the cookie. |
 | `GET /customers` | Authenticated | Planned customer list; safe `501` until its owning issue implements it. |

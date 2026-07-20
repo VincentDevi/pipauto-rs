@@ -1,4 +1,4 @@
-//! Server-rendered application setup page and database-status fragment.
+//! Authenticated database-status fragment retained for development diagnostics.
 
 use axum::{
     http::{
@@ -15,36 +15,8 @@ use loco_rs::{
 };
 
 use crate::{
-    auth::extractors::CurrentUser,
-    controllers::browser::context::BrowserRequestContext,
-    services::health::HealthService,
-    views::{
-        layout::AuthenticatedLayout,
-        setup::{SetupPage, SetupStatus},
-    },
+    auth::extractors::CurrentUser, services::health::HealthService, views::setup::SetupStatus,
 };
-
-async fn show(
-    context: BrowserRequestContext,
-    ViewEngine(engine): ViewEngine<TeraView>,
-) -> Result<axum::response::Response> {
-    let page = SetupPage::new(
-        AuthenticatedLayout::new(
-            &context.current_user,
-            context.csrf_token.expose(),
-            &context.current_path,
-        ),
-        "Pipauto workshop",
-        "Pipauto workshop",
-        "Your authenticated workshop workspace is ready.",
-        "Customer, vehicle, and intervention workflows will be added in the next milestones.",
-    );
-    let mut response = format::html(&page.render(&engine)?)?;
-    response
-        .headers_mut()
-        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    Ok(response)
-}
 
 async fn status(
     CurrentUser(_user): CurrentUser,
@@ -69,7 +41,5 @@ async fn status(
 /// Routes exposed by the setup controller.
 #[must_use]
 pub fn routes() -> Routes {
-    Routes::new()
-        .add("/", get(show))
-        .add("/setup/status", get(status))
+    Routes::new().add("/setup/status", get(status))
 }

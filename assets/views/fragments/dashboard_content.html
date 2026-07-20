@@ -1,0 +1,27 @@
+<div id="dashboard-content" class="dashboard">
+  <header class="dashboard-header">
+    <div>
+      <p class="eyebrow">Workshop dashboard</p>
+      <h1>Welcome, {{ display_name }}</h1>
+      <p class="summary">Start new work or continue an intervention already in the workshop.</p>
+    </div>
+    <a class="button dashboard-primary-action" href="/vehicles">New intervention</a>
+  </header>
+
+  <section class="dashboard-quick-actions" aria-labelledby="quick-actions-heading">
+    <h2 id="quick-actions-heading">Quick actions</h2>
+    <div class="quick-action-grid">
+      <a class="button button--secondary" href="/customers/new">New customer</a>
+      <a class="button button--secondary" href="/vehicles">Register vehicle</a>
+      <a class="button button--secondary" href="/invoices/new">New invoice</a>
+      <a class="button button--secondary" href="/knowledge/new">New technical note</a>
+    </div>
+  </section>
+
+  <div class="dashboard-sections">
+    {% set section = drafts %}
+    {% include "fragments/intervention_preview.html" %}
+    {% set section = recent %}
+    {% include "fragments/intervention_preview.html" %}
+  </div>
+</div>

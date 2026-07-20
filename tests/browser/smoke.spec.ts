@@ -10,7 +10,7 @@ test('@smoke @shell login and authenticated shell work without exposing auth art
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL('/');
-  await expect(page.getByRole('heading', { name: 'Pipauto workshop' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome, Browser Smoke' })).toBeVisible();
   const sidebar = page.locator('.sidebar');
   const phoneNavigation = page.locator('.phone-navigation');
   if (testInfo.project.name === 'phone-chromium') {

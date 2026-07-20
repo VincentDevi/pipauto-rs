@@ -8,6 +8,7 @@ pub mod attachments;
 pub mod auth;
 pub mod browser;
 pub mod customers;
+pub mod dashboard;
 pub mod interventions;
 pub mod invoices;
 pub mod setup;

@@ -5,6 +5,7 @@
 
 pub mod auth;
 pub mod context;
+pub mod dashboard;
 pub mod layout;
 pub mod setup;
 pub mod unavailable;

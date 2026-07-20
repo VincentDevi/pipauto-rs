@@ -1,0 +1,46 @@
+<section
+  id="{{ section.id }}"
+  class="card dashboard-section"
+  aria-labelledby="{{ section.heading_id }}"
+  aria-live="polite"
+>
+  <div class="section-heading">
+    <h2 id="{{ section.heading_id }}">{{ section.title }}</h2>
+    {% if section.available %}<a href="{{ section.collection_href | safe }}">{{ section.collection_label }}</a>{% endif %}
+  </div>
+
+  {% if not section.available %}
+    <div class="panel-state panel-state--error" role="status">
+      <p><strong>This section is temporarily unavailable.</strong></p>
+      <p>The rest of the dashboard is still ready to use.</p>
+      <a
+        class="button button--secondary"
+        href="/#{{ section.id }}"
+        hx-get="{{ section.retry_path | safe }}"
+        hx-target="#{{ section.id }}"
+        hx-swap="outerHTML"
+      >Try again</a>
+    </div>
+  {% elif section.items | length == 0 %}
+    <div class="panel-state panel-state--empty">
+      <p>{{ section.empty_message }}</p>
+      <a class="button button--secondary" href="/vehicles">Select a vehicle</a>
+    </div>
+  {% else %}
+    <ol class="intervention-preview-list">
+      {% for item in section.items %}
+        <li>
+          <a class="intervention-preview" href="{{ item.href | safe }}">
+            <span class="intervention-preview-meta">
+              <span class="badge {{ item.status_class }}">{{ item.status }}</span>
+              <time datetime="{{ item.service_date }}">{{ item.service_date }}</time>
+            </span>
+            <strong>{{ item.vehicle_reference }}</strong>
+            <span>{{ item.summary }}</span>
+            {% if item.mileage %}<span class="preview-detail">{{ item.mileage }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</section>

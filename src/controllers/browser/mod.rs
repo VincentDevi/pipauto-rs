@@ -22,6 +22,16 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/dashboard/recent-interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/dashboard/draft-interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/login",
         class: AccessClass::GuestOnly,
     },
@@ -160,6 +170,7 @@ pub fn mount(routes: Routes) -> Routes {
 pub fn routes() -> Vec<Routes> {
     vec![
         mount(crate::controllers::auth::routes()),
+        mount(crate::controllers::dashboard::routes()),
         mount(crate::controllers::setup::routes()),
         mount(stubs::routes()),
     ]
