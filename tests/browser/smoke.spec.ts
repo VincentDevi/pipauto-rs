@@ -13,7 +13,7 @@ test('@smoke @shell login and authenticated shell work without exposing auth art
   await expect(page.getByRole('heading', { name: 'Welcome, Browser Smoke' })).toBeVisible();
   const sidebar = page.locator('.sidebar');
   const phoneNavigation = page.locator('.phone-navigation');
-  if (testInfo.project.name === 'phone-chromium') {
+  if (['phone-chromium', 'tablet-chromium'].includes(testInfo.project.name)) {
     await expect(sidebar).toBeHidden();
     await expect(phoneNavigation).toBeVisible();
     await expect(phoneNavigation.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');

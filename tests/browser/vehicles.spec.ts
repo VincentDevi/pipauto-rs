@@ -2,7 +2,13 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('@vehicles @service-history vehicle registration, metadata, lifecycle, and history work progressively', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium' ? '1' : testInfo.project.name === 'no-javascript' ? '2' : '3';
+  const variant = testInfo.project.name === 'desktop-chromium'
+    ? '1'
+    : testInfo.project.name === 'no-javascript'
+      ? '2'
+      : testInfo.project.name === 'phone-chromium'
+        ? '3'
+        : '4';
   const registration = `VIN-56-${variant}`;
   const vin = `WVWZZZ1JZXW00000${variant}`;
 

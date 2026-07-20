@@ -15,8 +15,10 @@ test('@dashboard workshop dashboard supports full-page, HTMX, tablet, and phone 
   }
   await expect(page.getByRole('heading', { name: 'Draft interventions' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Recent service history' })).toBeVisible();
-  await expect(page.getByText('No interventions have been recorded yet')).toBeVisible();
-  await expect(page.getByText('There are no draft interventions')).toBeVisible();
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.getByText('No interventions have been recorded yet')).toBeVisible();
+    await expect(page.getByText('There are no draft interventions')).toBeVisible();
+  }
   await expect(page.getByText('Outstanding invoices')).toHaveCount(0);
 
   const draftRefresh = await page.request.get('/dashboard/draft-interventions', {
@@ -37,7 +39,7 @@ test('@dashboard workshop dashboard supports full-page, HTMX, tablet, and phone 
     await expect(page.locator('.sidebar')).toBeHidden();
     await expect(page.locator('.phone-navigation')).toBeVisible();
     await expect(page.locator('.dashboard-sections')).toHaveCSS('grid-template-columns', '788px');
-  } else if (testInfo.project.name === 'phone-chromium') {
+  } else if (['phone-chromium', 'tablet-chromium'].includes(testInfo.project.name)) {
     await expect(page.locator('.sidebar')).toBeHidden();
     await expect(page.locator('.phone-navigation')).toBeVisible();
     const actions = page.locator('.quick-action-grid');

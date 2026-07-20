@@ -2,7 +2,13 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('@interventions draft, lifecycle, filtering, and locked history work progressively', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium' ? '1' : testInfo.project.name === 'no-javascript' ? '2' : '3';
+  const variant = testInfo.project.name === 'desktop-chromium'
+    ? '1'
+    : testInfo.project.name === 'no-javascript'
+      ? '2'
+      : testInfo.project.name === 'phone-chromium'
+        ? '3'
+        : '4';
   const registration = `VIN-57-${variant}`;
 
   await page.goto('/login');
@@ -68,7 +74,9 @@ test('@interventions draft, lifecycle, filtering, and locked history work progre
 });
 
 test('@intervention-lines @attachment-metadata ordered lines and metadata-only attachments work progressively', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium' ? 'desktop' : testInfo.project.name === 'no-javascript' ? 'nojs' : 'mobile';
+  const variant = testInfo.project.name === 'no-javascript'
+    ? 'nojs'
+    : testInfo.project.name.replace('-chromium', '');
   const registration = `VIN-58-${variant}`;
 
   await page.goto('/login');

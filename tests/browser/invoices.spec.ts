@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('@invoice-drafts unnumbered drafts and ordered lines work progressively', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium' ? 'desktop' : testInfo.project.name === 'no-javascript' ? 'nojs' : 'phone';
+  const variant = testInfo.project.name.replace('-chromium', '');
   const owner = `VIN-60 Invoice Owner ${variant}`;
 
   await page.goto('/login');
@@ -73,7 +73,7 @@ test('@invoice-drafts unnumbered drafts and ordered lines work progressively', a
 });
 
 test('@invoice-lifecycle @payments issued invoices lock, derive balances, and retain void records', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium' ? 'desktop' : testInfo.project.name === 'no-javascript' ? 'nojs' : 'phone';
+  const variant = testInfo.project.name.replace('-chromium', '');
   const owner = `VIN-61 Invoice Owner ${variant}`;
 
   await page.goto('/login');

@@ -26,6 +26,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      name: 'tablet-chromium',
+      use: { ...devices['iPad Mini'], browserName: 'chromium' },
+    },
+    {
       name: 'no-javascript',
       use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },

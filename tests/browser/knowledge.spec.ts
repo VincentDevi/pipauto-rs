@@ -2,11 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('@knowledge technical notes search, context, safe text, tags, and lifecycle work progressively', async ({ page }, testInfo) => {
-  const variant = testInfo.project.name === 'desktop-chromium'
-    ? 'desktop'
-    : testInfo.project.name === 'no-javascript'
-      ? 'nojs'
-      : 'phone';
+  const variant = testInfo.project.name === 'no-javascript'
+    ? 'nojs'
+    : testInfo.project.name.replace('-chromium', '');
   const registration = `VIN-59-${variant}`;
 
   await page.goto('/login');

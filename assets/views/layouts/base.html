@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/css/app.css">
     {% if csrf_token is defined and csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
   </head>
-  <body{% if current_user is defined and current_user %} class="authenticated-page"{% endif %}>
+  <body hx-disabled-elt="find button[type='submit']"{% if current_user is defined and current_user %} class="authenticated-page"{% endif %}>
     <a class="skip-link" href="#main-content">Skip to content</a>
     {% if current_user is defined and current_user %}
       <div class="app-shell">
@@ -69,6 +69,6 @@
       <div id="notifications" class="notification-region" role="region" aria-label="Notifications" aria-live="polite" aria-atomic="true"></div>
     {% endif %}
     <script src="/static/vendor/htmx.min.js" defer></script>
-    <script src="/static/js/app.js?v=3" defer></script>
+    <script src="/static/js/app.js?v=4" defer></script>
   </body>
 </html>
