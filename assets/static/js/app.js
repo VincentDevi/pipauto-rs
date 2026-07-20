@@ -22,12 +22,42 @@ document.addEventListener("htmx:beforeSwap", function (event) {
     "vehicle-form",
     "attachment-form",
     "knowledge-form",
+    "invoice-form",
+    "invoice-line-form",
+    "invoice-line-region",
     "main-content",
   ]
     .includes(event.detail.target?.id);
   if (customerResponse && [409, 422].includes(event.detail.xhr.status)) {
     event.detail.shouldSwap = true;
     event.detail.isError = false;
+  }
+});
+
+document.addEventListener("focusin", function (event) {
+  const customer = event.target.closest("[data-invoice-customer]");
+  if (customer) customer.dataset.previousValue = customer.value;
+});
+
+document.addEventListener("change", function (event) {
+  const customer = event.target.closest("[data-invoice-customer]");
+  if (!customer) return;
+  const form = customer.closest("[data-invoice-relationships]");
+  const vehicle = form?.querySelector("[data-invoice-vehicle]");
+  const intervention = form?.querySelector("[data-invoice-intervention]");
+  const selectedVehicle = vehicle?.selectedOptions[0];
+  const incompatibleVehicle = Boolean(
+    selectedVehicle?.value && selectedVehicle.dataset.ownerId !== customer.value,
+  );
+  if (!incompatibleVehicle) return;
+  const clear = window.confirm(
+    "Changing the customer clears the selected vehicle and intervention. Continue?",
+  );
+  if (clear) {
+    vehicle.value = "";
+    intervention.value = "";
+  } else {
+    customer.value = customer.dataset.previousValue || "";
   }
 });
 

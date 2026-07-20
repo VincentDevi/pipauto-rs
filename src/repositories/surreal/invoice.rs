@@ -26,8 +26,8 @@ use crate::{
     repositories::{
         customer::RepositoryPage,
         invoice::{
-            DraftInvoiceUpdate, InvoiceFilter, InvoiceLineMutation, InvoiceLineMutationResult,
-            InvoiceRepository, IssueInvoice, PaymentMutationResult,
+            DraftInvoiceUpdate, InvoiceFilter, InvoiceLineMoveDirection, InvoiceLineMutation,
+            InvoiceLineMutationResult, InvoiceRepository, IssueInvoice, PaymentMutationResult,
         },
         RepositoryError,
     },
@@ -721,6 +721,55 @@ async fn mutate_line_with_client(
                     .await,
             )?;
             Ok(None)
+        }
+        InvoiceLineMutation::Move { id, direction } => {
+            let lines = list_lines_with_client(client, invoice_id).await?;
+            let index = lines
+                .iter()
+                .position(|line| line.id == id)
+                .ok_or(RepositoryError::NotFound)?;
+            let target_index = match direction {
+                InvoiceLineMoveDirection::Up => index.checked_sub(1),
+                InvoiceLineMoveDirection::Down => (index + 1 < lines.len()).then_some(index + 1),
+            }
+            .ok_or(RepositoryError::Conflict)?;
+            let current = &lines[index];
+            let target = &lines[target_index];
+            let temporary = lines
+                .iter()
+                .map(|line| line.line.position)
+                .max()
+                .and_then(|position| position.checked_add(1))
+                .ok_or(RepositoryError::Conflict)?;
+            for (line_id, position) in [
+                (&current.id, temporary),
+                (&target.id, current.line.position),
+                (&current.id, target.line.position),
+            ] {
+                support::checked_response(
+                    client
+                        .query(
+                            "UPDATE ONLY $record SET position = $position \
+                             WHERE invoice = $invoice RETURN AFTER;",
+                        )
+                        .bind((
+                            "record",
+                            support::record_id("invoice_line", line_id.as_str())?,
+                        ))
+                        .bind((
+                            "invoice",
+                            support::record_id("invoice", invoice_id.as_str())?,
+                        ))
+                        .bind(("position", i64::from(position)))
+                        .await,
+                )?;
+            }
+            find_line_with_client(
+                client,
+                &support::record_id("invoice_line", current.id.as_str())?,
+            )
+            .await
+            .map(Some)
         }
     }
 }

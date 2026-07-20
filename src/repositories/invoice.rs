@@ -40,6 +40,16 @@ pub enum InvoiceLineMutation {
     Delete {
         id: InvoiceLineId,
     },
+    Move {
+        id: InvoiceLineId,
+        direction: InvoiceLineMoveDirection,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InvoiceLineMoveDirection {
+    Up,
+    Down,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

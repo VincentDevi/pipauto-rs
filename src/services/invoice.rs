@@ -25,8 +25,8 @@ use crate::{
         customer::CustomerRepository,
         intervention::InterventionRepository,
         invoice::{
-            DraftInvoiceUpdate, InvoiceFilter, InvoiceLineMutation, InvoiceLineMutationResult,
-            InvoiceRepository, IssueInvoice, PaymentMutationResult,
+            DraftInvoiceUpdate, InvoiceFilter, InvoiceLineMoveDirection, InvoiceLineMutation,
+            InvoiceLineMutationResult, InvoiceRepository, IssueInvoice, PaymentMutationResult,
         },
         vehicle::VehicleRepository,
     },
@@ -229,6 +229,25 @@ impl InvoiceService {
         self.require_draft(id).await?;
         self.invoices
             .mutate_line(id, InvoiceLineMutation::Delete { id: line_id })
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn move_line(
+        &self,
+        id: &InvoiceId,
+        line_id: InvoiceLineId,
+        direction: InvoiceLineMoveDirection,
+    ) -> Result<InvoiceLineMutationResult, WorkflowError> {
+        self.require_draft(id).await?;
+        self.invoices
+            .mutate_line(
+                id,
+                InvoiceLineMutation::Move {
+                    id: line_id,
+                    direction,
+                },
+            )
             .await
             .map_err(Into::into)
     }

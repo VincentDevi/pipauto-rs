@@ -372,6 +372,11 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/invoices",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/invoices/new",
         class: AccessClass::Authenticated,
@@ -384,6 +389,46 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/invoices/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices/{id}/lines/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/invoices/{id}/lines/{line_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/lines/{line_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/lines/{line_id}/delete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/lines/{line_id}/move-up",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/invoices/{id}/lines/{line_id}/move-down",
         class: AccessClass::Authenticated,
     },
     RouteAccess {

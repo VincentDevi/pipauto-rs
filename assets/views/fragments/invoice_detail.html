@@ -1,0 +1,7 @@
+<article class="customer-workflow" aria-labelledby="invoice-heading">
+  <header class="page-header"><div><p class="eyebrow"><span class="badge badge--warning">Draft</span> · Reference {{ id }}</p><h1 id="invoice-heading">Invoice draft</h1><p class="summary">Unnumbered until issuance. This draft cannot receive payments.</p></div><a class="button button--secondary" href="/invoices/{{ id }}/edit">Edit header</a></header>
+  {% if conflict %}<div class="panel-state panel-state--error card" role="alert"><h2>Authoritative invoice state</h2><p>{{ conflict }}</p></div>{% endif %}
+  <section class="detail-grid" aria-label="Invoice draft relationships"><div class="card"><h2>Customer</h2><p><a href="{{ customer_href }}">{{ customer }}</a></p></div><div class="card"><h2>Vehicle</h2><p>{% if vehicle %}<a href="{{ vehicle_href }}">{{ vehicle }}</a>{% else %}—{% endif %}</p></div><div class="card"><h2>Intervention</h2><p>{% if intervention %}<a href="{{ intervention_href }}">{{ intervention }}</a>{% else %}—{% endif %}</p></div><div class="card"><h2>Currency</h2><p>{{ currency }}</p></div><div class="card"><h2>Notes</h2><p>{% if notes %}{{ notes }}{% else %}—{% endif %}</p></div></section>
+  {% include "fragments/invoice_line_region.html" %}
+  <section class="card"><h2>Record timestamps</h2><dl class="metadata-list"><div><dt>Created</dt><dd>{{ created_at }}</dd></div><div><dt>Updated</dt><dd>{{ updated_at }}</dd></div></dl></section>
+</article>

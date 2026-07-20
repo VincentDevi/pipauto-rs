@@ -11,6 +11,7 @@ mod customers_vehicles;
 mod dashboard;
 mod intervention_browser;
 mod interventions;
+mod invoice_browser;
 mod invoices;
 mod setup;
 mod surrealdb_health;
