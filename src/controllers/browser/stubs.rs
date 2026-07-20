@@ -31,10 +31,6 @@ async fn unavailable(
 #[must_use]
 pub fn routes() -> Routes {
     Routes::new()
-        .add("/knowledge", get(unavailable))
-        .add("/knowledge/new", get(unavailable))
-        .add("/knowledge/{id}", get(unavailable))
-        .add("/knowledge/{id}/edit", get(unavailable))
         .add("/invoices", get(unavailable))
         .add("/invoices/new", get(unavailable))
         .add("/invoices/{id}", get(unavailable))

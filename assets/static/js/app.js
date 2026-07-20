@@ -21,6 +21,7 @@ document.addEventListener("htmx:beforeSwap", function (event) {
     "customer-detail",
     "vehicle-form",
     "attachment-form",
+    "knowledge-form",
     "main-content",
   ]
     .includes(event.detail.target?.id);
@@ -31,6 +32,21 @@ document.addEventListener("htmx:beforeSwap", function (event) {
 });
 
 document.addEventListener("click", function (event) {
+  const removeTag = event.target.closest("[data-remove-tag]");
+  if (removeTag) {
+    const editor = removeTag.closest("[data-tag-editor]");
+    const chip = removeTag.closest("[data-tag-chip]");
+    const textarea = editor?.querySelector('textarea[name="tags"]');
+    if (!chip || !textarea) return;
+    const chips = Array.from(editor.querySelectorAll("[data-tag-chip]"));
+    const index = chips.indexOf(chip);
+    const tags = textarea.value.split(/\r?\n/);
+    if (index >= 0) tags.splice(index, 1);
+    textarea.value = tags.join("\n");
+    chip.remove();
+    textarea.dispatchEvent(new Event("change", { bubbles: true }));
+    return;
+  }
   const openButton = event.target.closest("[data-dialog-open]");
   if (openButton) {
     const dialog = document.getElementById(openButton.dataset.dialogOpen);

@@ -8,6 +8,7 @@ pub mod context;
 mod customers;
 pub mod forms;
 mod interventions;
+mod knowledge;
 pub mod responses;
 mod stubs;
 mod vehicles;
@@ -210,6 +211,66 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/interventions/{id}/lines/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/lines",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/lines/{line_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/lines/{line_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/lines/{line_id}/delete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/lines/{line_id}/move-up",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/lines/{line_id}/move-down",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/attachments/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/attachments/{attachment_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/attachments/{attachment_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/attachments/{attachment_id}/delete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/interventions/{id}/complete",
         class: AccessClass::Authenticated,
     },
@@ -234,6 +295,11 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/knowledge",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/knowledge/new",
         class: AccessClass::Authenticated,
@@ -246,6 +312,21 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/knowledge/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/restore",
         class: AccessClass::Authenticated,
     },
     RouteAccess {
@@ -287,6 +368,7 @@ pub fn routes() -> Vec<Routes> {
         mount(crate::controllers::setup::routes()),
         mount(customers::routes()),
         mount(interventions::routes()),
+        mount(knowledge::routes()),
         mount(vehicles::routes()),
         mount(stubs::routes()),
     ]

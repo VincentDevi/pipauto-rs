@@ -1,0 +1,24 @@
+<section class="customer-workflow knowledge-workflow" aria-labelledby="knowledge-heading">
+  <header class="page-header">
+    <div><p class="eyebrow">Workshop knowledge</p><h1 id="knowledge-heading">Technical knowledge</h1><p class="summary">Find and reuse proven workshop solutions and procedures.</p></div>
+    <a class="button" href="/knowledge/new">New technical note</a>
+  </header>
+  <form class="card filter-form" method="get" action="/knowledge" hx-get="/knowledge" hx-target="#main-content" hx-push-url="true">
+    <div class="field"><label for="knowledge-query">Search titles and notes</label><input id="knowledge-query" name="q" type="search" value="{{ filters.q }}"></div>
+    <details class="filter-details"{% if has_filters %} open{% endif %}><summary>Structured filters</summary>
+      <div class="form-grid">
+        <div class="field"><label for="knowledge-tags">Tags</label><textarea id="knowledge-tags" name="tags" rows="3" maxlength="1300" aria-describedby="knowledge-tags-hint">{{ filters.tags }}</textarea><p class="field-hint" id="knowledge-tags-hint">One explicit tag per line, in the order entered.</p></div>
+        <div class="field"><label for="knowledge-make">Make</label><input id="knowledge-make" name="make" value="{{ filters.make }}" maxlength="80"></div>
+        <div class="field"><label for="knowledge-model">Model</label><input id="knowledge-model" name="model" value="{{ filters.model }}" maxlength="80"></div>
+        <div class="field"><label for="knowledge-engine">Engine</label><input id="knowledge-engine" name="engine" value="{{ filters.engine }}" maxlength="160"></div>
+        <div class="field"><label for="knowledge-archive">State</label><select id="knowledge-archive" name="archived"><option value="active"{% if filters.archived == "" or filters.archived == "active" %} selected{% endif %}>Active</option><option value="archived"{% if filters.archived == "archived" %} selected{% endif %}>Archived</option><option value="all"{% if filters.archived == "all" %} selected{% endif %}>Active and archived</option></select></div>
+      </div>
+    </details>
+    <div class="form-actions"><button class="button" type="submit">Search knowledge</button><a class="button button--secondary" href="/knowledge">Clear filters</a></div>
+  </form>
+  {% if filter_error %}<div class="panel-state panel-state--error card" role="alert"><h2>Check the knowledge filters</h2><p>{{ filter_error }}</p></div>
+  {% elif items | length > 0 %}<div class="card"><ul class="knowledge-list">{% for item in items %}<li><a class="knowledge-result" href="{{ item.href }}"><span class="knowledge-result-heading"><strong>{{ item.title }}</strong><span class="badge badge--{% if item.archived %}warning{% else %}success{% endif %}">{% if item.archived %}Archived{% else %}Active{% endif %}</span></span>{% if item.context | length > 0 %}<span class="knowledge-context">{{ item.context | join(sep=" · ") }}</span>{% endif %}{% if item.tags | length > 0 %}<span class="tag-list">{% for tag in item.tags %}<span class="tag-chip">{{ tag }}</span>{% endfor %}</span>{% endif %}<span class="knowledge-excerpt preserve-lines">{{ item.excerpt }}</span><span class="knowledge-meta">{% if item.has_source %}Source intervention · {% endif %}Updated {{ item.updated_at }}</span></a></li>{% endfor %}</ul>{% if next_href %}<nav class="pagination" aria-label="Knowledge pages"><p>Server relevance and tie-break ordering continue unchanged.</p><a class="button button--secondary" href="{{ next_href }}" hx-get="{{ next_href }}" hx-target="#main-content" hx-push-url="true">Next results</a></nav>{% endif %}</div>
+  {% elif has_filters %}<div class="panel-state card"><h2>No technical notes match</h2><p>No {{ archive_label }} notes match every current full-text and structured filter.</p><a class="button button--secondary" href="/knowledge">Clear filters</a></div>
+  {% elif filters.archived == "archived" %}<div class="panel-state card"><h2>No archived technical notes</h2><p>Archived notes remain readable here and can be restored.</p><a class="button button--secondary" href="/knowledge">View active notes</a></div>
+  {% else %}<div class="panel-state card"><h2>No active technical notes yet</h2><p>Record a proven solution so it is easy to reuse on future workshop work.</p><a class="button" href="/knowledge/new">Create your first technical note</a></div>{% endif %}
+</section>

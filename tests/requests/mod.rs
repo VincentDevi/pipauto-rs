@@ -14,4 +14,5 @@ mod interventions;
 mod invoices;
 mod setup;
 mod surrealdb_health;
+mod technical_note_browser;
 mod technical_notes_attachments;

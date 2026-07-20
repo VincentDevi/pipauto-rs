@@ -70,8 +70,8 @@ impl TechnicalNote {
 impl NewTechnicalNote {
     /// Validate human-authored knowledge and derive deterministic exact-search values.
     ///
-    /// Tags are normalized, sorted, and deduplicated because they are structured filters rather
-    /// than display values. Optional vehicle and intervention references are independent here;
+    /// Tags are normalized and deduplicated while preserving their first-occurrence order.
+    /// Optional vehicle and intervention references are independent here;
     /// their existence and cross-record consistency belong to the later service layer.
     ///
     /// # Errors
@@ -90,23 +90,27 @@ impl NewTechnicalNote {
     ) -> Result<Self, TechnicalNoteModelError> {
         let title = required_text(title, TITLE_MAX_CHARS)?;
         let body = required_text(body, BODY_MAX_CHARS)?;
-        if tags.len() > TAG_MAX_COUNT {
-            return Err(TechnicalNoteModelError::TooManyTags);
-        }
-        let mut tags = tags
+        let tags = tags
             .into_iter()
             .map(|tag| {
                 let tag = required_text(tag, TAG_MAX_CHARS)?;
                 Ok(normalize_search_text(&tag))
             })
             .collect::<Result<Vec<_>, TechnicalNoteModelError>>()?;
-        tags.sort_unstable();
-        tags.dedup();
+        let mut unique_tags = Vec::with_capacity(tags.len());
+        for tag in tags {
+            if !unique_tags.contains(&tag) {
+                unique_tags.push(tag);
+            }
+        }
+        if unique_tags.len() > TAG_MAX_COUNT {
+            return Err(TechnicalNoteModelError::TooManyTags);
+        }
 
         Ok(Self {
             title,
             body,
-            tags,
+            tags: unique_tags,
             vehicle_id,
             source_intervention_id,
             make: TechnicalNoteContext::optional(make, MAKE_MAX_CHARS)?,
@@ -165,7 +169,7 @@ mod tests {
         let note = NewTechnicalNote::new(
             "  Water pump replacement  ".into(),
             "  Lock the crankshaft before removing the pulley.  ".into(),
-            vec![" Cooling System ".into(), "VW".into(), "vw".into()],
+            vec![" VW ".into(), "Cooling System".into(), "vw".into()],
             Some(VehicleId::parse("golf").expect("valid vehicle id")),
             Some(InterventionId::parse("job-42").expect("valid intervention id")),
             Some(" Volkswagen ".into()),
@@ -177,7 +181,7 @@ mod tests {
         assert_eq!(note.title, "Water pump replacement");
         assert_eq!(
             note.tags,
-            vec!["cooling system".to_owned(), "vw".to_owned()]
+            vec!["vw".to_owned(), "cooling system".to_owned()]
         );
         assert_eq!(
             note.make.as_ref().map(|value| value.display.as_str()),

@@ -141,14 +141,30 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /interventions/{id}` | Authenticated | Read intervention narrative, ordered lines, totals, metadata, and lifecycle. |
 | `GET /interventions/{id}/edit` | Authenticated | Edit a Draft, or render terminal state read-only. |
 | `POST /interventions/{id}/edit` | Authenticated + session CSRF | Save Draft details with chronology and lifecycle conflict handling. |
+| `GET /interventions/{id}/lines/new` | Authenticated | Add an ordered line to a Draft. |
+| `POST /interventions/{id}/lines` | Authenticated + session CSRF | Save a new ordered Draft line. |
+| `GET /interventions/{id}/lines/{line_id}/edit` | Authenticated | Edit an ordered Draft line. |
+| `POST /interventions/{id}/lines/{line_id}/edit` | Authenticated + session CSRF | Save an ordered Draft line. |
+| `POST /interventions/{id}/lines/{line_id}/delete` | Authenticated + session CSRF | Delete a Draft line and recalculate totals. |
+| `POST /interventions/{id}/lines/{line_id}/move-up` | Authenticated + session CSRF | Move a Draft line one position earlier. |
+| `POST /interventions/{id}/lines/{line_id}/move-down` | Authenticated + session CSRF | Move a Draft line one position later. |
+| `GET /interventions/{id}/attachments/new` | Authenticated | Add metadata-only attachment details to a Draft. |
+| `POST /interventions/{id}/attachments` | Authenticated + session CSRF | Save metadata-only intervention attachment details. |
+| `GET /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated | Edit Draft intervention attachment metadata. |
+| `POST /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated + session CSRF | Save Draft intervention attachment metadata. |
+| `POST /interventions/{id}/attachments/{attachment_id}/delete` | Authenticated + session CSRF | Delete Draft intervention attachment metadata. |
 | `GET /interventions/{id}/complete` | Authenticated | Review irreversible completion details. |
 | `POST /interventions/{id}/complete` | Authenticated + session CSRF | Complete and lock a Draft with performed work. |
 | `GET /interventions/{id}/cancel` | Authenticated | Review irreversible cancellation details without a reason field. |
 | `POST /interventions/{id}/cancel` | Authenticated + session CSRF | Cancel and retain a Draft in service history. |
-| `GET /knowledge` | Authenticated | Planned technical-note list; safe `501` placeholder. |
-| `GET /knowledge/new` | Authenticated | Planned technical-note creation page; safe `501` placeholder. |
-| `GET /knowledge/{id}` | Authenticated | Planned technical-note detail page; safe `501` placeholder. |
-| `GET /knowledge/{id}/edit` | Authenticated | Planned technical-note edit page; safe `501` placeholder. |
+| `GET /knowledge` | Authenticated | Search and page through active or archived technical notes. |
+| `POST /knowledge` | Authenticated + session CSRF | Create a technical note with validated reusable and source context. |
+| `GET /knowledge/new` | Authenticated | Create a technical note, optionally prefilling vehicle or intervention context. |
+| `GET /knowledge/{id}` | Authenticated | Read safely escaped technical-note text and its relationships. |
+| `GET /knowledge/{id}/edit` | Authenticated | Edit an active technical note. |
+| `POST /knowledge/{id}/edit` | Authenticated + session CSRF | Save an active technical note after revalidating its context. |
+| `POST /knowledge/{id}/archive` | Authenticated + session CSRF | Archive a technical note without removing relationships. |
+| `POST /knowledge/{id}/restore` | Authenticated + session CSRF | Restore a technical note to default search. |
 | `GET /invoices` | Authenticated | Planned invoice list; safe `501` placeholder. |
 | `GET /invoices/new` | Authenticated | Planned draft-invoice creation page; safe `501` placeholder. |
 | `GET /invoices/{id}` | Authenticated | Planned invoice detail page; safe `501` placeholder. |
