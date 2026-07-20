@@ -6,6 +6,7 @@
 mod api_foundation;
 mod auth;
 mod browser_foundation;
+mod customer_browser;
 mod customers_vehicles;
 mod dashboard;
 mod interventions;

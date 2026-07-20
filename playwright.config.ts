@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/browser',
   fullyParallel: false,
+  // Browser projects share one disposable database and one deliberately expensive login account.
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   reporter: 'list',

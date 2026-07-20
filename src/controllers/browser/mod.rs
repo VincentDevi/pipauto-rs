@@ -5,6 +5,7 @@
 //! safe unavailable placeholders until their owning frontend issue implements them.
 
 pub mod context;
+mod customers;
 pub mod forms;
 pub mod responses;
 mod stubs;
@@ -56,6 +57,11 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/customers",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/customers/new",
         class: AccessClass::Authenticated,
@@ -68,6 +74,21 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/customers/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/restore",
         class: AccessClass::Authenticated,
     },
     RouteAccess {
@@ -172,6 +193,7 @@ pub fn routes() -> Vec<Routes> {
         mount(crate::controllers::auth::routes()),
         mount(crate::controllers::dashboard::routes()),
         mount(crate::controllers::setup::routes()),
+        mount(customers::routes()),
         mount(stubs::routes()),
     ]
 }

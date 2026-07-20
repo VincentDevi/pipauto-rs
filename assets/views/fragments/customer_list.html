@@ -1,0 +1,91 @@
+<div id="customer-list-content" class="customer-workflow">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Customer records</p>
+      <h1>Customers</h1>
+      <p class="summary">Find contact details, vehicles, and workshop notes.</p>
+    </div>
+    <a class="button" href="/customers/new">New customer</a>
+  </header>
+
+  {% if filter_error %}
+    <div class="error-summary" role="alert">
+      <strong>Check the customer filters.</strong>
+      <p>{{ filter_error }}</p>
+    </div>
+  {% endif %}
+
+  <form class="filter-bar" method="get" action="/customers"
+        hx-get="/customers" hx-target="#customer-list-content" hx-swap="outerHTML"
+        hx-push-url="true">
+    <div class="field">
+      <label for="customer-query">Search customers</label>
+      <input id="customer-query" name="q" type="search" value="{{ query }}"
+             maxlength="254" autocomplete="off"
+             placeholder="Name, email, or phone">
+    </div>
+    <div class="field">
+      <label for="customer-archive-filter">Status</label>
+      <select id="customer-archive-filter" name="archived">
+        <option value="active"{% if active_selected %} selected{% endif %}>Active</option>
+        <option value="archived"{% if archived_selected %} selected{% endif %}>Archived</option>
+      </select>
+    </div>
+    <button class="button" type="submit">Apply filters</button>
+    {% if has_filters %}<a class="button button--quiet" href="/customers">Clear filters</a>{% endif %}
+  </form>
+
+  {% if items | length > 0 %}
+    <div class="customer-table-wrap">
+      <table class="data-table customer-table">
+        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>
+          {% for customer in items %}
+            <tr>
+              <td><strong>{{ customer.name }}</strong></td>
+              <td>{% if customer.has_contact %}{{ customer.contact_summary }}{% else %}<span class="muted">No email or phone</span>{% endif %}</td>
+              <td>{% if customer.archived %}<span class="badge badge--warning">Archived</span>{% else %}<span class="badge badge--success">Active</span>{% endif %}</td>
+              <td><a href="{{ customer.href }}">View details</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="customer-card-list" aria-label="Customers">
+      {% for customer in items %}
+        <li class="card customer-card">
+          <div class="customer-card-heading">
+            <strong>{{ customer.name }}</strong>
+            {% if customer.archived %}<span class="badge badge--warning">Archived</span>{% else %}<span class="badge badge--success">Active</span>{% endif %}
+          </div>
+          <p class="customer-contact">{% if customer.has_contact %}{{ customer.contact_summary }}{% else %}No email or phone{% endif %}</p>
+          <a href="{{ customer.href }}">View details</a>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if next_href %}
+      <nav class="pagination" aria-label="Customer pages">
+        <p>Showing this page of matching customers.</p>
+        <div class="pagination-actions">
+          <a class="button button--secondary" href="{{ next_href }}"
+             hx-get="{{ next_href }}" hx-target="#customer-list-content"
+             hx-swap="outerHTML" hx-push-url="true">Next page</a>
+        </div>
+      </nav>
+    {% endif %}
+  {% elif first_customer %}
+    <section class="panel-state" aria-labelledby="first-customer-heading">
+      <h2 id="first-customer-heading">Add your first customer</h2>
+      <p>Customer contact details and vehicles will be available here.</p>
+      <p><a class="button" href="/customers/new">New customer</a></p>
+    </section>
+  {% else %}
+    <section class="panel-state" aria-labelledby="no-customers-heading">
+      <h2 id="no-customers-heading">No customers match these filters</h2>
+      <p>Keep the current search or status filter, or start again.</p>
+      <p><a class="button button--secondary" href="/customers">Clear filters</a></p>
+    </section>
+  {% endif %}
+</div>

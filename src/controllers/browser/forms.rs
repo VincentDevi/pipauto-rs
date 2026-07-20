@@ -58,7 +58,7 @@ impl FieldErrors {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.0.values().all(Vec::is_empty)
     }
 }
 
@@ -85,6 +85,15 @@ impl<T> FormState<T> {
             values,
             errors: FieldErrors::from_validation(errors),
         }
+    }
+
+    /// Ensure templates can read a known set of fields even when they have no failures.
+    #[must_use]
+    pub fn with_known_fields(mut self, fields: &[&str]) -> Self {
+        for field in fields {
+            self.errors.0.entry((*field).to_owned()).or_default();
+        }
+        self
     }
 }
 

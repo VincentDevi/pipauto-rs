@@ -110,10 +110,14 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /dashboard/draft-interventions` | Authenticated | Bounded HTMX refresh for draft interventions; standard requests return to its dashboard section. |
 | `GET /setup/status` | Authenticated | HTMX database-status fragment. |
 | `POST /logout` | Authenticated + session CSRF | Idempotently revokes the registry session and clears the cookie. |
-| `GET /customers` | Authenticated | Planned customer list; safe `501` until its owning issue implements it. |
-| `GET /customers/new` | Authenticated | Planned customer creation page; safe `501` placeholder. |
-| `GET /customers/{id}` | Authenticated | Planned customer detail page; safe `501` placeholder. |
-| `GET /customers/{id}/edit` | Authenticated | Planned customer edit page; safe `501` placeholder. |
+| `GET /customers` | Authenticated | Search and page through active or archived customers. |
+| `POST /customers` | Authenticated + session CSRF | Create a customer with a standard or HTMX form. |
+| `GET /customers/new` | Authenticated | Customer creation form. |
+| `GET /customers/{id}` | Authenticated | Customer detail and customer-scoped vehicle page. |
+| `GET /customers/{id}/edit` | Authenticated | Active-customer edit form. |
+| `POST /customers/{id}/edit` | Authenticated + session CSRF | Update a customer with a standard or HTMX form. |
+| `POST /customers/{id}/archive` | Authenticated + session CSRF | Idempotently archive a customer. |
+| `POST /customers/{id}/restore` | Authenticated + session CSRF | Idempotently restore a customer. |
 | `GET /customers/{id}/vehicles/new` | Authenticated | Planned nested vehicle registration page; safe `501` placeholder. |
 | `GET /vehicles` | Authenticated | Planned vehicle list; safe `501` placeholder. |
 | `GET /vehicles/{id}` | Authenticated | Planned vehicle detail page; safe `501` placeholder. |

@@ -97,6 +97,11 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/customers",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/customers/new",
         class: AccessClass::Authenticated,
@@ -109,6 +114,21 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/customers/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/customers/{id}/restore",
         class: AccessClass::Authenticated,
     },
     RouteAccess {

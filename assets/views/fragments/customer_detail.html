@@ -1,0 +1,104 @@
+<div id="customer-detail" class="customer-workflow">
+  <p><a href="/customers">← Customers</a></p>
+
+  {% if lifecycle_message %}
+    <div class="error-summary" role="alert"><strong>Customer state refreshed.</strong><p>{{ lifecycle_message }}</p></div>
+  {% endif %}
+
+  <header class="page-header customer-detail-header">
+    <div>
+      <p class="eyebrow">Customer</p>
+      <h1>{{ customer.name }}</h1>
+      {% if customer.archived %}<p><span class="badge badge--warning">Archived</span></p>{% endif %}
+    </div>
+    <div class="page-actions">
+      {% if customer.archived %}
+        <form method="post" action="{{ customer.restore_action }}" hx-post="{{ customer.restore_action }}"
+              hx-target="#customer-detail" hx-swap="outerHTML">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="button" type="submit">Restore customer</button>
+        </form>
+      {% else %}
+        <a class="button button--secondary" href="{{ customer.edit_href }}">Edit customer</a>
+        <a class="button" href="{{ customer.new_vehicle_href }}">Add vehicle</a>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if customer.archived %}
+    <section class="archive-notice" aria-labelledby="archived-customer-heading">
+      <h2 id="archived-customer-heading">Archived customer</h2>
+      <p>This record and its vehicle history remain readable. Restore the customer before editing details or assigning a new vehicle.</p>
+    </section>
+  {% endif %}
+
+  <div class="detail-grid">
+    <section class="card" aria-labelledby="contact-heading">
+      <h2 id="contact-heading">Contact and address</h2>
+      <dl class="definition-list customer-definition-list">
+        <div><dt>Email</dt><dd>{% if customer.email %}<a href="mailto:{{ customer.email }}">{{ customer.email }}</a>{% else %}<span class="muted">Not provided</span>{% endif %}</dd></div>
+        <div><dt>Phone</dt><dd>{% if customer.phone %}<a href="tel:{{ customer.phone }}">{{ customer.phone }}</a>{% else %}<span class="muted">Not provided</span>{% endif %}</dd></div>
+        <div><dt>Address</dt><dd>{% if customer.address %}<address>{{ customer.address.line_1 }}{% if customer.address.line_2 %}<br>{{ customer.address.line_2 }}{% endif %}<br>{{ customer.address.postal_code }} {{ customer.address.city }}<br>{{ customer.address.country_code }}</address>{% else %}<span class="muted">Not provided</span>{% endif %}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="notes-heading">
+      <h2 id="notes-heading">Workshop notes</h2>
+      {% if customer.notes %}<p class="preserve-lines">{{ customer.notes }}</p>{% else %}<p class="muted">No workshop notes.</p>{% endif %}
+    </section>
+  </div>
+
+  <section class="card vehicle-section" aria-labelledby="customer-vehicles-heading">
+    <div class="section-heading">
+      <h2 id="customer-vehicles-heading">Vehicles</h2>
+      {% if not customer.archived %}<a href="{{ customer.new_vehicle_href }}">Add vehicle</a>{% endif %}
+    </div>
+    {% if vehicles | length > 0 %}
+      <ul class="record-list">
+        {% for vehicle in vehicles %}
+          <li>
+            <a href="{{ vehicle.href }}"><strong>{{ vehicle.name }}</strong>{% if vehicle.reference %}<span>{{ vehicle.reference }}</span>{% endif %}</a>
+            {% if vehicle.archived %}<span class="badge badge--warning">Archived</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      {% if next_vehicle_href %}
+        <nav class="pagination" aria-label="Customer vehicle pages">
+          <p>Showing this page of the customer’s vehicles.</p>
+          <a class="button button--secondary" href="{{ next_vehicle_href }}"
+             hx-get="{{ next_vehicle_href }}" hx-target="#customer-detail"
+             hx-swap="outerHTML" hx-push-url="true">Next vehicles</a>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="panel-state">
+        <p>No vehicles are recorded for this customer.</p>
+        {% if not customer.archived %}<p><a class="button button--secondary" href="{{ customer.new_vehicle_href }}">Add vehicle</a></p>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="record-metadata" aria-labelledby="record-dates-heading">
+    <h2 id="record-dates-heading">Record dates</h2>
+    <dl class="definition-list">
+      <div><dt>Created</dt><dd>{{ customer.created_at }}</dd></div>
+      <div><dt>Last updated</dt><dd>{{ customer.updated_at }}</dd></div>
+      {% if customer.archived_at %}<div><dt>Archived</dt><dd>{{ customer.archived_at }}</dd></div>{% endif %}
+    </dl>
+  </section>
+
+  {% if not customer.archived %}
+    <details class="archive-customer">
+      <summary class="button button--quiet">Archive customer</summary>
+      <div class="archive-confirmation">
+        <h2>Archive {{ customer.name }}?</h2>
+        <p>The customer will leave active lists. Existing vehicles and service history remain. Archived customers cannot receive newly assigned vehicles.</p>
+        <form method="post" action="{{ customer.archive_action }}" hx-post="{{ customer.archive_action }}"
+              hx-target="#customer-detail" hx-swap="outerHTML">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="button button--destructive" type="submit">Confirm archive</button>
+        </form>
+      </div>
+    </details>
+  {% endif %}
+</div>
