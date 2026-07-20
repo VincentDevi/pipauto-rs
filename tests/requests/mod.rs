@@ -9,6 +9,7 @@ mod browser_foundation;
 mod customer_browser;
 mod customers_vehicles;
 mod dashboard;
+mod intervention_browser;
 mod interventions;
 mod invoices;
 mod setup;

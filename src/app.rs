@@ -197,6 +197,11 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/attachments/new",
         class: AccessClass::Authenticated,
@@ -234,6 +239,31 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/interventions/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/complete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/complete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/cancel",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/cancel",
         class: AccessClass::Authenticated,
     },
     RouteAccess {

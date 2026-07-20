@@ -7,6 +7,7 @@
 pub mod context;
 mod customers;
 pub mod forms;
+mod interventions;
 pub mod responses;
 mod stubs;
 mod vehicles;
@@ -158,6 +159,11 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/attachments/new",
         class: AccessClass::Authenticated,
@@ -195,6 +201,31 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/interventions/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/complete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/complete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/interventions/{id}/cancel",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/interventions/{id}/cancel",
         class: AccessClass::Authenticated,
     },
     RouteAccess {
@@ -255,6 +286,7 @@ pub fn routes() -> Vec<Routes> {
         mount(crate::controllers::dashboard::routes()),
         mount(crate::controllers::setup::routes()),
         mount(customers::routes()),
+        mount(interventions::routes()),
         mount(vehicles::routes()),
         mount(stubs::routes()),
     ]

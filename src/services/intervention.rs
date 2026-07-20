@@ -122,6 +122,10 @@ impl InterventionService {
         if current.status != InterventionStatus::Draft {
             return Err(WorkflowError::Conflict);
         }
+        let vehicle = self.require_vehicle(&current.vehicle_id).await?;
+        if vehicle.is_archived() {
+            return Err(WorkflowError::Conflict);
+        }
         let value = validate_intervention(
             CreateIntervention {
                 vehicle_id: current.vehicle_id.clone(),

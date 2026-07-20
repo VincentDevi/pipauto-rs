@@ -130,15 +130,21 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /vehicles/{id}/reassign` | Authenticated | Review reassignment to an active customer. |
 | `POST /vehicles/{id}/reassign` | Authenticated + session CSRF | Change current vehicle ownership without rewriting history. |
 | `GET /vehicles/{id}/history` | Authenticated | Page through complete authoritative service history. |
-| `GET /vehicles/{id}/interventions/new` | Authenticated | Planned intervention creation page; safe `501` placeholder. |
+| `GET /vehicles/{id}/interventions/new` | Authenticated | Start a draft intervention for an active vehicle. |
+| `POST /vehicles/{id}/interventions` | Authenticated + session CSRF | Save a draft intervention while enforcing service-history chronology. |
 | `GET /vehicles/{id}/attachments/new` | Authenticated | Add metadata-only attachment details for an active vehicle. |
 | `POST /vehicles/{id}/attachments` | Authenticated + session CSRF | Save metadata-only attachment details for an active vehicle. |
 | `GET /attachments/{id}/edit` | Authenticated | Edit vehicle attachment metadata when its vehicle is active. |
 | `POST /attachments/{id}/edit` | Authenticated + session CSRF | Save vehicle attachment metadata. |
 | `POST /attachments/{id}/delete` | Authenticated + session CSRF | Delete a named vehicle attachment metadata record. |
-| `GET /interventions` | Authenticated | Planned intervention list; safe `501` placeholder. |
-| `GET /interventions/{id}` | Authenticated | Planned intervention detail page; safe `501` placeholder. |
-| `GET /interventions/{id}/edit` | Authenticated | Planned intervention edit page; safe `501` placeholder. |
+| `GET /interventions` | Authenticated | Filter and page through authoritative intervention history. |
+| `GET /interventions/{id}` | Authenticated | Read intervention narrative, ordered lines, totals, metadata, and lifecycle. |
+| `GET /interventions/{id}/edit` | Authenticated | Edit a Draft, or render terminal state read-only. |
+| `POST /interventions/{id}/edit` | Authenticated + session CSRF | Save Draft details with chronology and lifecycle conflict handling. |
+| `GET /interventions/{id}/complete` | Authenticated | Review irreversible completion details. |
+| `POST /interventions/{id}/complete` | Authenticated + session CSRF | Complete and lock a Draft with performed work. |
+| `GET /interventions/{id}/cancel` | Authenticated | Review irreversible cancellation details without a reason field. |
+| `POST /interventions/{id}/cancel` | Authenticated + session CSRF | Cancel and retain a Draft in service history. |
 | `GET /knowledge` | Authenticated | Planned technical-note list; safe `501` placeholder. |
 | `GET /knowledge/new` | Authenticated | Planned technical-note creation page; safe `501` placeholder. |
 | `GET /knowledge/{id}` | Authenticated | Planned technical-note detail page; safe `501` placeholder. |
