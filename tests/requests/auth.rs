@@ -149,10 +149,9 @@ async fn authenticated_shell_contains_only_safe_identity_and_complete_navigation
             &session,
         ))
         .await
-        .expect("record placeholder should complete");
-    assert_eq!(record_response.status(), StatusCode::NOT_IMPLEMENTED);
+        .expect("invalid vehicle record request should complete");
+    assert_eq!(record_response.status(), StatusCode::NOT_FOUND);
     let record_html = body_text(record_response).await;
-    assert!(record_html.contains("href=\"/vehicles\" aria-current=\"page\""));
     assert!(!record_html.contains("filippo@example.com"));
 }
 

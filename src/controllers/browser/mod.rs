@@ -9,6 +9,7 @@ mod customers;
 pub mod forms;
 pub mod responses;
 mod stubs;
+mod vehicles;
 
 use loco_rs::controller::Routes;
 
@@ -98,6 +99,16 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/vehicles/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/vehicles",
         class: AccessClass::Authenticated,
     },
@@ -112,6 +123,31 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/restore",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/reassign",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/reassign",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/history",
         class: AccessClass::Authenticated,
@@ -119,6 +155,31 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/interventions/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/attachments/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/attachments/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/attachments/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/attachments/{id}/delete",
         class: AccessClass::Authenticated,
     },
     RouteAccess {
@@ -194,6 +255,7 @@ pub fn routes() -> Vec<Routes> {
         mount(crate::controllers::dashboard::routes()),
         mount(crate::controllers::setup::routes()),
         mount(customers::routes()),
+        mount(vehicles::routes()),
         mount(stubs::routes()),
     ]
 }

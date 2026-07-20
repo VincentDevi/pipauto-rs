@@ -138,6 +138,16 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/vehicles/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/vehicles",
         class: AccessClass::Authenticated,
     },
@@ -152,6 +162,31 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
         class: AccessClass::Authenticated,
     },
     RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/archive",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/restore",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/reassign",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/reassign",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/history",
         class: AccessClass::Authenticated,
@@ -159,6 +194,31 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/vehicles/{id}/interventions/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/vehicles/{id}/attachments/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/vehicles/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/attachments/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/attachments/{id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/attachments/{id}/delete",
         class: AccessClass::Authenticated,
     },
     RouteAccess {

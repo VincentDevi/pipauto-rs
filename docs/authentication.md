@@ -118,12 +118,24 @@ sessions. Restore `active = true` only after the account is safe.
 | `POST /customers/{id}/edit` | Authenticated + session CSRF | Update a customer with a standard or HTMX form. |
 | `POST /customers/{id}/archive` | Authenticated + session CSRF | Idempotently archive a customer. |
 | `POST /customers/{id}/restore` | Authenticated + session CSRF | Idempotently restore a customer. |
-| `GET /customers/{id}/vehicles/new` | Authenticated | Planned nested vehicle registration page; safe `501` placeholder. |
-| `GET /vehicles` | Authenticated | Planned vehicle list; safe `501` placeholder. |
-| `GET /vehicles/{id}` | Authenticated | Planned vehicle detail page; safe `501` placeholder. |
-| `GET /vehicles/{id}/edit` | Authenticated | Planned vehicle edit page; safe `501` placeholder. |
-| `GET /vehicles/{id}/history` | Authenticated | Planned complete service-history page; safe `501` placeholder. |
+| `GET /customers/{id}/vehicles/new` | Authenticated | Register a vehicle for the named active customer. |
+| `GET /vehicles/new` | Authenticated | Register a vehicle after selecting an active customer. |
+| `GET /vehicles` | Authenticated | Search and page through active or archived vehicles. |
+| `POST /vehicles` | Authenticated + session CSRF | Create a vehicle for an active customer. |
+| `GET /vehicles/{id}` | Authenticated | Read vehicle details, recent history, and attachment metadata. |
+| `GET /vehicles/{id}/edit` | Authenticated | Edit an active vehicle without changing its owner. |
+| `POST /vehicles/{id}/edit` | Authenticated + session CSRF | Save active vehicle details. |
+| `POST /vehicles/{id}/archive` | Authenticated + session CSRF | Idempotently archive a vehicle. |
+| `POST /vehicles/{id}/restore` | Authenticated + session CSRF | Idempotently restore a vehicle. |
+| `GET /vehicles/{id}/reassign` | Authenticated | Review reassignment to an active customer. |
+| `POST /vehicles/{id}/reassign` | Authenticated + session CSRF | Change current vehicle ownership without rewriting history. |
+| `GET /vehicles/{id}/history` | Authenticated | Page through complete authoritative service history. |
 | `GET /vehicles/{id}/interventions/new` | Authenticated | Planned intervention creation page; safe `501` placeholder. |
+| `GET /vehicles/{id}/attachments/new` | Authenticated | Add metadata-only attachment details for an active vehicle. |
+| `POST /vehicles/{id}/attachments` | Authenticated + session CSRF | Save metadata-only attachment details for an active vehicle. |
+| `GET /attachments/{id}/edit` | Authenticated | Edit vehicle attachment metadata when its vehicle is active. |
+| `POST /attachments/{id}/edit` | Authenticated + session CSRF | Save vehicle attachment metadata. |
+| `POST /attachments/{id}/delete` | Authenticated + session CSRF | Delete a named vehicle attachment metadata record. |
 | `GET /interventions` | Authenticated | Planned intervention list; safe `501` placeholder. |
 | `GET /interventions/{id}` | Authenticated | Planned intervention detail page; safe `501` placeholder. |
 | `GET /interventions/{id}/edit` | Authenticated | Planned intervention edit page; safe `501` placeholder. |

@@ -289,6 +289,12 @@ p { max-width: 68ch; margin: var(--space-4) 0 0; }
 .archive-confirmation { max-width: 44rem; margin-top: var(--space-3); padding: var(--space-4); border: var(--border-width) solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-subtle); }
 .archive-confirmation p { margin-top: var(--space-2); }
 .archive-confirmation form { margin-top: var(--space-4); }
+.vehicle-filter-form { display: grid; gap: var(--space-4); }
+.filter-details > summary { min-height: var(--target-size); display: flex; align-items: center; font-weight: 750; cursor: pointer; }
+.filter-details .form-grid { margin-top: var(--space-3); }
+.cancelled-record { color: var(--color-muted); background: var(--color-danger-subtle); }
+.metadata-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.delete-metadata > summary { color: var(--color-danger); cursor: pointer; }
 
 .panel-state { margin-block: var(--space-4); box-shadow: none; text-align: center; }
 .panel-state > * { margin-inline: auto; }

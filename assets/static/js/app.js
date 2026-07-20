@@ -15,7 +15,14 @@ document.addEventListener("htmx:beforeSwap", function (event) {
     event.detail.isError = false;
   }
 
-  const customerResponse = ["customer-form", "customer-list-content", "customer-detail"]
+  const customerResponse = [
+    "customer-form",
+    "customer-list-content",
+    "customer-detail",
+    "vehicle-form",
+    "attachment-form",
+    "main-content",
+  ]
     .includes(event.detail.target?.id);
   if (customerResponse && [409, 422].includes(event.detail.xhr.status)) {
     event.detail.shouldSwap = true;

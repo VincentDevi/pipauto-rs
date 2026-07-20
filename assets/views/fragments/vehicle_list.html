@@ -1,0 +1,30 @@
+<section class="customer-workflow" aria-labelledby="vehicles-heading">
+  <header class="page-header">
+    <div><p class="eyebrow">Workshop records</p><h1 id="vehicles-heading">Vehicles</h1><p class="summary">Find a vehicle by its displayed details or exact normalized identifiers.</p></div>
+    <a class="button" href="/vehicles/new">Register vehicle</a>
+  </header>
+
+  <form class="card filter-form vehicle-filter-form" method="get" action="/vehicles"
+        hx-get="/vehicles" hx-target="#main-content" hx-push-url="true">
+    <div class="field"><label for="vehicle-q">Search</label><input id="vehicle-q" name="q" value="{{ filters.q }}" placeholder="Registration, VIN, make, or model"></div>
+    <details class="filter-details"{% if has_filters %} open{% endif %}>
+      <summary>More filters</summary>
+      <div class="form-grid">
+        <div class="field"><label for="vehicle-customer">Customer</label><select id="vehicle-customer" name="customer"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}"{% if filters.customer == customer.id %} selected{% endif %}>{{ customer.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="vehicle-status">Status</label><select id="vehicle-status" name="archived"><option value="active"{% if filters.archived == "active" or filters.archived == "" %} selected{% endif %}>Active</option><option value="archived"{% if filters.archived == "archived" %} selected{% endif %}>Archived</option></select></div>
+        <div class="field"><label for="registration-filter">Exact registration</label><input id="registration-filter" name="registration" value="{{ filters.registration }}"></div>
+        <div class="field"><label for="vin-filter">Exact VIN</label><input id="vin-filter" name="vin" value="{{ filters.vin }}" maxlength="40"></div>
+        <div class="field"><label for="make-filter">Make</label><input id="make-filter" name="make" value="{{ filters.make }}"></div>
+        <div class="field"><label for="model-filter">Model</label><input id="model-filter" name="model" value="{{ filters.model }}"></div>
+      </div>
+    </details>
+    <div class="form-actions"><button class="button" type="submit">Search vehicles</button>{% if has_filters %}<a class="button button--secondary" href="/vehicles">Clear filters</a>{% endif %}</div>
+  </form>
+
+  {% if filter_error %}<div class="panel-state panel-state--error card" role="alert"><h2>Check the vehicle filters</h2><p>{{ filter_error }}</p><a href="/vehicles">Start again</a></div>
+  {% elif items | length > 0 %}
+    <div class="customer-table-wrap"><table class="data-table"><thead><tr><th>Registration</th><th>Vehicle</th><th>Customer</th><th>Mileage</th><th>Status</th></tr></thead><tbody>{% for vehicle in items %}<tr><td data-label="Registration"><a href="{{ vehicle.href }}"><strong>{{ vehicle.registration }}</strong></a></td><td data-label="Vehicle">{{ vehicle.name }}{% if vehicle.year %} · {{ vehicle.year }}{% endif %}</td><td data-label="Customer">{{ vehicle.owner }}</td><td data-label="Mileage">{% if vehicle.mileage %}{{ vehicle.mileage }} km{% else %}—{% endif %}</td><td data-label="Status"><span class="badge badge--{% if vehicle.archived %}warning{% else %}success{% endif %}">{% if vehicle.archived %}Archived{% else %}Active{% endif %}</span></td></tr>{% endfor %}</tbody></table></div>
+    <ul class="customer-card-list">{% for vehicle in items %}<li class="card customer-card"><div class="customer-card-heading"><a href="{{ vehicle.href }}"><strong>{{ vehicle.registration }}</strong></a><span class="badge badge--{% if vehicle.archived %}warning{% else %}success{% endif %}">{% if vehicle.archived %}Archived{% else %}Active{% endif %}</span></div><p>{{ vehicle.name }}{% if vehicle.year %} · {{ vehicle.year }}{% endif %}</p><p class="muted">{{ vehicle.owner }}{% if vehicle.mileage %} · {{ vehicle.mileage }} km{% endif %}</p></li>{% endfor %}</ul>
+    {% if next_href %}<nav class="pagination" aria-label="Vehicle pages"><p>Showing this page in backend order.</p><a class="button button--secondary" href="{{ next_href }}" hx-get="{{ next_href }}" hx-target="#main-content" hx-push-url="true">Next vehicles</a></nav>{% endif %}
+  {% else %}<div class="panel-state card"><h2>No vehicles found</h2><p>{% if has_filters %}No vehicles match these filters.{% else %}Register the first vehicle to begin its service history.{% endif %}</p>{% if has_filters %}<a href="/vehicles">Clear filters</a>{% else %}<a class="button" href="/vehicles/new">Register vehicle</a>{% endif %}</div>{% endif %}
+</section>

@@ -10,3 +10,4 @@ pub mod dashboard;
 pub mod layout;
 pub mod setup;
 pub mod unavailable;
+pub mod vehicle;
