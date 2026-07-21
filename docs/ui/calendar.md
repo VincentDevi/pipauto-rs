@@ -28,8 +28,9 @@ controls in these wireframes.
 | Navigation | Previous, Today, Next, Month, Week, and focused-day links are normal GET navigation |
 | Backend | Bounded overlap query, immutable customer/vehicle snapshots, workshop timezone, duration, midnight segments, and overlap layout |
 
-The route inventory now includes the authenticated Calendar read path and responsive Month view.
-Week time geometry remains the next calendar delivery.
+The route inventory includes the authenticated Calendar read path and responsive Month and Week
+views. Week presents all seven days together on wide screens and a normal-GET focused day on
+narrow screens, with every half-hour row reachable in either layout.
 
 Calendar navigation may replace the calendar region with HTMX and update browser history. Every
 control retains a complete `href`, so refresh, Back, copied URLs, and JavaScript-disabled use

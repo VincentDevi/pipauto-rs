@@ -1,4 +1,4 @@
-//! Authenticated Calendar query parsing and server-rendered Month responses.
+//! Authenticated Calendar query parsing and server-rendered Month and Week responses.
 
 use axum::{extract::RawQuery, http::StatusCode, response::Response};
 use chrono::NaiveDate;
@@ -84,41 +84,17 @@ async fn show(
             );
         }
     };
-    if query.view == RequestedView::Week {
-        let view = CalendarBrowserPage::state(
-            layout(&context),
-            schedule.anchor,
-            today,
-            timezone,
-            CalendarState {
-                view: "week",
-                name: "week_pending",
-                heading: "Week view is not available yet",
-                message: "Use Month view while the workshop timeline is completed.",
-                recovery: Some((
-                    "Open Month view",
-                    calendar_href(RequestedView::Month, schedule.anchor),
-                )),
-            },
-        )
-        .map_err(loco_rs::Error::msg)?;
-        return render(&context, &engine, &view, StatusCode::OK);
-    }
     let page = match CalendarPage::build(schedule, service.workshop_time()) {
         Ok(page) => page,
         Err(_) => {
-            return render_unexpected(
-                &context,
-                &engine,
-                &service,
-                RequestedView::Month,
-                anchor,
-                today,
-            );
+            return render_unexpected(&context, &engine, &service, query.view, anchor, today);
         }
     };
-    let view = CalendarBrowserPage::month(layout(&context), page, today, timezone)
-        .map_err(loco_rs::Error::msg)?;
+    let view = match query.view {
+        RequestedView::Month => CalendarBrowserPage::month(layout(&context), page, today, timezone),
+        RequestedView::Week => CalendarBrowserPage::week(layout(&context), page, today, timezone),
+    }
+    .map_err(loco_rs::Error::msg)?;
     render(&context, &engine, &view, StatusCode::OK)
 }
 

@@ -93,6 +93,8 @@ pub struct CalendarBrowserPage<'page> {
     month_href: String,
     week_href: String,
     days: Vec<CalendarMonthDay>,
+    week_days: Vec<CalendarWeekDay>,
+    time_rows: Vec<CalendarTimeRow>,
     selected_day_label: String,
     selected_entries: Vec<CalendarSegment>,
     selected_entry_count: usize,
@@ -117,6 +119,27 @@ struct CalendarMonthDay {
     hidden_entries: Vec<CalendarSegment>,
     hidden_count: usize,
     entry_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct CalendarWeekDay {
+    date: String,
+    weekday_label: String,
+    short_weekday_label: String,
+    day_label: String,
+    full_label: String,
+    href: String,
+    selected: bool,
+    today: bool,
+    segments: Vec<CalendarSegment>,
+    ordinary_segments: Vec<CalendarSegment>,
+    transition_segments: Vec<CalendarSegment>,
+    entry_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct CalendarTimeRow {
+    label: String,
 }
 
 /// Copy-only metadata for a Calendar-owned non-ready response.
@@ -205,6 +228,105 @@ impl<'page> CalendarBrowserPage<'page> {
             month_href: calendar_href("month", anchor),
             week_href: calendar_href("week", anchor),
             days,
+            week_days: Vec::new(),
+            time_rows: time_rows(),
+            selected_day_label: anchor.format("%A %-d %B %Y").to_string(),
+            selected_entries,
+            selected_entry_count,
+            has_entries,
+            state: "ready",
+            state_heading: None,
+            state_message: None,
+            recovery_href: None,
+            recovery_label: None,
+        })
+    }
+
+    /// Build the complete Monday-first Week presentation and focused-day timeline.
+    pub fn week(
+        layout: AuthenticatedLayout<'page>,
+        page: CalendarPage,
+        today: NaiveDate,
+        timezone_label: String,
+    ) -> Result<Self, CalendarPresentationError> {
+        let anchor = parse_presentation_date(&page.anchor_date)?;
+        let week_start = parse_presentation_date(&page.range_start_date)?;
+        let week_end = parse_presentation_date(&page.range_end_date)?;
+        if week_end.signed_duration_since(week_start).num_days() != 7
+            || week_start.weekday().num_days_from_monday() != 0
+        {
+            return Err(CalendarPresentationError::InvalidWeekRange);
+        }
+        let mut segments_by_date = page
+            .days
+            .into_iter()
+            .map(|day| (day.date, day.segments))
+            .collect::<BTreeMap<_, _>>();
+        let mut week_days = Vec::with_capacity(7);
+        let mut date = week_start;
+        while date < week_end {
+            let segments = segments_by_date
+                .remove(&date.to_string())
+                .unwrap_or_default();
+            let ordinary_segments = segments
+                .iter()
+                .filter(|segment| segment.geometry.is_some())
+                .cloned()
+                .collect();
+            let transition_segments = segments
+                .iter()
+                .filter(|segment| segment.geometry.is_none())
+                .cloned()
+                .collect();
+            week_days.push(CalendarWeekDay {
+                date: date.to_string(),
+                weekday_label: date.format("%A").to_string(),
+                short_weekday_label: date.format("%a").to_string(),
+                day_label: date.format("%-d %b").to_string(),
+                full_label: date.format("%A %-d %B %Y").to_string(),
+                href: calendar_href("week", date),
+                selected: date == anchor,
+                today: date == today,
+                entry_count: segments.len(),
+                segments,
+                ordinary_segments,
+                transition_segments,
+            });
+            date = date
+                .checked_add_days(Days::new(1))
+                .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        }
+        let selected_entries = week_days
+            .iter()
+            .find(|day| day.selected)
+            .map(|day| day.segments.clone())
+            .unwrap_or_default();
+        let selected_entry_count = selected_entries.len();
+        let has_entries = !page.entries.is_empty();
+        let navigation = CalendarNavigation::new("week", anchor, today)?;
+        let sunday = week_end
+            .checked_sub_days(Days::new(1))
+            .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        Ok(Self {
+            layout,
+            title: "Calendar · Pipauto",
+            view: "week",
+            month_selected: false,
+            week_selected: true,
+            period_label: format!(
+                "{}–{}",
+                week_start.format("%-d %B %Y"),
+                sunday.format("%-d %B %Y")
+            ),
+            timezone_label,
+            previous_href: navigation.previous_href,
+            today_href: navigation.today_href,
+            next_href: navigation.next_href,
+            month_href: calendar_href("month", anchor),
+            week_href: calendar_href("week", anchor),
+            days: Vec::new(),
+            week_days,
+            time_rows: time_rows(),
             selected_day_label: anchor.format("%A %-d %B %Y").to_string(),
             selected_entries,
             selected_entry_count,
@@ -261,6 +383,8 @@ impl<'page> CalendarBrowserPage<'page> {
             month_href: calendar_href("month", anchor),
             week_href: calendar_href("week", anchor),
             days: Vec::new(),
+            week_days: Vec::new(),
+            time_rows: time_rows(),
             selected_day_label: anchor.format("%A %-d %B %Y").to_string(),
             selected_entries: Vec::new(),
             selected_entry_count: 0,
@@ -280,6 +404,17 @@ impl<'page> CalendarBrowserPage<'page> {
     pub fn render_region(&self, engine: &TeraView) -> LocoResult<String> {
         engine.render(BROWSER_REGION_TEMPLATE, self)
     }
+}
+
+fn time_rows() -> Vec<CalendarTimeRow> {
+    (0..48)
+        .map(|row| {
+            let minutes = row * 30;
+            CalendarTimeRow {
+                label: format!("{:02}:{:02}", minutes / 60, minutes % 60),
+            }
+        })
+        .collect()
 }
 
 struct CalendarNavigation {
@@ -368,6 +503,8 @@ pub enum CalendarPresentationError {
     BoundaryOutOfRange,
     #[error("calendar geometry is outside its validated numeric bounds")]
     InvalidGeometry,
+    #[error("calendar Week range is not exactly Monday through Sunday")]
+    InvalidWeekRange,
 }
 
 impl CalendarPage {
@@ -616,6 +753,7 @@ mod tests {
             calendar::CalendarRange,
             intervention::{EstimatedDuration, InterventionIdentitySnapshot},
         },
+        views::context::PresentationUser,
     };
 
     fn instant(value: &str) -> DateTime<Utc> {
@@ -741,6 +879,48 @@ mod tests {
         assert_eq!((geometries[1].lane, geometries[1].lane_count), (1, 2));
         assert_eq!((geometries[2].lane, geometries[2].lane_count), (0, 2));
         assert_eq!((geometries[3].lane, geometries[3].lane_count), (0, 1));
+    }
+
+    #[test]
+    fn calendar_week_view_renders_monday_sunday_and_complete_time_axes() {
+        let page = CalendarPage::build(
+            schedule(
+                vec![
+                    entry("early", "2026-07-20T00:00", 30),
+                    entry("overlap", "2026-07-21T09:15", 120),
+                    entry("overnight", "2026-07-26T23:30", 60),
+                ],
+                "2026-07-20",
+                "2026-07-27",
+            ),
+            &time(),
+        )
+        .expect("calendar page");
+        let user = PresentationUser {
+            display_name: "Filippo".to_owned(),
+        };
+        let view = CalendarBrowserPage::week(
+            AuthenticatedLayout::new(&user, "csrf", "/calendar"),
+            page,
+            date("2026-07-21"),
+            "Europe/Brussels".to_owned(),
+        )
+        .expect("Week view");
+
+        assert_eq!(view.time_rows.len(), 48);
+        assert_eq!(view.week_days.len(), 7);
+        assert_eq!(view.week_days[0].weekday_label, "Monday");
+        assert_eq!(view.week_days[6].weekday_label, "Sunday");
+        assert_eq!(view.selected_day_label, "Monday 20 July 2026");
+        let html = view
+            .render_region(&TeraView::build().expect("view engine"))
+            .expect("Week template");
+        assert!(html.contains("Scrollable 24-hour Week timeline"));
+        assert!(html.contains("2026-07-26"));
+        assert!(html.contains("view=week"));
+        assert!(html.contains("--calendar-start: 555; --calendar-span: 120;"));
+        assert!(html.contains("Continues into the next day"));
+        assert_eq!(html.matches("class=\"calendar-time-row\"").count(), 96);
     }
 
     #[test]

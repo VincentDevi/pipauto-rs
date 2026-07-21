@@ -104,8 +104,9 @@ backfilling invented schedule or identity values.
 API writes use an exact workshop-local `YYYY-MM-DDTHH:MM` value and required estimated duration;
 reads return the resolved UTC instant and immutable identity snapshots. The documented
 `GET /calendar?view=month|week&date=YYYY-MM-DD` browser route is authenticated and exposes the
-responsive Month projection and reproducible Calendar navigation. Week time geometry remains
-owned by the following calendar issue.
+responsive Month projection, complete Monday–Sunday Week timelines, and reproducible Calendar
+navigation. Week uses a complete half-hour wall-clock axis, deterministic overlap geometry on
+ordinary days, exact DST labels, and focused-day links on narrow screens.
 
 The basic authenticated calendar is a read-only Month/Week projection of Draft and Completed
 interventions; Cancelled work is excluded. It provides workshop-local Previous, Today, and Next

@@ -191,7 +191,8 @@ whose calculated interval overlaps the visible Month or Week. Calendar reads do 
 financial totals or mutate interventions.
 
 `GET /calendar?view=month|week&date=YYYY-MM-DD` is an authenticated browser route. Month rendering
-and shared Calendar navigation are active; Week time geometry is delivered by its following issue.
+and shared Calendar navigation are active. Week renders Monday through Sunday over a complete
+half-hour axis on wide screens and one selected day's complete timeline on narrow screens.
 
 ## 10. Responsive and accessible experience
 

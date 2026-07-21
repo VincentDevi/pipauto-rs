@@ -112,8 +112,11 @@ async fn calendar_browser_owns_invalid_query_and_session_recovery_states() {
     )
     .await;
     assert_eq!(week.0, StatusCode::OK);
-    assert!(week.1.contains("Week view is not available yet"));
     assert!(week.1.contains("data-calendar-view=\"week\""));
+    assert!(week.1.contains("Scrollable 24-hour Week timeline"));
+    assert!(week.1.contains("Focused Week view"));
+    assert_eq!(week.1.matches("class=\"calendar-week-date").count(), 7);
+    assert_eq!(week.1.matches("class=\"calendar-time-row\"").count(), 96);
 
     let expired = router
         .oneshot(

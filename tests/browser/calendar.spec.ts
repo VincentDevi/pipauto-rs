@@ -75,6 +75,28 @@ test('@calendar authenticated Month navigation and responsive entries work progr
   expect(fragment.headers()['cache-control']).toBe('no-store');
   expect(await fragment.text()).toMatch(/^<div id="calendar-region"/);
 
+  await page.getByRole('link', { name: 'Week', exact: true }).click();
+  await expect(page).toHaveURL(/view=week&date=2026-07-21$/);
+  await expect(page.locator('.calendar-period-heading')).toContainText('20 July 2026–26 July 2026');
+  await expect(page.locator('.calendar-time-row')).toHaveCount(96);
+  if (testInfo.project.name === 'desktop-chromium' || testInfo.project.name === 'no-javascript') {
+    await expect(page.locator('.calendar-week-wide')).toBeVisible();
+    await expect(page.locator('.calendar-week-day-heading')).toHaveCount(7);
+    await expect(page.locator('.calendar-week-time-axis .calendar-time-row').last()).toContainText('23:30');
+    await expect(page.locator('.calendar-week-entry')).toHaveCount(6);
+    await expect(page.locator('.calendar-week-entry').first()).toHaveAttribute('style', /--calendar-start:/);
+  } else {
+    await expect(page.locator('.calendar-week-focused')).toBeVisible();
+    await expect(page.locator('.calendar-week-selector > a')).toHaveCount(7);
+    await expect(page.getByRole('heading', { name: /Tuesday 21 July 2026 · 5 interventions/ })).toBeVisible();
+    await expect(page.locator('.calendar-week-stacked-entries .calendar-entry')).toHaveCount(5);
+    await expect(page.locator('.calendar-focused-timeline .calendar-time-row').last()).toContainText('23:30');
+    await page.getByRole('link', { name: /Wednesday 22 July 2026, 1 intervention/ }).click();
+    await expect(page).toHaveURL(/view=week&date=2026-07-22$/);
+    await expect(page.locator('.calendar-week-stacked-entries .calendar-entry')).toHaveCount(1);
+    await expect(page.locator('.calendar-week-stacked-entries')).toContainText('Continues from the previous day');
+  }
+
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   if (testInfo.project.name === 'desktop-chromium') {
     const accessibility = await new AxeBuilder({ page }).analyze();
