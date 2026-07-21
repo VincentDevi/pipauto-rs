@@ -8,9 +8,9 @@
 | Access | Authenticated |
 | Entry/exit | Sidebar/bottom Jobs, dashboard queues, vehicle history; opens detail or create flow |
 | Filters | Text where supported, vehicle, customer where supported, status, service-date range |
-| Result data | Service date, vehicle/registration, customer when supplied, mileage, short work/problem summary, status, financial total |
+| Result data | Workshop-local start, duration, captured vehicle/customer identity, mileage, short work/problem summary, status, financial total |
 | Primary action | New intervention; select an active vehicle, then use `/vehicles/{id}/interventions/new` |
-| Backend | Stable cursor list ordered by documented service-date tuple; cancelled entries visible when requested/default contract supplies them |
+| Backend | Stable cursor list ordered by complete start, creation time, and ID; cancelled entries visible when requested/default contract supplies them |
 
 ### Desktop wireframe
 
@@ -20,10 +20,10 @@
 │ ▌ Interventions   │ [Search work or vehicle________________________] [ Search ]              │
 │                   │ [Status: All ▾] [Vehicle ▾] [From ____] [To ____] [Clear]                │
 │                   │                                                                          │
-│                   │ Date        Vehicle       Mileage     Summary              Status   Total │
-│                   │ 18 Jul 2026  1-ABC-234    126,400 km  Front brakes         COMPLETED €240 │
-│                   │ 17 Jul 2026  2-DEF-567     88,200 km  Annual service       DRAFT     €80  │
-│                   │ 10 Feb 2026  1-ABC-234    118,000 km  Engine inspection    CANCELLED —    │
+│                   │ Start       Vehicle       Mileage     Summary              Status   Total │
+│                   │ 18 Jul 09:00 1-ABC-234    126,400 km  Front brakes         COMPLETED €240 │
+│                   │ 17 Jul 13:30 2-DEF-567     88,200 km  Annual service       DRAFT     €80  │
+│                   │ 10 Feb 08:00 1-ABC-234    118,000 km  Engine inspection    CANCELLED —    │
 │                   │ [Previous]                                               [Next]           │
 └───────────────────┴──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -39,19 +39,21 @@
 │ [ Filters (Status: All)    ] │
 │                              │
 │ ┌──────────────────────────┐ │
-│ │ COMPLETED · 18 Jul 2026  │ │
+│ │ COMPLETED · 18 Jul · 09:00│ │
+│ │ Estimated duration · 2 h │ │
 │ │ 1-ABC-234 · VW Golf      │ │
 │ │ 126,400 km               │ │
 │ │ Front brakes       €240  │ │
 │ └──────────────────────────┘ │
 │ ┌──────────────────────────┐ │
-│ │ DRAFT · 17 Jul 2026      │ │
+│ │ DRAFT · 17 Jul · 13:30   │ │
+│ │ Estimated duration · 1 h │ │
 │ │ 2-DEF-567 · Fiat Panda   │ │
 │ │ Annual service       €80 │ │
 │ └──────────────────────────┘ │
 │ [Previous]          [Next]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -63,11 +65,11 @@ for a first intervention. Cursor pagination preserves deterministic server order
 | Property | Specification |
 | --- | --- |
 | Routes | `GET /vehicles/{id}/interventions/new`, `GET /interventions/{id}/edit` |
-| Required | Active vehicle, service date, backend-required workshop content before completion |
+| Required | Active vehicle, start date, start time, estimated duration; backend-required workshop content before completion |
 | Optional | Mileage, customer-reported problem, diagnostics, performed work, recommendations, general notes |
 | Actions | Save draft; Cancel navigation; lines are managed after initial draft creation |
-| Validation | Non-negative mileage; chronology against neighboring non-cancelled records; bounded text; immutable state conflicts |
-| Backend | Create/update draft and chronology validation; authoritative current mileage update |
+| Validation | Workshop-local date/time including DST gaps/ambiguity; duration in 30-minute increments from 30 minutes through 24 hours; non-negative mileage; chronology; bounded text; immutable state conflicts |
+| Backend | Time-aware create/update, captured customer/vehicle snapshots, duration and chronology validation, and authoritative current mileage update |
 
 ### Desktop wireframe
 
@@ -78,7 +80,8 @@ for a first intervention. Cursor pagination preserves deterministic server order
 │                   │ Owner: Mario Rossi · Current vehicle mileage: 126,400 km                  │
 │                   │ [error summary or chronology conflict]                                   │
 │                   │                                                                          │
-│                   │ Service date (required) [2026-07-19]  Recorded mileage [________] km      │
+│                   │ Start date (required) [2026-07-19]  Start time (required) [09:00]         │
+│                   │ Estimated duration [ 2 hours ▾]     Recorded mileage [________] km        │
 │                   │ Customer-reported problem [____________________________________________]  │
 │                   │ Diagnostics              [____________________________________________]  │
 │                   │ Work performed           [____________________________________________]  │
@@ -99,8 +102,12 @@ for a first intervention. Cursor pagination preserves deterministic server order
 │ 1-ABC-234 · Mario Rossi      │
 │ Current: 126,400 km          │
 │ [error summary]              │
-│ Service date (required)      │
+│ Start date (required)        │
 │ [2026-07-19______________]   │
+│ Start time (required)        │
+│ [09:00____________________]  │
+│ Estimated duration (required)│
+│ [2 hours_________________▾]  │
 │ Recorded mileage [______] km │
 │ Reported problem             │
 │ [__________________________] │
@@ -117,9 +124,14 @@ for a first intervention. Cursor pagination preserves deterministic server order
 └──────────────────────────────┘
 ```
 
-Creation returns to draft detail. Edit uses **Save changes**. A backdated-mileage conflict preserves
-all fields, links to the vehicle history, and identifies the date/mileage rule without changing
-another record. An archived-vehicle conflict sends the user back to read-only vehicle detail.
+Creation returns to draft detail. Edit uses **Save changes**. Start input is interpreted in the
+configured workshop timezone; nonexistent or ambiguous daylight-saving times preserve all fields
+and receive an actionable validation message. Estimated duration is a scheduling value, not labour
+or invoice time. Creation captures the displayed customer and vehicle identity; those snapshots are
+shown but are not editable fields and do not change after later customer or vehicle edits. A
+backdated-mileage conflict preserves all fields, links to the vehicle history,
+and identifies the date/mileage rule without changing another record. An archived-vehicle conflict
+sends the user back to read-only vehicle detail.
 
 ## Draft intervention detail
 
@@ -184,7 +196,7 @@ another record. An archived-vehicle conflict sends the user back to read-only ve
 │ inspection.jpg · JPEG        │
 │ [Open] [Download] [Upload]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -216,7 +228,8 @@ line and recalculates totals atomically.
 
 ## Complete and cancel transitions
 
-Complete confirmation shows vehicle, service date, recorded mileage, total, and a checklist-style
+Complete confirmation shows captured vehicle identity, scheduled start, estimated duration,
+recorded mileage, total, and a checklist-style
 summary of work content. Its primary text is **Complete and lock intervention**. It explains that
 ordinary fields and lines become read-only and completion cannot be undone in this release.
 
@@ -263,7 +276,7 @@ creation as a primary next step.
 │ [Create technical note]      │
 │ [Create invoice draft]       │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -272,10 +285,10 @@ creation as a primary next step.
 | Property | Specification |
 | --- | --- |
 | Route | `GET /vehicles/{id}/history` |
-| Order | `service_date DESC`, `created_at DESC`, `id DESC`; never resort client-side |
+| Order | Complete `service_date DESC`, `created_at DESC`, `id DESC`; never resort client-side |
 | Filters | Status and date range only when backend route documents them |
-| Rows/cards | Date, status, recorded mileage, concise work/problem, financial summary, detail link |
-| State | Cancelled remains visually distinct; identical dates retain server order across cursors |
+| Rows/cards | Workshop-local start, duration, captured identity, status, mileage, concise work/problem, financial summary, detail link |
+| State | Cancelled remains visually distinct; identical starts retain server order across cursors |
 
 The desktop layout is the full-width history table from vehicle detail with filters and cursor
 controls. The phone layout is the history card stream from vehicle detail with a sticky record
@@ -292,7 +305,8 @@ Thumbnails, previews, transforms, and byte replacement remain unavailable.
 
 ## State and error coverage
 
-- `422`: inline narrative, line, date, mileage, quantity, and money errors with preserved input.
+- `422`: inline narrative, line, date, time, duration, mileage, quantity, and money errors with
+  preserved input.
 - `409`: chronology, immutable-state, concurrent transition, or line-total conflict with Reload.
 - `404`: intervention not found, back to Interventions; missing vehicle during create, back to
   Vehicles.

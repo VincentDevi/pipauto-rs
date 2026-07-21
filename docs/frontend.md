@@ -97,6 +97,26 @@ text zoom.
 | Notification/error | Use a live region or `role="alert"`; expose safe recovery guidance and correlation ID only for unexpected/unavailable failures. |
 | Unavailable state | Keep the owning navigation area active, explain that records are unchanged, and provide a safe retry or return path. |
 
+### Planned Calendar component
+
+The `Create a basic Calendar` milestone adds an authenticated `GET /calendar` route after the
+time-aware intervention contract is implemented. Until that route is registered, Calendar remains
+planned rather than an active browser capability.
+
+- Month and Week are server-rendered from a period-bounded overlap query; Month is the default and
+  weeks start Monday in the configured workshop timezone.
+- Every intervention has a required start and estimated duration. Calendar entries use immutable
+  customer and vehicle display snapshots captured during intervention creation.
+- The page and `#calendar-region` fragment share one presentation model. Previous, Today, Next,
+  view switches, and focused-day controls are ordinary GET links with optional HTMX replacement
+  and history updates.
+- Entries are semantic, non-interactive articles. Duration, overlaps, midnight continuations,
+  lifecycle status, and captured identity are server-owned presentation decisions.
+- Desktop renders full Month/Week representations. Narrow layouts use focused selected-day
+  representations without hiding records or creating page-level horizontal scrolling.
+- Entry links, slot creation, drag-and-drop, resizing, recurrence, reminders, resources, and generic
+  events are not part of the approved MVP.
+
 Empty means no records exist. No-match means records may exist but filters excluded them. Do not
 merge these states. Not-found, conflict, expired-session, unavailable, and unexpected-error
 responses likewise have distinct recovery behavior.
@@ -180,8 +200,8 @@ private-key, JWT, and Argon2-shaped values.
 ## Adding a page
 
 1. Confirm the workflow is in the initial-release scope and use the vocabulary in
-   `documentations/CONTEXT.md`. Do not turn calendar, upload/storage, export, or another deferred
-   capability into an active control.
+   `documentations/CONTEXT.md`. Planned Calendar behavior may become active only through its owning
+   milestone; do not activate export or another deferred capability incidentally.
 2. Add or extend a service workflow and presentation model. Keep database and API DTO types out of
    the view boundary.
 3. Add the controller route, classify it in `ROUTE_INVENTORY`, apply authentication/body-limit

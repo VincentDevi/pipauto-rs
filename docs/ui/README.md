@@ -17,14 +17,18 @@ The original index linked to shared `sitemap.md`, `user-flows.md`, and `interact
 to a `pages/` directory. Those paths are absent from the repository. Do not fabricate their
 contents or infer approval history from the broken links.
 
-The six UI documents actually present and used by this milestone are:
+The seven UI documents present and used by the expanded first-release design are:
 
 1. [Design system](design-system.md)
 2. [Authentication, shell, and dashboard](auth-shell-dashboard.md)
 3. [Customers and vehicles](customers-vehicles.md)
 4. [Interventions and service history](interventions.md)
-5. [Technical knowledge](technical-knowledge.md)
-6. [Invoices and payments](invoices-payments.md)
+5. [Calendar](calendar.md)
+6. [Technical knowledge](technical-knowledge.md)
+7. [Invoices and payments](invoices-payments.md)
+
+The Calendar document is approved design input for a planned route; it does not claim that the
+calendar is present in the current browser implementation.
 
 The implemented browser route inventory and current component/test contracts live in the
 [frontend guide](../frontend.md), which is authoritative when these preserved design documents
@@ -61,6 +65,7 @@ delivered; this package names required capabilities without inventing final wire
 | Customers | List; create; detail; edit | Find and maintain customers and their vehicles. |
 | Vehicles | List; register; detail; edit/reassign | Find a vehicle and reach its complete service history. |
 | Interventions | List; create; detail; edit | Record workshop work, lines, chronology, and status. |
+| Calendar | Month; Week | View Draft and Completed interventions by workshop-local date and time. |
 | Technical knowledge | List/search; create; detail; edit | Find and preserve reusable workshop knowledge. |
 | Invoices | List; create; detail; edit draft | Draft, issue, void, and track payment status. |
 
@@ -72,8 +77,12 @@ record payment, filters, and stored-attachment forms.
 
 - All workshop routes are authenticated. Login is guest-only; there is no registration, recovery,
   role, permission, or session-management UI.
-- Desktop uses a persistent left sidebar. Phones use a four-item bottom bar: Home, Vehicles,
-  Interventions, and More. More exposes Customers, Knowledge, Invoices, and Sign out.
+- Desktop uses a persistent left sidebar. Phones use a five-item bottom bar: Home, Vehicles,
+  Calendar, Jobs, and More. More exposes Customers, Knowledge, Invoices, and Sign out.
+- Calendar is a read-only projection of interventions. Its approved first-release views are Month
+  and Week. Every intervention has a required start and estimated duration, and entries use
+  captured customer/vehicle identity. Calendar does not introduce appointments, generic events, or
+  scheduling resources.
 - Desktop collection results use compact tables. Phone results use cards. Tablet layout chooses the
   form that avoids horizontal scrolling for the available width.
 - The dashboard is a navigation and work queue. It may show recent interventions, drafts, and
@@ -89,9 +98,11 @@ record payment, filters, and stored-attachment forms.
 
 ## Scope boundaries
 
-This package excludes binary upload/storage, calendar screens, inventory, tax or legal invoice
-rules, revenue reports, email delivery, payment providers, refunds/corrections, customer portals,
-roles, multi-workshop support, vectors, and AI. These features must not appear as active controls.
+This package excludes attachment thumbnails/transforms/OCR/public sharing, calendar Day/agenda
+views, generic events, drag-and-drop, resizing, recurrence, reminders, resource scheduling,
+inventory, tax or legal invoice rules, revenue reports, email delivery, payment providers,
+refunds/corrections, customer portals, roles, multi-workshop support, vectors, and AI. These
+features must not appear as active controls.
 
 ## Linear and backend traceability
 
@@ -107,6 +118,7 @@ roles, multi-workshop support, vectors, and AI. These features must not appear a
 | VIN-47 | Draft editing, completion/cancellation, deterministic history, mileage conflicts, and totals. |
 | VIN-48 | Technical-note search/archive and owner-specific attachment metadata. |
 | VIN-49 | Invoice issue/void transitions, payment recording, balances, and concurrency conflicts. |
+| Calendar PRD | Month/Week intervention projection, workshop-local navigation, duration/overlap display, and captured customer/vehicle identity. |
 
 ## Design acceptance checklist
 

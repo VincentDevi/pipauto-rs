@@ -122,6 +122,30 @@ unit_price_minor, unit_cost_minor, position}`. Category is `labour`, `part`, `ma
 State machine: `draft -> completed` or `draft -> cancelled`. Terminal interventions and their
 lines are immutable; intervention records cannot be deleted.
 
+#### Planned calendar scheduling contract
+
+The `Create a basic Calendar` milestone will replace the date-only intervention contract above.
+This subsection records the approved target and does not claim that the current routes implement it.
+
+- `settings.business.workshop_timezone` is a required valid IANA timezone, initially
+  `Europe/Brussels`.
+- Create requires `service_date` as an exact workshop-local `YYYY-MM-DDTHH:MM` value and
+  `estimated_duration_minutes` from 30 through 1,440, divisible by 30. Draft patch may omit either
+  field to retain its current value; supplied and resulting values are validated.
+- The server rejects malformed, nonexistent, and ambiguous local times rather than selecting an
+  offset. Read responses return `service_date` as the resolved RFC 3339 UTC instant.
+- Browser forms collect the local date and time separately; the JSON contract remains one
+  workshop-local `service_date` value.
+- Creation captures immutable `customer_snapshot:{id,display_name}` and
+  `vehicle_snapshot:{registration,make,model}` values. Registration may be `null`. Snapshot fields
+  are returned but are never accepted as caller-controlled create or patch input.
+- Service history and cursor ordering use the complete start instant, creation timestamp, and
+  intervention ID, all descending. Mileage-neighbour validation uses the same order.
+- `service_date_from` and `service_date_to` remain inclusive workshop-local dates at the HTTP
+  boundary and are converted to a half-open UTC interval internally.
+- Existing disposable development/test data is reset and reseeded before the tightened schema is
+  applied. No automatic backfill or destructive shared-data migration is authorized.
+
 ### Technical notes
 
 | Route | Success | Request or filters | Result |

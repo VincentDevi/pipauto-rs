@@ -48,7 +48,7 @@
 │ └──────────────────────────┘ │
 │ [Previous]          [Next]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -165,7 +165,7 @@ the matching vehicle selection. The backend, not browser inference, validates co
 │ 18 Jul · Front brakes →      │
 │ Updated 18 Jul 2026          │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 

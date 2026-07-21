@@ -50,7 +50,7 @@
 │ └──────────────────────────┘ │
 │ [Previous]          [Next]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -169,7 +169,7 @@ preserve every field. `404` uses the customer-not-found page. Successful create/
 │ │ 126,400 km · 2.0 TDI     │ │
 │ └──────────────────────────┘ │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -220,7 +220,7 @@ offers Register vehicle when active; archived customers get a read-only empty me
 │ └──────────────────────────┘ │
 │ [Previous]          [Next]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -343,7 +343,7 @@ history**. Both share the same vehicle identity header.
 │ inspection-photo.jpg · JPEG  │
 │ [Open] [Download] [Upload]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 

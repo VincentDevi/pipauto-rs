@@ -57,7 +57,7 @@ text until a separately approved capability exists.
 │ └──────────────────────────┘ │
 │ [Previous]          [Next]   │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -176,7 +176,7 @@ and requires choosing a currently valid combination.
 │ Export unavailable           │
 │ Backend support is required. │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -259,7 +259,7 @@ concurrent `409` reloads authoritative lifecycle/total and never repeats issue-n
 │                              │
 │ Export unavailable           │
 ├──────────────────────────────┤
-│ Home   Vehicles   Jobs  More │
+│Home Vehicles Calendar Jobs More│
 └──────────────────────────────┘
 ```
 
@@ -315,5 +315,4 @@ attempt receives a conflict and reloads payment status.
 - `503`: preserve draft form input where safe; payment result remains unknown until authoritative
   invoice reload, so do not show success or invite an immediate duplicate submission.
 - Unexpected errors display a correlation reference and never expose number-sequence internals.
-
 

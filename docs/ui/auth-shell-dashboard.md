@@ -17,6 +17,7 @@
   │   Customers       │                         page content                                     │
   │   Vehicles        │                                                                          │
   │   Interventions   │                                                                          │
+  │   Calendar        │                                                                          │
   │   Knowledge       │                                                                          │
   │   Invoices        │                                                                          │
   │                   │                                                                          │
@@ -36,13 +37,14 @@
   │                              │
   │                              │
   ├──────────────────────────────┤
-  │ Home   Vehicles   Jobs  More │
+  │Home Vehicles Calendar Jobs More│
   └──────────────────────────────┘
   ```
   
   The desktop account control may open a small menu containing the display name and Sign out. The
-  phone More sheet contains Customers, Knowledge, Invoices, the display name, and Sign out. Sign out
-  is a CSRF-protected POST, never a GET link.
+  phone bottom bar contains Home, Vehicles, Calendar, Jobs, and More. The More sheet contains
+  Customers, Knowledge, Invoices, the display name, and Sign out. Sign out is a CSRF-protected POST,
+  never a GET link.
   
   ## Login
   
@@ -146,6 +148,7 @@
   │   Customers       │ Good morning, Filippo                                               │
   │   Vehicles        │ Quick actions: [New customer] [Register vehicle] [New invoice]          │
   │   Interventions   │                                                                          │
+  │   Calendar        │                                                                          │
   │   Knowledge       │ ┌──────────────────────────────┐ ┌─────────────────────────────────────┐ │
   │   Invoices        │ │ Draft interventions          │ │ Outstanding invoices                │ │
   │                   │ │ 18 Jul · Golf · Brake noise  │ │ 2026-00012 · Rossi · €240 unpaid   │ │
@@ -189,7 +192,7 @@
   │ └──────────────────────────┘ │
   │ View all →                   │
   ├──────────────────────────────┤
-  │ Home   Vehicles   Jobs  More │
+  │Home Vehicles Calendar Jobs More│
   └──────────────────────────────┘
   ```
   
@@ -204,4 +207,3 @@
     unavailable page while retaining navigation if authentication was already confirmed.
   - **Success:** create flows return to their new detail pages, not to the dashboard.
   
-

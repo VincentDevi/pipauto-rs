@@ -80,13 +80,33 @@ Interventions begin as drafts and may then be completed or cancelled; neither te
 return to draft. Completion requires a performed-work narrative, records its transition time, and
 freezes ordinary intervention and line-item edits. Cancellation is only available from draft,
 records its transition time, and preserves the job rather than deleting it. Service history is
-ordered by service date, creation time, and intervention identifier, all descending, so jobs on the
-same date remain deterministic.
+ordered by complete scheduled start, creation time, and intervention identifier, all descending,
+so jobs with the same start remain deterministic.
 
 An intervention stores the odometer reading observed for that job independently of the vehicle's
 current mileage. Non-cancelled readings must remain non-decreasing through the deterministic
 service-history chronology; this applies to current and backdated jobs. Changing a vehicle's
 current mileage never rewrites a historical intervention reading.
+
+The approved calendar milestone makes scheduling complete for every intervention before Pipauto is
+deployed. `service_date` becomes an unambiguous scheduled-start instant resolved from
+workshop-local input using a configured IANA timezone, initially `Europe/Brussels`. Every
+intervention also requires an estimated duration from 30 minutes through 24 hours in 30-minute
+increments. Service-history and mileage chronology use the complete start instant, creation time,
+and intervention identifier, all descending.
+
+Intervention creation captures the selected vehicle's customer identifier and displayed name plus
+the vehicle's optional displayed registration, make, and model. These snapshot values do not change
+after customer reassignment/renaming or vehicle edits. Pipauto has no deployed workshop data at this
+decision point, so disposable development and test databases are reset and reseeded instead of
+backfilling invented schedule or identity values.
+
+The basic authenticated calendar is a read-only Month/Week projection of Draft and Completed
+interventions; Cancelled work is excluded. It provides workshop-local Previous, Today, and Next
+navigation, displays duration, overlaps, and midnight continuations, and starts new work through
+the existing active-vehicle-first workflow. Entry/slot interaction, Day/agenda views, generic
+events, dragging, resizing, recurrence, reminders, external synchronization, and resource
+scheduling remain outside this milestone.
 
 Intervention lines explicitly order labour, parts, materials, and other charges. Each line stores a
 positive quantity with up to three fractional digits, its unit label, non-negative unit price,
@@ -185,8 +205,8 @@ The current high-level delivery sequence is:
 3. Implement customer and vehicle backend capabilities.
 4. Design the application's UI wireframes.
 5. Implement a functional frontend for customers, vehicles, and interventions.
-6. Add a basic calendar.
-7. Add image storage for vehicles and interventions.
+6. Add image storage for vehicles, interventions, and technical notes.
+7. Add a basic calendar.
 
 This sequence comes from high-level milestones, not a detailed implementation backlog. It communicates intended direction and may be refined as requirements and dependencies become clearer.
 
