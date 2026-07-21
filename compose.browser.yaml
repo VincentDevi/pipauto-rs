@@ -1,10 +1,13 @@
 services:
   surrealdb:
     image: surrealdb/surrealdb:v3.2.1
+    working_dir: /home/nonroot
     command: ["start", "--log", "error", "memory"]
     environment:
       SURREAL_USER: root
       SURREAL_PASS: browser-smoke-only
+      SURREAL_CAPS_ALLOW_EXPERIMENTAL: files
+      SURREAL_BUCKET_FOLDER_ALLOWLIST: /home/nonroot/pipauto_attachments
     ports:
       - "18000:8000"
     healthcheck:

@@ -264,7 +264,7 @@ async fn download(
     content_response(service.content(&parse_id(id)?).await?, true)
 }
 
-fn content_response(
+pub(crate) fn content_response(
     content: AttachmentContent,
     force_download: bool,
 ) -> Result<Response, AppError> {

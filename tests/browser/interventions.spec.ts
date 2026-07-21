@@ -73,7 +73,7 @@ test('@interventions draft, lifecycle, filtering, and locked history work progre
   }
 });
 
-test('@intervention-lines @attachment-metadata ordered lines and metadata-only attachments work progressively', async ({ page }, testInfo) => {
+test('@intervention-lines @attachments ordered lines and stored attachments work progressively', async ({ page }, testInfo) => {
   const variant = testInfo.project.name === 'no-javascript'
     ? 'nojs'
     : testInfo.project.name.replace('-chromium', '');
@@ -121,22 +121,26 @@ test('@intervention-lines @attachment-metadata ordered lines and metadata-only a
   const descriptions = page.locator('#line-region tbody tr td[data-label="Description"]');
   await expect(descriptions.first()).toContainText('Second line');
 
-  await page.getByRole('link', { name: 'Add attachment metadata' }).click();
-  await expect(page.getByText('Metadata only — no file has been uploaded.')).toBeVisible();
-  await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  await page.getByLabel('Display name (required)').fill('Brake inspection photo');
-  await page.getByLabel('Content type (required)').selectOption('image/jpeg');
-  await page.getByLabel('Byte size').fill('12345');
-  await page.getByLabel('Caption').fill('Metadata record without binary storage');
-  await page.getByRole('button', { name: 'Add metadata' }).click();
+  await page.getByRole('link', { name: 'Upload attachment' }).click();
+  await page.getByLabel('File (required)').setInputFiles({
+    name: 'brake-inspection.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  });
+  await page.getByLabel('Display name (optional)').fill('Brake inspection photo');
+  await page.getByLabel('Caption').fill('Before replacement');
+  await page.getByRole('button', { name: 'Upload file' }).click();
   await expect(page).toHaveURL(interventionUrl);
   await expect(page.getByText('Brake inspection photo', { exact: true })).toBeVisible();
-  await expect(page.getByText(/METADATA ONLY/).last()).toBeVisible();
+  await expect(page.getByText('image/jpeg · 4 bytes')).toBeVisible();
+  await expect(page.locator('#attachment-region').getByRole('link', { name: 'Open' })).toBeVisible();
+  await expect(page.locator('#attachment-region').getByRole('link', { name: 'Download' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Complete intervention' }).click();
   await page.getByRole('button', { name: 'Complete and lock intervention' }).click();
   await expect(page.getByRole('link', { name: 'Add line item' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Add attachment metadata' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Upload attachment' })).toHaveCount(0);
+  await expect(page.locator('#attachment-region').getByRole('link', { name: 'Edit details' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Move up' })).toHaveCount(0);
   await expect(page.getByText('Brake inspection photo', { exact: true })).toBeVisible();
 

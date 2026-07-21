@@ -80,10 +80,6 @@ pub struct AttachmentFormValues {
     #[serde(default)]
     pub display_name: String,
     #[serde(default)]
-    pub media_type: String,
-    #[serde(default)]
-    pub byte_size: String,
-    #[serde(default)]
     pub caption: String,
 }
 
@@ -91,8 +87,6 @@ impl From<AttachmentMetadata> for AttachmentFormValues {
     fn from(value: AttachmentMetadata) -> Self {
         Self {
             display_name: value.display_name,
-            media_type: value.media_type.as_str().to_owned(),
-            byte_size: value.byte_size.to_string(),
             caption: value.caption.unwrap_or_default(),
         }
     }
@@ -337,11 +331,12 @@ fn history_items(items: Vec<ServiceHistorySummary>) -> Vec<HistoryItem> {
 
 #[derive(Debug, Serialize)]
 struct AttachmentItem {
-    id: String,
     display_name: String,
     media_type: String,
-    byte_size: Option<u64>,
+    byte_size: u64,
     caption: Option<String>,
+    open_href: String,
+    download_href: String,
     edit_href: String,
     delete_action: String,
 }
@@ -416,11 +411,12 @@ impl<'page> VehicleDetailPage<'page> {
                 .map(|attachment| {
                     let attachment_id = attachment.id.as_str().to_owned();
                     AttachmentItem {
-                        id: attachment_id.clone(),
                         display_name: attachment.display_name,
                         media_type: attachment.media_type.as_str().to_owned(),
-                        byte_size: Some(attachment.byte_size),
+                        byte_size: attachment.byte_size,
                         caption: attachment.caption,
+                        open_href: format!("/attachments/{attachment_id}/content"),
+                        download_href: format!("/attachments/{attachment_id}/download"),
                         edit_href: format!("/attachments/{attachment_id}/edit"),
                         delete_action: format!("/attachments/{attachment_id}/delete"),
                     }
@@ -563,6 +559,7 @@ pub struct AttachmentFormPage<'page> {
     action: String,
     cancel_href: String,
     submit_label: &'static str,
+    editing: bool,
     form: FormState<AttachmentFormValues>,
     conflict_message: Option<String>,
 }
@@ -632,14 +629,14 @@ impl<'page> AttachmentFormPage<'page> {
         Self {
             layout,
             title: if editing {
-                "Edit attachment metadata · Pipauto"
+                "Edit attachment details · Pipauto"
             } else {
-                "Add attachment metadata · Pipauto"
+                "Upload attachment · Pipauto"
             },
             heading: if editing {
-                "Edit attachment metadata"
+                "Edit attachment details"
             } else {
-                "Add attachment metadata"
+                "Upload attachment"
             },
             owner_name,
             owner_description,
@@ -649,10 +646,11 @@ impl<'page> AttachmentFormPage<'page> {
             ),
             cancel_href,
             submit_label: if editing {
-                "Save metadata"
+                "Save details"
             } else {
-                "Add metadata"
+                "Upload file"
             },
+            editing,
             form,
             conflict_message,
         }
@@ -720,7 +718,7 @@ mod tests {
     }
 
     #[test]
-    fn vehicle_browser_templates_render_list_forms_detail_and_metadata_only_pages() {
+    fn vehicle_browser_templates_render_list_forms_detail_and_attachment_pages() {
         let engine = TeraView::build().expect("view engine");
         let user = user();
         let list = VehicleListPage::new(
@@ -774,18 +772,17 @@ mod tests {
             &vehicle(),
             None,
             FormState::new(AttachmentFormValues::default()).with_known_fields(&[
+                "file",
                 "display_name",
-                "media_type",
-                "byte_size",
                 "caption",
             ]),
             None,
         );
         let html = attachment
             .render_page(&engine)
-            .expect("attachment metadata template");
-        assert!(html.contains("Metadata only"));
-        assert!(!html.contains("type=\"file\""));
+            .expect("attachment template");
+        assert!(html.contains("Upload attachment"));
+        assert!(html.contains("type=\"file\""));
     }
 
     #[test]

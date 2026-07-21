@@ -191,6 +191,16 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/attachments/{id}/content",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/attachments/{id}/download",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/interventions",
         class: AccessClass::Authenticated,
     },

@@ -297,11 +297,12 @@ struct LineItem {
 
 #[derive(Debug, Serialize)]
 struct AttachmentItem {
-    id: String,
     display_name: String,
     media_type: &'static str,
-    byte_size: Option<u64>,
+    byte_size: u64,
     caption: Option<String>,
+    open_href: String,
+    download_href: String,
     edit_href: String,
     delete_action: String,
 }
@@ -323,6 +324,7 @@ pub struct InterventionDetailPage<'page> {
     status_class: &'static str,
     is_draft: bool,
     is_completed: bool,
+    attachments_mutable: bool,
     customer_reported_problem: Option<String>,
     diagnostics: Option<String>,
     performed_work: Option<String>,
@@ -353,6 +355,8 @@ impl<'page> InterventionDetailPage<'page> {
         conflict: Option<String>,
     ) -> Self {
         let (status, status_class) = status(intervention.status);
+        let attachments_mutable =
+            intervention.status == InterventionStatus::Draft && !vehicle.is_archived();
         Self {
             layout,
             title: "Intervention · Pipauto",
@@ -370,6 +374,7 @@ impl<'page> InterventionDetailPage<'page> {
             status_class,
             is_draft: intervention.status == InterventionStatus::Draft,
             is_completed: intervention.status == InterventionStatus::Completed,
+            attachments_mutable,
             customer_reported_problem: intervention.customer_reported_problem,
             diagnostics: intervention.diagnostics,
             performed_work: intervention.performed_work,
@@ -383,11 +388,12 @@ impl<'page> InterventionDetailPage<'page> {
                 .map(|attachment| {
                     let id = attachment.id.as_str().to_owned();
                     AttachmentItem {
-                        id: id.clone(),
                         display_name: attachment.display_name,
                         media_type: attachment.media_type.as_str(),
-                        byte_size: Some(attachment.byte_size),
+                        byte_size: attachment.byte_size,
                         caption: attachment.caption,
+                        open_href: format!("/attachments/{id}/content"),
+                        download_href: format!("/attachments/{id}/download"),
                         edit_href: format!(
                             "/interventions/{}/attachments/{id}/edit",
                             intervention.id.as_str()

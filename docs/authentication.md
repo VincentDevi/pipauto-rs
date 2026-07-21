@@ -132,11 +132,13 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /vehicles/{id}/history` | Authenticated | Page through complete authoritative service history. |
 | `GET /vehicles/{id}/interventions/new` | Authenticated | Start a draft intervention for an active vehicle. |
 | `POST /vehicles/{id}/interventions` | Authenticated + session CSRF | Save a draft intervention while enforcing service-history chronology. |
-| `GET /vehicles/{id}/attachments/new` | Authenticated | Add metadata-only attachment details for an active vehicle. |
-| `POST /vehicles/{id}/attachments` | Authenticated + session CSRF | Save metadata-only attachment details for an active vehicle. |
-| `GET /attachments/{id}/edit` | Authenticated | Edit vehicle attachment metadata when its vehicle is active. |
-| `POST /attachments/{id}/edit` | Authenticated + session CSRF | Save vehicle attachment metadata. |
-| `POST /attachments/{id}/delete` | Authenticated + session CSRF | Delete a named vehicle attachment metadata record. |
+| `GET /vehicles/{id}/attachments/new` | Authenticated | Select a stored attachment for an active vehicle. |
+| `POST /vehicles/{id}/attachments` | Authenticated + session CSRF | Upload a stored attachment for an active vehicle. |
+| `GET /attachments/{id}/edit` | Authenticated | Edit stored vehicle attachment details when its vehicle is active. |
+| `POST /attachments/{id}/edit` | Authenticated + session CSRF | Save stored vehicle attachment details. |
+| `GET /attachments/{id}/content` | Authenticated | Open stored attachment content using its detected delivery type. |
+| `GET /attachments/{id}/download` | Authenticated | Download stored attachment content. |
+| `POST /attachments/{id}/delete` | Authenticated + session CSRF | Delete a stored vehicle attachment. |
 | `GET /interventions` | Authenticated | Filter and page through authoritative intervention history. |
 | `GET /interventions/{id}` | Authenticated | Read intervention narrative, ordered lines, totals, metadata, and lifecycle. |
 | `GET /interventions/{id}/edit` | Authenticated | Edit a Draft, or render terminal state read-only. |
@@ -148,11 +150,11 @@ sessions. Restore `active = true` only after the account is safe.
 | `POST /interventions/{id}/lines/{line_id}/delete` | Authenticated + session CSRF | Delete a Draft line and recalculate totals. |
 | `POST /interventions/{id}/lines/{line_id}/move-up` | Authenticated + session CSRF | Move a Draft line one position earlier. |
 | `POST /interventions/{id}/lines/{line_id}/move-down` | Authenticated + session CSRF | Move a Draft line one position later. |
-| `GET /interventions/{id}/attachments/new` | Authenticated | Add metadata-only attachment details to a Draft. |
-| `POST /interventions/{id}/attachments` | Authenticated + session CSRF | Save metadata-only intervention attachment details. |
-| `GET /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated | Edit Draft intervention attachment metadata. |
-| `POST /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated + session CSRF | Save Draft intervention attachment metadata. |
-| `POST /interventions/{id}/attachments/{attachment_id}/delete` | Authenticated + session CSRF | Delete Draft intervention attachment metadata. |
+| `GET /interventions/{id}/attachments/new` | Authenticated | Select a stored attachment for a Draft intervention. |
+| `POST /interventions/{id}/attachments` | Authenticated + session CSRF | Upload a stored Draft-intervention attachment. |
+| `GET /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated | Edit stored Draft-intervention attachment details. |
+| `POST /interventions/{id}/attachments/{attachment_id}/edit` | Authenticated + session CSRF | Save stored Draft-intervention attachment details. |
+| `POST /interventions/{id}/attachments/{attachment_id}/delete` | Authenticated + session CSRF | Delete a stored Draft-intervention attachment. |
 | `GET /interventions/{id}/complete` | Authenticated | Review irreversible completion details. |
 | `POST /interventions/{id}/complete` | Authenticated + session CSRF | Complete and lock a Draft with performed work. |
 | `GET /interventions/{id}/cancel` | Authenticated | Review irreversible cancellation details without a reason field. |

@@ -42,6 +42,7 @@ compose --project-name "$project" --file "$compose_file" exec -T surrealdb \
   /surreal sql --endpoint http://localhost:8000 --username root \
   --password browser-smoke-only --namespace pipauto_browser --database browser_smoke \
   --hide-welcome --multi >/dev/null <<'SQL'
+DEFINE BUCKET OVERWRITE pipauto_attachments BACKEND 'memory' PERMISSIONS NONE;
 CREATE user:browser_smoke CONTENT {
   email: 'browser-smoke@example.invalid',
   email_normalized: 'browser-smoke@example.invalid',

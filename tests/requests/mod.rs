@@ -4,6 +4,7 @@
 //! public routes. They must not call private workflow functions or infrastructure adapters directly.
 
 mod api_foundation;
+mod attachment_browser;
 mod auth;
 mod browser_foundation;
 mod browser_security;

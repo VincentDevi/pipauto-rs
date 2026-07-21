@@ -1,6 +1,10 @@
 //! Server-rendered intervention discovery, draft, detail, and transition workflows.
 
-use axum::{extract::Query, http::StatusCode, response::Response};
+use axum::{
+    extract::{DefaultBodyLimit, Query},
+    http::StatusCode,
+    response::Response,
+};
 use chrono::{NaiveDate, Utc};
 use loco_rs::{
     controller::{
@@ -11,6 +15,7 @@ use loco_rs::{
 };
 
 use crate::{
+    auth::csrf::AuthenticatedAttachmentMultipart,
     controllers::browser::{
         context::{BrowserRequestContext, ResponsePreference},
         forms::{body_limit, AuthenticatedForm, FormState},
@@ -21,7 +26,9 @@ use crate::{
         PageRequest, Quantity, ValidationCode, ValidationError, ValidationErrors, VehicleId,
     },
     models::{
-        attachment::{AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
+        attachment::{
+            AttachmentMetadata, AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
+        },
         intervention::{Intervention, InterventionStatus},
         intervention_line::{
             InterventionLine, InterventionLineCategory, DESCRIPTION_MAX_CHARS, UNIT_LABEL_MAX_CHARS,
@@ -34,13 +41,13 @@ use crate::{
         vehicle::VehicleFilter,
     },
     services::{
-        attachment::{AttachmentService, WriteAttachmentMetadata},
+        attachment::{AttachmentService, UploadAttachment, WriteAttachmentMetadata},
         customer::CustomerService,
         intervention::{CreateIntervention, InterventionService, UpdateIntervention, WriteLine},
         vehicle::VehicleService,
         WorkflowError,
     },
-    settings::BusinessSettings,
+    settings::{BusinessSettings, MULTIPART_ENVELOPE_BYTES},
     views::{
         intervention::{
             InterventionDetailPage, InterventionFilterValues, InterventionFormPage,
@@ -71,7 +78,7 @@ const LINE_FORM_FIELDS: &[&str] = &[
     "unit_cost",
     "position",
 ];
-const ATTACHMENT_FORM_FIELDS: &[&str] = &["display_name", "media_type", "byte_size", "caption"];
+const ATTACHMENT_FORM_FIELDS: &[&str] = &["file", "display_name", "caption"];
 
 async fn list(
     context: BrowserRequestContext,
@@ -929,6 +936,9 @@ async fn new_attachment_form(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
     };
+    if vehicle.is_archived() {
+        return Ok(detail_redirect(&context, &id));
+    }
     render_intervention_attachment_form(
         &context,
         &engine,
@@ -948,7 +958,7 @@ async fn create_attachment(
     SharedStore(attachments): SharedStore<AttachmentService>,
     ViewEngine(engine): ViewEngine<TeraView>,
     Path(raw_id): Path<String>,
-    form: AuthenticatedForm<AttachmentFormValues>,
+    upload: AuthenticatedAttachmentMultipart,
 ) -> Result<Response> {
     let id = match intervention_id(raw_id, &context) {
         Ok(value) => value,
@@ -965,24 +975,18 @@ async fn create_attachment(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
     };
-    let values = form.fields;
-    let command = match attachment_command(&values) {
-        Ok(value) => value,
-        Err(errors) => {
-            return render_intervention_attachment_form(
-                &context,
-                &engine,
-                &intervention,
-                &vehicle,
-                None,
-                FormState::with_validation(values, &errors),
-                None,
-                StatusCode::UNPROCESSABLE_ENTITY,
-            )
-        }
+    let values = AttachmentFormValues {
+        display_name: upload.display_name.clone().unwrap_or_default(),
+        caption: upload.caption.clone().unwrap_or_default(),
+    };
+    let command = UploadAttachment {
+        bytes: upload.bytes,
+        display_name: upload.display_name,
+        original_filename: upload.original_filename,
+        caption: upload.caption,
     };
     match attachments
-        .create(AttachmentOwner::Intervention(id.clone()), command)
+        .upload(AttachmentOwner::Intervention(id.clone()), command)
         .await
     {
         Ok(_) => Ok(detail_redirect(&context, &id)),
@@ -1003,10 +1007,10 @@ async fn create_attachment(
             &vehicle,
             None,
             FormState::new(values),
-            Some("The intervention changed state before this metadata was saved.".to_owned()),
+            Some("The intervention or vehicle changed state before this file could be stored. Return to the record, reselect the file, and try again if it is still editable.".to_owned()),
             StatusCode::CONFLICT,
         ),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
 }
 
@@ -1037,6 +1041,9 @@ async fn edit_attachment_form(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "intervention vehicle")),
     };
+    if vehicle.is_archived() {
+        return Ok(detail_redirect(&context, &intervention.id));
+    }
     let attachment_id = attachment.id.as_str().to_owned();
     render_intervention_attachment_form(
         &context,
@@ -1080,7 +1087,7 @@ async fn update_attachment(
     };
     let attachment_id = attachment.id.as_str().to_owned();
     let values = form.fields;
-    let command = match attachment_command(&values) {
+    let command = match attachment_update_command(&values, &attachment) {
         Ok(value) => value,
         Err(errors) => {
             return render_intervention_attachment_form(
@@ -1114,10 +1121,10 @@ async fn update_attachment(
             &vehicle,
             Some(&attachment_id),
             FormState::new(values),
-            Some("The intervention changed state before this metadata was saved.".to_owned()),
+            Some("The intervention or vehicle changed state before these attachment details were saved.".to_owned()),
             StatusCode::CONFLICT,
         ),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
 }
 
@@ -1142,7 +1149,7 @@ async fn delete_attachment(
     };
     match attachments.delete(&attachment.id).await {
         Ok(()) | Err(WorkflowError::Conflict) => Ok(detail_redirect(&context, &intervention.id)),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
 }
 
@@ -1560,8 +1567,9 @@ fn validate_required_length(
     }
 }
 
-fn attachment_command(
+fn attachment_update_command(
     values: &AttachmentFormValues,
+    attachment: &AttachmentMetadata,
 ) -> std::result::Result<WriteAttachmentMetadata, ValidationErrors> {
     let mut errors = Vec::new();
     validate_required_length(
@@ -1578,32 +1586,13 @@ fn attachment_command(
             "Use 1,000 characters or fewer.",
         ));
     }
-    if !matches!(
-        values.media_type.as_str(),
-        "application/pdf" | "image/heic" | "image/heif" | "image/jpeg" | "image/png" | "image/webp"
-    ) {
-        errors.push(validation_error(
-            "media_type",
-            "Choose a supported PDF or image content type.",
-        ));
-    }
-    let byte_size = if values.byte_size.trim().is_empty() {
-        Ok(None)
-    } else {
-        values.byte_size.parse::<u64>().map(Some).map_err(|_| {
-            errors.push(validation_error(
-                "byte_size",
-                "Enter a non-negative whole-number byte size.",
-            ));
-        })
-    };
     if let Some(errors) = ValidationErrors::from_vec(errors) {
         return Err(errors);
     }
     Ok(WriteAttachmentMetadata {
         display_name: values.display_name.clone(),
-        media_type: values.media_type.clone(),
-        byte_size: byte_size.expect("validated byte size"),
+        media_type: attachment.media_type.as_str().to_owned(),
+        byte_size: Some(attachment.byte_size),
         caption: (!values.caption.trim().is_empty()).then(|| values.caption.clone()),
     })
 }
@@ -1835,7 +1824,7 @@ pub fn routes() -> Routes {
         )
         .add(
             "/interventions/{id}/attachments",
-            post(create_attachment).layer(body_limit()),
+            post(create_attachment).layer(DefaultBodyLimit::max(MULTIPART_ENVELOPE_BYTES)),
         )
         .add(
             "/interventions/{id}/attachments/{attachment_id}/edit",

@@ -437,7 +437,7 @@ async fn intervention_line_browser_exact_totals_order_and_safe_validation() {
 }
 
 #[tokio::test]
-async fn intervention_attachment_browser_rejects_legacy_metadata_creation_and_locks_terminal() {
+async fn legacy_urlencoded_attachment_creation_is_not_supported() {
     let (router, session, csrf) = authenticated_app().await;
     let vehicle_id = vehicle_fixture(&router, &session, &csrf).await;
     let draft = write_json(
@@ -463,10 +463,8 @@ async fn intervention_attachment_browser_rejects_legacy_metadata_creation_and_lo
         ),
     )
     .await;
-    assert!(form_page
-        .1
-        .contains("Metadata only — no file has been uploaded."));
-    assert!(!form_page.1.contains("type=\"file\""));
+    assert!(form_page.1.contains("Upload attachment"));
+    assert!(form_page.1.contains("type=\"file\""));
     assert!(!form_page.1.contains("name=\"owner"));
     assert!(!form_page.1.contains("name=\"storage"));
 
@@ -494,7 +492,7 @@ async fn intervention_attachment_browser_rejects_legacy_metadata_creation_and_lo
         ),
     )
     .await;
-    assert_eq!(created.0, StatusCode::UNPROCESSABLE_ENTITY, "{}", created.1);
+    assert_eq!(created.0, StatusCode::FORBIDDEN, "{}", created.1);
     let attachments = read_json(
         &router,
         &format!("/api/v1/interventions/{intervention_id}/attachments"),
@@ -528,8 +526,8 @@ async fn intervention_attachment_browser_rejects_legacy_metadata_creation_and_lo
     )
     .await;
     assert!(!terminal.1.contains("Workshop photo metadata"));
-    assert!(!terminal.1.contains("Add attachment metadata"));
-    assert!(!terminal.1.contains("Delete metadata"));
+    assert!(!terminal.1.contains("Upload attachment"));
+    assert!(!terminal.1.contains("Delete attachment"));
     assert!(!terminal.1.contains("Add line item"));
 }
 

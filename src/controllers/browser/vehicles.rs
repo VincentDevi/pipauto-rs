@@ -1,6 +1,10 @@
 //! Server-rendered vehicle, service-history, and vehicle attachment workflows.
 
-use axum::{extract::Query, http::StatusCode, response::Response};
+use axum::{
+    extract::{DefaultBodyLimit, Query},
+    http::StatusCode,
+    response::Response,
+};
 use chrono::{Datelike, NaiveDate, Utc};
 use loco_rs::{
     controller::{
@@ -12,6 +16,7 @@ use loco_rs::{
 use serde::Deserialize;
 
 use crate::{
+    auth::{csrf::AuthenticatedAttachmentMultipart, extractors::CurrentUser},
     controllers::browser::{
         context::BrowserRequestContext,
         forms::{body_limit, AuthenticatedForm, FormState},
@@ -21,8 +26,11 @@ use crate::{
         AttachmentId, CustomerId, NormalizedRegistration, NormalizedVin, OpaqueCursor, Page,
         PageLimit, PageRequest, ValidationCode, ValidationError, ValidationErrors, VehicleId,
     },
+    errors::AppError,
     models::{
-        attachment::{AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
+        attachment::{
+            AttachmentMetadata, AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
+        },
         intervention::InterventionStatus,
         vehicle::{
             EARLIEST_VEHICLE_YEAR, ENGINE_TYPE_MAX_CHARS, MAKE_MAX_CHARS, MODEL_MAX_CHARS,
@@ -35,13 +43,13 @@ use crate::{
         vehicle::VehicleFilter,
     },
     services::{
-        attachment::{AttachmentService, WriteAttachmentMetadata},
+        attachment::{AttachmentService, UploadAttachment, WriteAttachmentMetadata},
         customer::CustomerService,
         intervention::InterventionService,
         vehicle::{CreateVehicle, UpdateVehicle, VehicleService},
         WorkflowError,
     },
-    settings::BusinessSettings,
+    settings::{BusinessSettings, MULTIPART_ENVELOPE_BYTES},
     views::{
         layout::AuthenticatedLayout,
         vehicle::{
@@ -63,7 +71,7 @@ const VEHICLE_FORM_FIELDS: &[&str] = &[
     "engine_type",
     "notes",
 ];
-const ATTACHMENT_FORM_FIELDS: &[&str] = &["display_name", "media_type", "byte_size", "caption"];
+const ATTACHMENT_FORM_FIELDS: &[&str] = &["file", "display_name", "caption"];
 
 async fn list(
     context: BrowserRequestContext,
@@ -913,29 +921,24 @@ async fn create_attachment(
     SharedStore(attachments): SharedStore<AttachmentService>,
     ViewEngine(engine): ViewEngine<TeraView>,
     Path(raw_id): Path<String>,
-    form: AuthenticatedForm<AttachmentFormValues>,
+    upload: AuthenticatedAttachmentMultipart,
 ) -> Result<Response> {
     let vehicle = match get_active_vehicle(&vehicles, raw_id, &context).await {
         Ok(value) => value,
         Err(response) => return Ok(response),
     };
-    let values = form.fields;
-    let command = match attachment_command(&values) {
-        Ok(value) => value,
-        Err(errors) => {
-            return render_attachment_form(
-                &context,
-                &engine,
-                &vehicle,
-                None,
-                FormState::with_validation(values, &errors),
-                None,
-                StatusCode::UNPROCESSABLE_ENTITY,
-            )
-        }
+    let values = AttachmentFormValues {
+        display_name: upload.display_name.clone().unwrap_or_default(),
+        caption: upload.caption.clone().unwrap_or_default(),
+    };
+    let command = UploadAttachment {
+        bytes: upload.bytes,
+        display_name: upload.display_name,
+        original_filename: upload.original_filename,
+        caption: upload.caption,
     };
     match attachments
-        .create(AttachmentOwner::Vehicle(vehicle.id.clone()), command)
+        .upload(AttachmentOwner::Vehicle(vehicle.id.clone()), command)
         .await
     {
         Ok(_) => Ok(responses::redirect(
@@ -957,10 +960,10 @@ async fn create_attachment(
             &vehicle,
             None,
             FormState::new(values),
-            Some("The vehicle was archived before this metadata could be saved.".to_owned()),
+            Some("The vehicle was archived before this file could be stored. Restore it, reselect the file, and try again.".to_owned()),
             StatusCode::CONFLICT,
         ),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
 }
 
@@ -1015,7 +1018,7 @@ async fn update_attachment(
     }
     let attachment_id = attachment.id.as_str().to_owned();
     let values = form.fields;
-    let command = match attachment_command(&values) {
+    let command = match attachment_update_command(&values, &attachment) {
         Ok(value) => value,
         Err(errors) => {
             return render_attachment_form(
@@ -1049,10 +1052,13 @@ async fn update_attachment(
             &vehicle,
             Some(&attachment_id),
             FormState::new(values),
-            Some("The vehicle was archived before this metadata could be saved.".to_owned()),
+            Some(
+                "The vehicle was archived before these attachment details could be saved."
+                    .to_owned(),
+            ),
             StatusCode::CONFLICT,
         ),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
 }
 
@@ -1079,8 +1085,34 @@ async fn delete_attachment(
             context.response_preference,
             &format!("/vehicles/{}", vehicle.id.as_str()),
         )),
-        Err(error) => Ok(workflow_response(&context, error, "attachment metadata")),
+        Err(error) => Ok(workflow_response(&context, error, "attachment")),
     }
+}
+
+async fn attachment_content(
+    CurrentUser(_): CurrentUser,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    Path(raw_id): Path<String>,
+) -> std::result::Result<Response, AppError> {
+    attachment_bytes(&attachments, raw_id, false).await
+}
+
+async fn attachment_download(
+    CurrentUser(_): CurrentUser,
+    SharedStore(attachments): SharedStore<AttachmentService>,
+    Path(raw_id): Path<String>,
+) -> std::result::Result<Response, AppError> {
+    attachment_bytes(&attachments, raw_id, true).await
+}
+
+async fn attachment_bytes(
+    attachments: &AttachmentService,
+    raw_id: String,
+    force_download: bool,
+) -> std::result::Result<Response, AppError> {
+    let id = AttachmentId::parse(raw_id).map_err(|_| AppError::NotFound)?;
+    let content = attachments.content(&id).await?;
+    crate::controllers::attachments::content_response(content, force_download)
 }
 
 fn render_attachment_form(
@@ -1392,8 +1424,9 @@ fn validate_vehicle_values(
     ))
 }
 
-fn attachment_command(
+fn attachment_update_command(
     values: &AttachmentFormValues,
+    attachment: &AttachmentMetadata,
 ) -> std::result::Result<WriteAttachmentMetadata, ValidationErrors> {
     let mut errors = Vec::new();
     required(
@@ -1418,33 +1451,13 @@ fn attachment_command(
             "Use 1,000 characters or fewer.",
         );
     }
-    if !matches!(
-        values.media_type.as_str(),
-        "application/pdf" | "image/heic" | "image/heif" | "image/jpeg" | "image/png" | "image/webp"
-    ) {
-        push_error(
-            &mut errors,
-            "media_type",
-            ValidationCode::InvalidFormat,
-            "Choose a supported PDF or image content type.",
-        );
-    }
-    let byte_size = parse_optional_u64(&values.byte_size);
-    if byte_size.is_err() {
-        push_error(
-            &mut errors,
-            "byte_size",
-            ValidationCode::OutOfRange,
-            "Enter a non-negative whole-number byte size.",
-        );
-    }
     if let Some(errors) = ValidationErrors::from_vec(errors) {
         return Err(errors);
     }
     Ok(WriteAttachmentMetadata {
         display_name: values.display_name.clone(),
-        media_type: values.media_type.clone(),
-        byte_size: byte_size.expect("validated byte size"),
+        media_type: attachment.media_type.as_str().to_owned(),
+        byte_size: Some(attachment.byte_size),
         caption: Some(values.caption.clone()),
     })
 }
@@ -1575,8 +1588,10 @@ pub fn routes() -> Routes {
         .add("/vehicles/{id}/attachments/new", get(new_attachment_form))
         .add(
             "/vehicles/{id}/attachments",
-            post(create_attachment).layer(body_limit()),
+            post(create_attachment).layer(DefaultBodyLimit::max(MULTIPART_ENVELOPE_BYTES)),
         )
+        .add("/attachments/{id}/content", get(attachment_content))
+        .add("/attachments/{id}/download", get(attachment_download))
         .add("/attachments/{id}/edit", get(edit_attachment_form))
         .add(
             "/attachments/{id}/edit",

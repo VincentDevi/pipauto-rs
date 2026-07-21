@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('@vehicles @service-history vehicle registration, metadata, lifecycle, and history work progressively', async ({ page }, testInfo) => {
+test('@vehicles @service-history @attachments vehicle registration, stored attachments, lifecycle, and history work progressively', async ({ page }, testInfo) => {
   const variant = testInfo.project.name === 'desktop-chromium'
     ? '1'
     : testInfo.project.name === 'no-javascript'
@@ -45,20 +45,27 @@ test('@vehicles @service-history vehicle registration, metadata, lifecycle, and 
   await expect(page).toHaveURL(/\/vehicles\/[a-z0-9_-]+$/);
   await expect(page.getByText(registration.toLowerCase()).first()).toBeVisible();
   await expect(page.getByText(vin.toLowerCase()).first()).toBeVisible();
-  await expect(page.getByText('Metadata only — no files have been uploaded.')).toBeVisible();
+  await expect(page.getByText('No attachments have been uploaded.')).toBeVisible();
 
   const vehicleUrl = page.url();
-  await page.getByRole('link', { name: 'Add attachment metadata' }).click();
-  await expect(page.getByText('Metadata only — no file has been uploaded.')).toBeVisible();
-  await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  await page.getByLabel('Display name (required)').fill(`Inspection ${variant}.jpg`);
-  await page.getByLabel('Content type (required)').selectOption('image/jpeg');
-  await page.getByLabel('Byte size').fill('24512');
+  await page.getByRole('link', { name: 'Upload attachment' }).click();
+  await page.getByLabel('File (required)').setInputFiles({
+    name: `inspection-${variant}.jpg`,
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  });
+  await page.getByLabel('Display name (optional)').fill(`Inspection ${variant}.jpg`);
   await page.getByLabel('Caption').fill('Before repair');
-  await page.getByRole('button', { name: 'Add metadata' }).click();
+  await page.getByRole('button', { name: 'Upload file' }).click();
   await expect(page).toHaveURL(vehicleUrl);
   await expect(page.getByText(`Inspection ${variant}.jpg`, { exact: true })).toBeVisible();
-  await expect(page.getByText(/METADATA ONLY/).first()).toBeVisible();
+  await expect(page.getByText('image/jpeg · 4 bytes')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open' })).toHaveAttribute('href', /\/attachments\/.+\/content/);
+  await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', /\/attachments\/.+\/download/);
+  await page.getByRole('link', { name: 'Edit details' }).click();
+  await page.getByLabel('Display name (required)').fill(`Inspection updated ${variant}.jpg`);
+  await page.getByRole('button', { name: 'Save details' }).click();
+  await expect(page.getByText(`Inspection updated ${variant}.jpg`, { exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'View complete history' }).click();
   await expect(page.getByRole('heading', { name: 'Complete service history' })).toBeVisible();
@@ -69,12 +76,14 @@ test('@vehicles @service-history vehicle registration, metadata, lifecycle, and 
   await page.getByRole('link', { name: 'Back to vehicle' }).click();
 
   await page.locator('.archive-customer > summary').click();
-  await expect(page.getByText('New interventions, invoices, and attachment metadata cannot be added while archived.').first()).toBeVisible();
+  await expect(page.getByText(/attachment changes become unavailable while archived/).first()).toBeVisible();
   await page.getByRole('button', { name: 'Confirm archive' }).click();
   await expect(page.getByRole('heading', { name: 'Archived vehicle' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Add attachment metadata' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Upload attachment' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Open' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Edit details' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Restore vehicle' }).click();
-  await expect(page.getByRole('link', { name: 'Add attachment metadata' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Upload attachment' })).toBeVisible();
 
   await page.goto(`/vehicles?registration=${registration.toLowerCase()}`);
 
