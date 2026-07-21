@@ -15,7 +15,9 @@ use crate::auth::extractors::append_vary_hx_request;
 
 #[must_use]
 pub fn full_page(status: StatusCode, html: String) -> Response {
-    sensitive((status, Html(html)).into_response())
+    let mut response = sensitive((status, Html(html)).into_response());
+    append_vary_hx_request(response.headers_mut());
+    response
 }
 
 #[must_use]
@@ -157,7 +159,7 @@ fn escape(value: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-fn correlation_reference() -> String {
+pub(crate) fn correlation_reference() -> String {
     let mut random = [0_u8; 8];
     if getrandom::fill(&mut random).is_err() {
         return "browser-unexpected".to_owned();

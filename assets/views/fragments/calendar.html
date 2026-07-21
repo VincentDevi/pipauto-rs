@@ -1,5 +1,5 @@
 <div id="calendar-region" class="calendar-page" data-calendar-view="{{ view }}"
-     hx-indicator="find .calendar-loading">
+     hx-indicator="#calendar-loading">
   <header class="page-header calendar-header">
     <div>
       <p class="eyebrow">Workshop schedule</p>
@@ -12,14 +12,17 @@
   <div class="calendar-toolbar" aria-label="Calendar controls">
     <nav class="calendar-period-navigation" aria-label="Calendar period">
       <a class="button button--secondary" href="{{ previous_href }}"
+         data-focus-key="calendar-previous"
          hx-get="{{ previous_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
-         hx-push-url="true">Previous</a>
+         hx-push-url="true" aria-label="{{ previous_label }}">Previous</a>
       <a class="button button--secondary" href="{{ today_href }}"
+         data-focus-key="calendar-today"
          hx-get="{{ today_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
-         hx-push-url="true">Today</a>
+         hx-push-url="true" aria-label="{{ today_label }}">Today</a>
       <a class="button button--secondary" href="{{ next_href }}"
+         data-focus-key="calendar-next"
          hx-get="{{ next_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
-         hx-push-url="true">Next</a>
+         hx-push-url="true" aria-label="{{ next_label }}">Next</a>
     </nav>
     <div class="calendar-period-heading">
       <h2>{{ period_label }}</h2>
@@ -27,21 +30,25 @@
     </div>
     <nav class="calendar-view-navigation" aria-label="Calendar view">
       <a class="button button--secondary" href="{{ month_href }}"
+         data-focus-key="calendar-month"
          hx-get="{{ month_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
-         hx-push-url="true"{% if month_selected %} aria-current="page"{% endif %}>Month</a>
+         hx-push-url="true" aria-label="{{ month_label }}"{% if month_selected %} aria-current="page"{% endif %}>Month</a>
       <a class="button button--secondary" href="{{ week_href }}"
+         data-focus-key="calendar-week"
          hx-get="{{ week_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
-         hx-push-url="true"{% if week_selected %} aria-current="page"{% endif %}>Week</a>
+         hx-push-url="true" aria-label="{{ week_label }}"{% if week_selected %} aria-current="page"{% endif %}>Week</a>
     </nav>
   </div>
 
-  <p class="htmx-indicator calendar-loading" role="status">Loading Calendar…</p>
+  <p id="calendar-loading" class="htmx-indicator calendar-loading" role="status" aria-live="polite"
+     aria-atomic="true">Loading Calendar…</p>
 
   {% if state != "ready" %}
     <section class="panel-state{% if state == "invalid" or state == "unexpected" %} panel-state--error{% endif %}"
              aria-labelledby="calendar-state-heading">
       <h2 id="calendar-state-heading">{{ state_heading }}</h2>
       <p>{{ state_message }}</p>
+      {% if correlation_reference %}<p>Reference: <code>{{ correlation_reference }}</code></p>{% endif %}
       {% if recovery_href %}
         <p><a class="button button--secondary" href="{{ recovery_href }}"
               hx-get="{{ recovery_href }}" hx-target="#calendar-region" hx-swap="outerHTML"
@@ -69,39 +76,43 @@
                    aria-labelledby="calendar-day-{{ day.date }}">
             <h3 id="calendar-day-{{ day.date }}">
               <a href="{{ day.href }}" hx-get="{{ day.href }}" hx-target="#calendar-region"
+                 data-focus-key="calendar-day-{{ day.date }}"
                  hx-swap="outerHTML" hx-push-url="true"{% if day.selected %} aria-current="date"{% endif %}>
                 <span class="visually-hidden">{{ day.full_label }}{% if day.today %}, Today{% endif %}</span>
                 <span aria-hidden="true">{{ day.number }}</span>
               </a>
+              {% if day.selected %}<span class="calendar-selected-label">Selected</span>{% endif %}
               {% if day.today %}<span class="calendar-today-label">Today</span>{% endif %}
             </h3>
-            <div class="calendar-day-entries">
+            <ol class="calendar-day-entries">
               {% for entry in day.visible_entries %}
-                <article class="calendar-entry calendar-entry--{{ entry.status | lower }}">
-                  <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }}</p>
+                <li><article class="calendar-entry calendar-entry--{{ entry.status | lower }}"
+                             aria-label="{{ entry.accessible_label }}">
+                  <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }}</p>
                   <p>{{ entry.customer_name }}</p>
                   <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                   <p class="calendar-entry-status">{{ entry.status }}</p>
                   {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-                </article>
+                </article></li>
               {% endfor %}
               {% if day.hidden_count > 0 %}
-                <details class="calendar-overflow">
-                  <summary>Show {{ day.hidden_count }} more intervention{% if day.hidden_count != 1 %}s{% endif %}</summary>
-                  <div class="calendar-overflow-entries">
+                <li><details class="calendar-overflow">
+                  <summary aria-label="Show {{ day.hidden_count }} more intervention{% if day.hidden_count != 1 %}s{% endif %} for {{ day.full_label }}">Show {{ day.hidden_count }} more intervention{% if day.hidden_count != 1 %}s{% endif %}</summary>
+                  <ol class="calendar-overflow-entries">
                     {% for entry in day.hidden_entries %}
-                      <article class="calendar-entry calendar-entry--{{ entry.status | lower }}">
-                        <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }}</p>
+                      <li><article class="calendar-entry calendar-entry--{{ entry.status | lower }}"
+                                   aria-label="{{ entry.accessible_label }}">
+                        <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }}</p>
                         <p>{{ entry.customer_name }}</p>
                         <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                         <p class="calendar-entry-status">{{ entry.status }}</p>
                         {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-                      </article>
+                      </article></li>
                     {% endfor %}
-                  </div>
-                </details>
+                  </ol>
+                </details></li>
               {% endif %}
-            </div>
+            </ol>
           </section>
         {% endfor %}
       </div>
@@ -114,28 +125,32 @@
       <div class="calendar-date-selector">
         {% for day in days %}
           <a class="calendar-date{% if not day.in_month %} calendar-date--outside{% endif %}{% if day.selected %} calendar-date--selected{% endif %}"
+             data-focus-key="calendar-day-{{ day.date }}"
              href="{{ day.href }}" hx-get="{{ day.href }}" hx-target="#calendar-region"
              hx-swap="outerHTML" hx-push-url="true" aria-label="{{ day.full_label }}{% if day.today %}, Today{% endif %}, {{ day.entry_count }} intervention{% if day.entry_count != 1 %}s{% endif %}"
              {% if day.selected %}aria-current="date"{% endif %}>
             <span>{{ day.number }}</span>
             {% if day.entry_count > 0 %}<small aria-hidden="true">{{ day.entry_count }}</small>{% endif %}
+            {% if day.selected %}<span class="calendar-date-state">Selected</span>{% endif %}
+            {% if day.today %}<span class="calendar-date-state">Today</span>{% endif %}
           </a>
         {% endfor %}
       </div>
       <div class="calendar-selected-day">
         <h2>{{ selected_day_label }} · {{ selected_entry_count }} intervention{% if selected_entry_count != 1 %}s{% endif %}</h2>
         {% if selected_entry_count > 0 %}
-          <div class="calendar-selected-entries">
+          <ol class="calendar-selected-entries">
             {% for entry in selected_entries %}
-              <article class="calendar-entry calendar-entry--{{ entry.status | lower }}">
-                <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }}</p>
+              <li><article class="calendar-entry calendar-entry--{{ entry.status | lower }}"
+                           aria-label="{{ entry.accessible_label }}">
+                <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }}</p>
                 <p>{{ entry.customer_name }}</p>
                 <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                 <p class="calendar-entry-status">{{ entry.status }}</p>
                 {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-              </article>
+              </article></li>
             {% endfor %}
-        </div>
+        </ol>
         {% else %}
           <p class="calendar-selected-empty">No interventions scheduled for this day.</p>
         {% endif %}
@@ -149,9 +164,10 @@
           {% for day in week_days %}
             <header class="calendar-week-day-heading{% if day.selected %} calendar-week-day-heading--selected{% endif %}">
               <a href="{{ day.href }}" hx-get="{{ day.href }}" hx-target="#calendar-region"
+                 data-focus-key="calendar-day-{{ day.date }}"
                  hx-swap="outerHTML" hx-push-url="true"{% if day.selected %} aria-current="date"{% endif %}>
                 {{ day.weekday_label }} <span>{{ day.day_label }}</span>
-                <small>{{ day.entry_count }} intervention{% if day.entry_count != 1 %}s{% endif %}{% if day.today %} · Today{% endif %}</small>
+                <small>{{ day.entry_count }} intervention{% if day.entry_count != 1 %}s{% endif %}{% if day.selected %} · Selected{% endif %}{% if day.today %} · Today{% endif %}</small>
               </a>
             </header>
           {% endfor %}
@@ -163,29 +179,32 @@
               <div class="calendar-week-background" aria-hidden="true">
                 {% for row in time_rows %}<div></div>{% endfor %}
               </div>
-              <div class="calendar-week-positioned-entries">
+              <ol class="calendar-week-positioned-entries">
                 {% for entry in day.ordinary_segments %}
+                  <li class="calendar-week-entry-position"
+                      style="--calendar-start: {{ entry.geometry.start_minute }}; --calendar-span: {{ entry.geometry.span_minutes }}; --calendar-lane: {{ entry.geometry.lane }}; --calendar-lanes: {{ entry.geometry.lane_count }};">
                   <article class="calendar-entry calendar-week-entry calendar-entry--{{ entry.status | lower }}"
-                           style="--calendar-start: {{ entry.geometry.start_minute }}; --calendar-span: {{ entry.geometry.span_minutes }}; --calendar-lane: {{ entry.geometry.lane }}; --calendar-lanes: {{ entry.geometry.lane_count }};">
-                    <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }}</p>
+                           aria-label="{{ entry.accessible_label }}">
+                    <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }}</p>
                     <p>{{ entry.customer_name }}</p>
                     <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                     <p class="calendar-entry-status">{{ entry.status }}</p>
                     {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-                  </article>
+                  </article></li>
                 {% endfor %}
-              </div>
+              </ol>
               {% if day.transition_segments | length > 0 %}
                 <div class="calendar-dst-entries" aria-label="DST-transition interventions">
-                  {% for entry in day.transition_segments %}
-                    <article class="calendar-entry calendar-entry--{{ entry.status | lower }}">
-                      <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }} elapsed</p>
+                  <ol>{% for entry in day.transition_segments %}
+                    <li><article class="calendar-entry calendar-entry--{{ entry.status | lower }}"
+                                 aria-label="{{ entry.accessible_label }}">
+                      <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }} elapsed</p>
                       <p>{{ entry.customer_name }}</p>
                       <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                       <p class="calendar-entry-status">{{ entry.status }}</p>
                       {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-                    </article>
-                  {% endfor %}
+                    </article></li>
+                  {% endfor %}</ol>
                 </div>
               {% endif %}
             </section>
@@ -198,32 +217,37 @@
       <nav class="calendar-week-selector" aria-label="Choose a day in this week">
         {% for day in week_days %}
           <a class="calendar-week-date{% if day.selected %} calendar-week-date--selected{% endif %}"
+             data-focus-key="calendar-day-{{ day.date }}"
              href="{{ day.href }}" hx-get="{{ day.href }}" hx-target="#calendar-region"
              hx-swap="outerHTML" hx-push-url="true"
              aria-label="{{ day.full_label }}{% if day.today %}, Today{% endif %}, {{ day.entry_count }} intervention{% if day.entry_count != 1 %}s{% endif %}"
              {% if day.selected %}aria-current="date"{% endif %}>
             <span>{{ day.short_weekday_label }}</span><strong>{{ day.day_label }}</strong>
             <small>{{ day.entry_count }}</small>
+            {% if day.selected %}<span class="calendar-date-state">Selected</span>{% endif %}
+            {% if day.today %}<span class="calendar-date-state">Today</span>{% endif %}
           </a>
         {% endfor %}
       </nav>
       <div class="calendar-selected-day">
         <h2>{{ selected_day_label }} · {{ selected_entry_count }} intervention{% if selected_entry_count != 1 %}s{% endif %}</h2>
-        <div class="calendar-focused-timeline" aria-label="Complete 24-hour timeline">
+        <div class="calendar-focused-timeline" tabindex="0"
+             aria-label="Scrollable complete 24-hour timeline">
           {% for row in time_rows %}<div class="calendar-time-row"><time>{{ row.label }}</time></div>{% endfor %}
         </div>
         {% if selected_entry_count > 0 %}
-          <div class="calendar-week-stacked-entries">
+          <ol class="calendar-week-stacked-entries">
             {% for entry in selected_entries %}
-              <article class="calendar-entry calendar-entry--{{ entry.status | lower }}">
-                <p class="calendar-entry-time"><strong>{{ entry.start_label }}–{{ entry.end_label }}</strong> · {{ entry.duration_label }}{% if not entry.geometry %} elapsed{% endif %}</p>
+              <li><article class="calendar-entry calendar-entry--{{ entry.status | lower }}"
+                           aria-label="{{ entry.accessible_label }}">
+                <p class="calendar-entry-time"><strong><time datetime="{{ entry.start_datetime }}">{{ entry.start_label }}</time>–<time datetime="{{ entry.end_datetime }}">{{ entry.end_label }}</time></strong> · {{ entry.duration_label }}{% if not entry.geometry %} elapsed{% endif %}</p>
                 <p>{{ entry.customer_name }}</p>
                 <p>{{ entry.registration }} · {{ entry.vehicle }}</p>
                 <p class="calendar-entry-status">{{ entry.status }}</p>
                 {% if entry.continuation_label %}<p class="calendar-entry-continuation">{{ entry.continuation_label }}</p>{% endif %}
-              </article>
+              </article></li>
             {% endfor %}
-          </div>
+          </ol>
         {% else %}
           <p class="calendar-selected-empty">No interventions scheduled for this day.</p>
         {% endif %}

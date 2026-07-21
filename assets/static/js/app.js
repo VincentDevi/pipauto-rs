@@ -20,6 +20,10 @@ function accessibleName(element) {
     .trim();
 }
 
+function requestActivator(element) {
+  return requestControl(element) || element?.closest?.("a, button") || null;
+}
+
 function announce(message) {
   const region = document.getElementById("notifications");
   if (!region) return;
@@ -33,11 +37,14 @@ function announce(message) {
 
 document.addEventListener("htmx:beforeRequest", function (event) {
   const control = requestControl(event.detail.elt);
+  const activator = requestActivator(event.detail.elt);
   const target = event.detail.target;
   if (target) {
     lastRequestFocus = {
       action: control?.form?.getAttribute("action") || "",
-      name: accessibleName(control),
+      focusKey: activator?.dataset?.focusKey || "",
+      href: activator?.getAttribute?.("href") || "",
+      name: accessibleName(activator),
       targetId: target.id || "",
     };
     target.setAttribute("aria-busy", "true");
@@ -50,7 +57,11 @@ document.addEventListener("htmx:afterRequest", function (event) {
   requestControl(event.detail.elt)?.removeAttribute("aria-busy");
 });
 
-function announceUncertainMutation() {
+function announceUncertainMutation(event) {
+  if (event.detail?.target?.id === "calendar-region") {
+    announce("The Calendar did not load. The current Calendar remains available; try again.");
+    return;
+  }
   announce("The request did not finish. Reload the latest workshop record before trying again.");
 }
 
@@ -82,6 +93,12 @@ document.addEventListener("htmx:beforeSwap", function (event) {
     event.detail.shouldSwap = true;
     event.detail.isError = false;
   }
+
+  const calendarResponse = event.detail.target?.id === "calendar-region";
+  if (calendarResponse && [422, 500, 503].includes(event.detail.xhr.status)) {
+    event.detail.shouldSwap = true;
+    event.detail.isError = false;
+  }
 });
 
 document.addEventListener("htmx:afterSettle", function (event) {
@@ -105,6 +122,26 @@ document.addEventListener("htmx:afterSettle", function (event) {
   }
 
   const previous = lastRequestFocus?.targetId === target.id ? lastRequestFocus : null;
+  if (previous?.focusKey) {
+    const candidates = Array.from(
+      target.querySelectorAll?.(`[data-focus-key="${CSS.escape(previous.focusKey)}"]`) || [],
+    );
+    const matchingControl = candidates.find((candidate) => candidate.getClientRects().length > 0)
+      || candidates[0];
+    if (matchingControl) {
+      matchingControl.focus({ preventScroll: true });
+      return;
+    }
+  }
+  if (previous?.href) {
+    const matchingLink = Array.from(target.querySelectorAll?.("a[href]") || []).find(
+      (candidate) => candidate.getAttribute("href") === previous.href,
+    );
+    if (matchingLink) {
+      matchingLink.focus({ preventScroll: true });
+      return;
+    }
+  }
   if (previous?.action) {
     const forms = Array.from(target.querySelectorAll?.("form") || []);
     const matchingForm = forms.find(

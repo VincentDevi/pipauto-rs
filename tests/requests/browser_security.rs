@@ -39,6 +39,13 @@ fn browser_security_client_hardening_recovers_uncertain_mutations() {
     assert!(script.contains("htmx:sendError"));
     assert!(script.contains("htmx:timeout"));
     assert!(script.contains("Reload the latest workshop record before trying again."));
+    assert!(script.contains("The current Calendar remains available"));
+    assert!(script.contains("[422, 500, 503]"));
+    assert!(script.contains("focusKey"));
+
+    let calendar =
+        fs::read_to_string("assets/views/fragments/calendar.html").expect("calendar template");
+    assert!(calendar.contains("data-focus-key=\"calendar-next\""));
 
     let extractor = fs::read_to_string("src/auth/extractors.rs").expect("auth extractor");
     assert!(extractor.contains("HX-Redirect"));

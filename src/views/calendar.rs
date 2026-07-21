@@ -57,6 +57,10 @@ pub struct CalendarEntryView {
 pub struct CalendarSegment {
     pub entry_id: String,
     pub date: String,
+    pub date_label: String,
+    pub start_datetime: String,
+    pub end_datetime: String,
+    pub accessible_label: String,
     pub start_label: String,
     pub end_label: String,
     pub duration_label: String,
@@ -88,10 +92,15 @@ pub struct CalendarBrowserPage<'page> {
     period_label: String,
     timezone_label: String,
     previous_href: String,
+    previous_label: String,
     today_href: String,
+    today_label: String,
     next_href: String,
+    next_label: String,
     month_href: String,
+    month_label: String,
     week_href: String,
+    week_label: String,
     days: Vec<CalendarMonthDay>,
     week_days: Vec<CalendarWeekDay>,
     time_rows: Vec<CalendarTimeRow>,
@@ -104,6 +113,7 @@ pub struct CalendarBrowserPage<'page> {
     state_message: Option<&'static str>,
     recovery_href: Option<String>,
     recovery_label: Option<&'static str>,
+    correlation_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +159,7 @@ pub struct CalendarState {
     pub heading: &'static str,
     pub message: &'static str,
     pub recovery: Option<(&'static str, String)>,
+    pub correlation_reference: Option<String>,
 }
 
 impl<'page> CalendarBrowserPage<'page> {
@@ -223,10 +234,15 @@ impl<'page> CalendarBrowserPage<'page> {
             period_label: month_start.format("%B %Y").to_string(),
             timezone_label,
             previous_href: navigation.previous_href,
+            previous_label: navigation.previous_label,
             today_href: navigation.today_href,
+            today_label: navigation.today_label,
             next_href: navigation.next_href,
+            next_label: navigation.next_label,
             month_href: calendar_href("month", anchor),
+            month_label: format!("Month view for {}", anchor.format("%-d %B %Y")),
             week_href: calendar_href("week", anchor),
+            week_label: format!("Week view containing {}", anchor.format("%-d %B %Y")),
             days,
             week_days: Vec::new(),
             time_rows: time_rows(),
@@ -239,6 +255,7 @@ impl<'page> CalendarBrowserPage<'page> {
             state_message: None,
             recovery_href: None,
             recovery_label: None,
+            correlation_reference: None,
         })
     }
 
@@ -320,10 +337,15 @@ impl<'page> CalendarBrowserPage<'page> {
             ),
             timezone_label,
             previous_href: navigation.previous_href,
+            previous_label: navigation.previous_label,
             today_href: navigation.today_href,
+            today_label: navigation.today_label,
             next_href: navigation.next_href,
+            next_label: navigation.next_label,
             month_href: calendar_href("month", anchor),
+            month_label: format!("Month view for {}", anchor.format("%-d %B %Y")),
             week_href: calendar_href("week", anchor),
+            week_label: format!("Week view containing {}", anchor.format("%-d %B %Y")),
             days: Vec::new(),
             week_days,
             time_rows: time_rows(),
@@ -336,6 +358,7 @@ impl<'page> CalendarBrowserPage<'page> {
             state_message: None,
             recovery_href: None,
             recovery_label: None,
+            correlation_reference: None,
         })
     }
 
@@ -378,10 +401,15 @@ impl<'page> CalendarBrowserPage<'page> {
             period_label,
             timezone_label,
             previous_href: navigation.previous_href,
+            previous_label: navigation.previous_label,
             today_href: navigation.today_href,
+            today_label: navigation.today_label,
             next_href: navigation.next_href,
+            next_label: navigation.next_label,
             month_href: calendar_href("month", anchor),
+            month_label: format!("Month view for {}", anchor.format("%-d %B %Y")),
             week_href: calendar_href("week", anchor),
+            week_label: format!("Week view containing {}", anchor.format("%-d %B %Y")),
             days: Vec::new(),
             week_days: Vec::new(),
             time_rows: time_rows(),
@@ -394,6 +422,7 @@ impl<'page> CalendarBrowserPage<'page> {
             state_message: Some(state.message),
             recovery_href,
             recovery_label,
+            correlation_reference: state.correlation_reference,
         })
     }
 
@@ -419,8 +448,11 @@ fn time_rows() -> Vec<CalendarTimeRow> {
 
 struct CalendarNavigation {
     previous_href: String,
+    previous_label: String,
     today_href: String,
+    today_label: String,
     next_href: String,
+    next_label: String,
 }
 
 impl CalendarNavigation {
@@ -444,10 +476,38 @@ impl CalendarNavigation {
         let next = next.ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
         Ok(Self {
             previous_href: calendar_href(view, previous),
+            previous_label: format!(
+                "Previous {view}, {}",
+                navigation_date_label(view, previous)?
+            ),
             today_href: calendar_href(view, today),
+            today_label: format!("Today, {}", navigation_date_label(view, today)?),
             next_href: calendar_href(view, next),
+            next_label: format!("Next {view}, {}", navigation_date_label(view, next)?),
         })
     }
+}
+
+fn navigation_date_label(
+    view: &str,
+    anchor: NaiveDate,
+) -> Result<String, CalendarPresentationError> {
+    if view == "month" {
+        return Ok(anchor.format("%B %Y").to_string());
+    }
+    let monday = anchor
+        .checked_sub_days(Days::new(u64::from(
+            anchor.weekday().num_days_from_monday(),
+        )))
+        .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+    let sunday = monday
+        .checked_add_days(Days::new(6))
+        .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+    Ok(format!(
+        "{} to {}",
+        monday.format("%-d %B %Y"),
+        sunday.format("%-d %B %Y")
+    ))
 }
 
 fn parse_presentation_date(value: &str) -> Result<NaiveDate, CalendarPresentationError> {
@@ -607,37 +667,51 @@ fn segment_for_day(
     let geometry = ordinary_day
         .then(|| ordinary_geometry(interval_start, interval_end, date, workshop_time))
         .transpose()?;
+    let local_start = workshop_time.utc_to_local(interval_start);
+    let local_end = workshop_time.utc_to_local(interval_end);
+    let date_label = date.format("%A %-d %B %Y").to_string();
+    let start_label = local_start.format("%H:%M").to_string();
+    let end_label = local_end.format("%H:%M").to_string();
+    let duration_label = duration_label(entry.estimated_duration.minutes());
+    let customer_name = entry.identity_snapshot.customer_name.clone();
+    let registration = entry
+        .identity_snapshot
+        .vehicle_registration
+        .clone()
+        .unwrap_or_else(|| "No registration".to_owned());
+    let vehicle = format!(
+        "{} {}",
+        entry.identity_snapshot.vehicle_make, entry.identity_snapshot.vehicle_model
+    );
+    let status = status_label(entry.status);
+    let continuation_label = match (continuation_before, continuation_after) {
+        (true, true) => Some("Continues from the previous day and into the next day"),
+        (true, false) => Some("Continues from the previous day"),
+        (false, true) => Some("Continues into the next day"),
+        (false, false) => None,
+    };
+    let accessible_label = format!(
+        "{date_label}, {start_label} to {end_label}, {registration}, {vehicle}, \
+         {customer_name}, {status}, {duration_label}{}",
+        continuation_label.map_or(String::new(), |label| format!(", {label}"))
+    );
     Ok(Some(CalendarSegment {
         entry_id: entry.id.as_str().to_owned(),
         date: date.to_string(),
-        start_label: workshop_time
-            .utc_to_local(interval_start)
-            .format("%H:%M")
-            .to_string(),
-        end_label: workshop_time
-            .utc_to_local(interval_end)
-            .format("%H:%M")
-            .to_string(),
-        duration_label: duration_label(entry.estimated_duration.minutes()),
-        customer_name: entry.identity_snapshot.customer_name.clone(),
-        registration: entry
-            .identity_snapshot
-            .vehicle_registration
-            .clone()
-            .unwrap_or_else(|| "No registration".to_owned()),
-        vehicle: format!(
-            "{} {}",
-            entry.identity_snapshot.vehicle_make, entry.identity_snapshot.vehicle_model
-        ),
-        status: status_label(entry.status),
+        date_label,
+        start_datetime: local_start.format("%Y-%m-%dT%H:%M:%S%:z").to_string(),
+        end_datetime: local_end.format("%Y-%m-%dT%H:%M:%S%:z").to_string(),
+        accessible_label,
+        start_label,
+        end_label,
+        duration_label,
+        customer_name,
+        registration,
+        vehicle,
+        status,
         continuation_before,
         continuation_after,
-        continuation_label: match (continuation_before, continuation_after) {
-            (true, true) => Some("Continues from the previous day and into the next day"),
-            (true, false) => Some("Continues from the previous day"),
-            (false, true) => Some("Continues into the next day"),
-            (false, false) => None,
-        },
+        continuation_label,
         lane: 0,
         lane_count: 1,
         geometry,

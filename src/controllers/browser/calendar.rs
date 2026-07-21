@@ -1,6 +1,10 @@
 //! Authenticated Calendar query parsing and server-rendered Month and Week responses.
 
-use axum::{extract::RawQuery, http::StatusCode, response::Response};
+use axum::{
+    extract::RawQuery,
+    http::{HeaderValue, StatusCode},
+    response::Response,
+};
 use chrono::NaiveDate;
 use loco_rs::{
     controller::{
@@ -65,6 +69,7 @@ async fn show(
                         "Open current month",
                         calendar_href(RequestedView::Month, today),
                     )),
+                    correlation_reference: None,
                 },
             )
             .map_err(loco_rs::Error::msg)?;
@@ -93,8 +98,13 @@ async fn show(
     let view = match query.view {
         RequestedView::Month => CalendarBrowserPage::month(layout(&context), page, today, timezone),
         RequestedView::Week => CalendarBrowserPage::week(layout(&context), page, today, timezone),
-    }
-    .map_err(loco_rs::Error::msg)?;
+    };
+    let view = match view {
+        Ok(view) => view,
+        Err(_) => {
+            return render_unexpected(&context, &engine, &service, query.view, anchor, today);
+        }
+    };
     render(&context, &engine, &view, StatusCode::OK)
 }
 
@@ -124,6 +134,7 @@ fn render_workflow_error(
                         "Open current month",
                         calendar_href(RequestedView::Month, today),
                     )),
+                    correlation_reference: None,
                 },
             )
             .map_err(loco_rs::Error::msg)?;
@@ -142,6 +153,7 @@ fn render_workflow_error(
                     message:
                         "Try this Calendar view again shortly. No intervention data was changed.",
                     recovery: Some(("Try again", calendar_href(requested_view, anchor))),
+                    correlation_reference: None,
                 },
             )
             .map_err(loco_rs::Error::msg)?;
@@ -159,7 +171,13 @@ fn render_unexpected(
     anchor: NaiveDate,
     today: NaiveDate,
 ) -> Result<Response> {
-    tracing::error!(view = requested_view.as_str(), %anchor, "calendar browser rendering failed");
+    let reference = responses::correlation_reference();
+    tracing::error!(
+        correlation_reference = reference,
+        view = requested_view.as_str(),
+        %anchor,
+        "calendar browser rendering failed"
+    );
     let view = CalendarBrowserPage::state(
         layout(context),
         anchor,
@@ -171,10 +189,15 @@ fn render_unexpected(
             heading: "Something went wrong",
             message: "Try this Calendar view again. No intervention data was changed.",
             recovery: Some(("Try again", calendar_href(requested_view, anchor))),
+            correlation_reference: Some(reference.clone()),
         },
     )
     .map_err(loco_rs::Error::msg)?;
-    render(context, engine, &view, StatusCode::INTERNAL_SERVER_ERROR)
+    let mut response = render(context, engine, &view, StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Ok(value) = HeaderValue::from_str(&reference) {
+        response.headers_mut().insert("X-Correlation-ID", value);
+    }
+    Ok(response)
 }
 
 fn render(
