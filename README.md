@@ -68,6 +68,10 @@ live separately in `pipauto_surrealdb_attachments`. Both named volumes survive o
 stops, restarts, and container recreation. Docker must be able to create both volumes and mount the
 attachment volume at `/home/nonroot/pipauto_attachments`.
 
+Before SurrealDB starts, a one-shot Compose service assigns the attachment volume to SurrealDB's
+non-root UID/GID `65532`. This also repairs ownership on an existing local volume without deleting
+its files. Do not bypass that dependency by starting a manually constructed database container.
+
 Compose enables only the experimental `files` capability and allowlists only that attachment
 directory. The committed schema defines one private `pipauto_attachments` disk bucket with
 `PERMISSIONS NONE`; browser and API clients never receive bucket access or object locations.
@@ -408,6 +412,21 @@ docker-compose exec surrealdb /surreal isready --endpoint http://localhost:8000
 
 If a disposable local database remains unhealthy, use the destructive reset command under
 [Database utilities](#database-utilities), then repeat the first-time setup.
+
+### Attachment uploads return 503
+
+Confirm the bucket is present with the capability check under [First-time setup](#first-time-setup).
+If it is present but uploads remain unavailable, repair the existing attachment volume in place:
+
+```bash
+docker-compose stop surrealdb
+docker-compose run --rm attachment-volume-init
+docker-compose up -d --wait surrealdb
+cargo loco task attachment_reconciliation
+```
+
+The initializer changes ownership only; it does not delete attachment bytes. The reconciliation
+task must complete in dry-run mode before uploads resume. Do not use `down --volumes` as a repair.
 
 ### Credentials, namespace, or database settings are incorrect
 

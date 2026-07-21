@@ -451,6 +451,8 @@ tar -C "$BUCKET_BACKUP_DIR" -xf "$BUCKET_BACKUP_FILE"
 docker cp "$BUCKET_BACKUP_DIR/." \
   "${RECOVERY_CONTAINER}:/home/nonroot/pipauto_attachments/"
 docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" run --rm attachment-volume-init
+docker-compose --project-name "$RECOVERY_PROJECT" \
   --file "$RECOVERY_COMPOSE" start surrealdb
 docker-compose --project-name "$RECOVERY_PROJECT" \
   --file "$RECOVERY_COMPOSE" exec -T surrealdb \

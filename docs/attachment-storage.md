@@ -231,6 +231,9 @@ shared database. Exact phased commands and backup prerequisites are in the
   `INFO FOR DB`; startup deliberately does not repair schema.
 - If the disk backend is rejected, confirm Compose enabled `files`, the catalog path is exactly
   `/home/nonroot/pipauto_attachments`, and the same path is allowlisted and mounted.
+- If the bucket catalog is ready but uploads return `503`, confirm the attachment volume is owned
+  by UID/GID `65532`. Stop SurrealDB, run `docker-compose run --rm attachment-volume-init`, restart
+  SurrealDB, and run dry-run reconciliation; never delete the volume as an ownership repair.
 - If records survive but downloads fail after a restart, inspect both Compose volumes. Restoring
   only the logical export cannot recover attachment bytes.
 - If apply reconciliation refuses to run, stop attachment writes and pass both

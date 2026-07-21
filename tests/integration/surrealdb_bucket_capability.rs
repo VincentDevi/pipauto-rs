@@ -2,6 +2,10 @@ use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
     database::client::{AppDatabase, AttachmentBucketStatus, ATTACHMENT_BUCKET_NAME},
+    models::attachment::AttachmentFilePointer,
+    repositories::{
+        attachment::AttachmentFileStore, surreal::attachment::SurrealAttachmentFileStore,
+    },
 };
 use surrealdb::types::{Bytes, File, Value};
 
@@ -36,6 +40,37 @@ async fn surrealdb_bucket_capability_is_ready_and_isolated_by_test_database() {
             .expect("defined bucket should be inspectable"),
         AttachmentBucketStatus::Ready
     );
+
+    let files = SurrealAttachmentFileStore::new(client.clone());
+    let empty_page = files
+        .list(None, 1)
+        .await
+        .expect("an empty bucket should list without a start cursor");
+    assert!(empty_page.pointers.is_empty());
+    assert!(empty_page.next_cursor.is_none());
+
+    for key in ["00".repeat(24), "11".repeat(24)] {
+        let pointer = AttachmentFilePointer::new(ATTACHMENT_BUCKET_NAME, key)
+            .expect("test pointer should satisfy the opaque-key contract");
+        files
+            .put_if_absent(&pointer, &[0, 1, 2, 255])
+            .await
+            .expect("test object should be writable");
+    }
+    let first_page = files
+        .list(None, 1)
+        .await
+        .expect("the first bucket page should omit a start cursor");
+    assert_eq!(first_page.pointers.len(), 1);
+    let cursor = first_page
+        .next_cursor
+        .expect("a full first page should expose a cursor");
+    let second_page = files
+        .list(Some(&cursor), 1)
+        .await
+        .expect("the next bucket page should bind its start cursor");
+    assert_eq!(second_page.pointers.len(), 1);
+    assert_ne!(first_page.pointers, second_page.pointers);
 
     let file = File::new(ATTACHMENT_BUCKET_NAME, "contract-check");
     let bytes = Bytes::from(vec![0, 1, 2, 255]);

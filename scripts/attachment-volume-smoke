@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-pipauto-vin38-ci}"
+readonly COMPOSE_FILE="${COMPOSE_FILE:-$ROOT/compose.ci.yaml}"
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+else
+  COMPOSE=(docker-compose)
+fi
+
+output="$(
+  "${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
+    exec -T surrealdb /surreal sql \
+    --endpoint http://localhost:8000 \
+    --username "${SURREALDB_ROOT_USERNAME:?SURREALDB_ROOT_USERNAME is required}" \
+    --password "${SURREALDB_ROOT_PASSWORD:?SURREALDB_ROOT_PASSWORD is required}" \
+    --namespace "${SURREALDB_NAMESPACE:?SURREALDB_NAMESPACE is required}" \
+    --database "${SURREALDB_DATABASE:?SURREALDB_DATABASE is required}" \
+    --hide-welcome --pretty --multi <<'SQL'
+DEFINE BUCKET IF NOT EXISTS pipauto_attachments
+    BACKEND 'file:/home/nonroot/pipauto_attachments'
+    PERMISSIONS NONE;
+LET $file = type::file(
+    'pipauto_attachments',
+    '/0123456789abcdef0123456789abcdef0123456789abcdef'
+);
+LET $expected = <bytes>"pipauto attachment volume smoke";
+LET $_put = file::put_if_not_exists($file, $expected);
+LET $head = file::head($file);
+LET $actual = file::get($file);
+LET $_delete = file::delete($file);
+RETURN {
+    head_present: $head IS NOT NONE,
+    read_matches: $actual = $expected,
+    deleted: file::exists($file) = false
+};
+SQL
+)"
+
+for assertion in "head_present: true" "read_matches: true" "deleted: true"; do
+  if [[ "$output" != *"$assertion"* ]]; then
+    printf '%s\n' 'Attachment disk-volume smoke check failed.' >&2
+    exit 1
+  fi
+done
+
+printf '%s\n' 'Attachment disk-volume smoke check passed.'

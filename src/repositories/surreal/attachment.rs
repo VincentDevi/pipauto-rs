@@ -363,14 +363,19 @@ impl AttachmentFileStore for SurrealAttachmentFileStore {
             return Err(AttachmentFileStoreError::CorruptData);
         }
         let limit_i64 = i64::try_from(limit).map_err(|_| AttachmentFileStoreError::CorruptData)?;
-        let mut response = checked_file_response(
-            self.client
-                .query("RETURN file::list($bucket, { start: $start, limit: $limit });")
-                .bind(("bucket", ATTACHMENT_BUCKET_NAME.to_owned()))
-                .bind(("start", cursor.map(str::to_owned)))
-                .bind(("limit", limit_i64))
-                .await,
-        )?;
+        let query = match cursor {
+            Some(_) => "RETURN file::list($bucket, { start: $start, limit: $limit });",
+            None => "RETURN file::list($bucket, { limit: $limit });",
+        };
+        let mut request = self
+            .client
+            .query(query)
+            .bind(("bucket", ATTACHMENT_BUCKET_NAME.to_owned()))
+            .bind(("limit", limit_i64));
+        if let Some(cursor) = cursor {
+            request = request.bind(("start", cursor.to_owned()));
+        }
+        let mut response = checked_file_response(request.await)?;
         let heads: Vec<DbFileHead> = response
             .take(0)
             .map_err(|_| AttachmentFileStoreError::CorruptData)?;
