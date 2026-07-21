@@ -53,6 +53,11 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/calendar",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/_health",
         class: AccessClass::Public,
     },

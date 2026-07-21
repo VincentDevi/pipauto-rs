@@ -33,6 +33,7 @@ surface and the separately mounted `/api/v1` JSON surface.
 | Vehicles | `GET /vehicles`, `/vehicles/new`, `/customers/{id}/vehicles/new`, `/vehicles/{id}`, `/vehicles/{id}/edit`, `/vehicles/{id}/reassign`, `/vehicles/{id}/history` | `POST /vehicles`, `/vehicles/{id}/edit`, `/vehicles/{id}/reassign`, `/vehicles/{id}/archive`, `/vehicles/{id}/restore` |
 | Vehicle attachments | `GET /vehicles/{id}/attachments/new`, `/attachments/{id}/edit` | `POST /vehicles/{id}/attachments`, `/attachments/{id}/edit`, `/attachments/{id}/delete` |
 | Interventions | `GET /interventions`, `/vehicles/{id}/interventions/new`, `/interventions/{id}`, `/interventions/{id}/edit`, `/interventions/{id}/complete`, `/interventions/{id}/cancel` | `POST /vehicles/{id}/interventions`, `/interventions/{id}/edit`, `/interventions/{id}/complete`, `/interventions/{id}/cancel` |
+| Calendar | `GET /calendar?view=month\|week&date=YYYY-MM-DD` | — |
 | Intervention lines | `GET /interventions/{id}/lines/new`, `/interventions/{id}/lines/{line_id}/edit` | `POST /interventions/{id}/lines`, `/interventions/{id}/lines/{line_id}/edit`, `/interventions/{id}/lines/{line_id}/delete`, `/interventions/{id}/lines/{line_id}/move-up`, `/interventions/{id}/lines/{line_id}/move-down` |
 | Intervention attachments | `GET /interventions/{id}/attachments/new`, `/interventions/{id}/attachments/{attachment_id}/edit` | `POST /interventions/{id}/attachments`, `/interventions/{id}/attachments/{attachment_id}/edit`, `/interventions/{id}/attachments/{attachment_id}/delete` |
 | Technical knowledge | `GET /knowledge`, `/knowledge/new`, `/knowledge/{id}`, `/knowledge/{id}/edit` | `POST /knowledge`, `/knowledge/{id}/edit`, `/knowledge/{id}/archive`, `/knowledge/{id}/restore` |
@@ -97,11 +98,11 @@ text zoom.
 | Notification/error | Use a live region or `role="alert"`; expose safe recovery guidance and correlation ID only for unexpected/unavailable failures. |
 | Unavailable state | Keep the owning navigation area active, explain that records are unchanged, and provide a safe retry or return path. |
 
-### Planned Calendar component
+### Calendar component
 
-The `Create a basic Calendar` milestone adds an authenticated `GET /calendar` route after the
-time-aware intervention contract is implemented. Until that route is registered, Calendar remains
-planned rather than an active browser capability.
+The authenticated `GET /calendar` route provides the server-rendered Month view and shared
+Calendar navigation. Week is a validated view target whose time geometry is delivered by the
+following calendar issue.
 
 - Month and Week are server-rendered from a period-bounded overlap query; Month is the default and
   weeks start Monday in the configured workshop timezone.
@@ -200,8 +201,8 @@ private-key, JWT, and Argon2-shaped values.
 ## Adding a page
 
 1. Confirm the workflow is in the initial-release scope and use the vocabulary in
-   `documentations/CONTEXT.md`. Planned Calendar behavior may become active only through its owning
-   milestone; do not activate export or another deferred capability incidentally.
+   `documentations/CONTEXT.md`. Additional Calendar behavior may become active only through its
+   owning milestone issue; do not activate export or another deferred capability incidentally.
 2. Add or extend a service workflow and presentation model. Keep database and API DTO types out of
    the view boundary.
 3. Add the controller route, classify it in `ROUTE_INVENTORY`, apply authentication/body-limit

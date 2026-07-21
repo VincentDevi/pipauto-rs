@@ -18,6 +18,7 @@
             <a href="/customers"{% if active_navigation == "customers" %} aria-current="page"{% endif %}>Customers</a>
             <a href="/vehicles"{% if active_navigation == "vehicles" %} aria-current="page"{% endif %}>Vehicles</a>
             <a href="/interventions"{% if active_navigation == "interventions" %} aria-current="page"{% endif %}>Interventions</a>
+            <a href="/calendar"{% if active_navigation == "calendar" %} aria-current="page"{% endif %}>Calendar</a>
             <a href="/knowledge"{% if active_navigation == "knowledge" %} aria-current="page"{% endif %}>Knowledge</a>
             <a href="/invoices"{% if active_navigation == "invoices" %} aria-current="page"{% endif %}>Invoices</a>
           </nav>
@@ -48,6 +49,7 @@
       <nav class="phone-navigation" aria-label="Primary navigation">
         <a href="/"{% if active_navigation == "dashboard" %} aria-current="page"{% endif %}>Home</a>
         <a href="/vehicles"{% if active_navigation == "vehicles" %} aria-current="page"{% endif %}>Vehicles</a>
+        <a href="/calendar"{% if active_navigation == "calendar" %} aria-current="page"{% endif %}>Calendar</a>
         <a href="/interventions"{% if active_navigation == "interventions" %} aria-current="page"{% endif %}>Jobs</a>
         <details class="more-menu">
           <summary{% if active_navigation == "customers" or active_navigation == "knowledge" or active_navigation == "invoices" %} aria-current="page"{% endif %}>More</summary>

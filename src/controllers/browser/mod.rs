@@ -4,6 +4,7 @@
 //! and never depend on database clients or concrete persistence adapters. Business pages remain
 //! safe unavailable placeholders until their owning frontend issue implements them.
 
+mod calendar;
 pub mod context;
 mod customers;
 pub mod forms;
@@ -32,6 +33,11 @@ pub const ROUTE_INVENTORY: &[RouteAccess] = &[
     RouteAccess {
         method: "GET",
         path: "/dashboard/draft-interventions",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/calendar",
         class: AccessClass::Authenticated,
     },
     RouteAccess {
@@ -469,13 +475,14 @@ pub fn mount(routes: Routes) -> Routes {
     ))
 }
 
-/// Compose guest, shell, and planned browser routes.
+/// Compose guest, shell, and implemented browser routes.
 #[must_use]
 pub fn routes() -> Vec<Routes> {
     vec![
         mount(crate::controllers::auth::routes()),
         mount(crate::controllers::dashboard::routes()),
         mount(crate::controllers::setup::routes()),
+        mount(calendar::routes()),
         mount(customers::routes()),
         mount(interventions::routes()),
         mount(invoices::routes()),

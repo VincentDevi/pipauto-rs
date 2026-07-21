@@ -40,6 +40,8 @@ fn navigation_area(path: &str) -> (&'static str, &'static str) {
         ("vehicles", "Vehicles")
     } else if path.starts_with("/interventions") {
         ("interventions", "Interventions")
+    } else if path.starts_with("/calendar") {
+        ("calendar", "Calendar")
     } else if path.starts_with("/knowledge") {
         ("knowledge", "Knowledge")
     } else if path.starts_with("/invoices") {
@@ -64,5 +66,6 @@ mod tests {
             ("interventions", "Interventions")
         );
         assert_eq!(navigation_area("/"), ("dashboard", "Dashboard"));
+        assert_eq!(navigation_area("/calendar"), ("calendar", "Calendar"));
     }
 }

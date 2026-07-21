@@ -190,9 +190,8 @@ The application provides a period-bounded query returning every Draft or Complet
 whose calculated interval overlaps the visible Month or Week. Calendar reads do not calculate
 financial totals or mutate interventions.
 
-`GET /calendar?view=month|week&date=YYYY-MM-DD` remains a planned browser route until the issue that
-owns Calendar navigation and Month rendering registers it. This contract must not be represented
-by an unavailable placeholder or route that implies the calendar already works.
+`GET /calendar?view=month|week&date=YYYY-MM-DD` is an authenticated browser route. Month rendering
+and shared Calendar navigation are active; Week time geometry is delivered by its following issue.
 
 ## 10. Responsive and accessible experience
 

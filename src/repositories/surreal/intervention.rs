@@ -328,12 +328,15 @@ impl CalendarRepository for SurrealInterventionRepository {
             .start()
             .checked_sub_signed(TimeDelta::hours(24))
             .ok_or(RepositoryError::CorruptData)?;
-        let query = format!(concat!(
-            "SELECT {CALENDAR_PROJECTION} FROM intervention ",
-            "WHERE service_date >= $candidate_start AND service_date < $range_end ",
-            "AND status IN ['draft', 'completed'] ",
-            "ORDER BY service_date ASC, id ASC;"
-        ));
+        let query = format!(
+            concat!(
+                "SELECT {} FROM intervention ",
+                "WHERE service_date >= $candidate_start AND service_date < $range_end ",
+                "AND status IN ['draft', 'completed'] ",
+                "ORDER BY service_date ASC, id ASC;"
+            ),
+            CALENDAR_PROJECTION
+        );
         let mut response = support::checked_response(
             self.client
                 .query(query)

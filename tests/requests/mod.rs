@@ -8,6 +8,7 @@ mod attachment_browser;
 mod auth;
 mod browser_foundation;
 mod browser_security;
+mod calendar_browser;
 mod customer_browser;
 mod customers_vehicles;
 mod dashboard;

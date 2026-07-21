@@ -17,6 +17,17 @@ fn browser_foundation_has_an_auditable_authenticated_route_inventory() {
 }
 
 #[test]
+fn browser_route_inventory_includes_the_authenticated_calendar_read_path() {
+    let calendar = pipauto::app::RouteAccess {
+        method: "GET",
+        path: "/calendar",
+        class: AccessClass::Authenticated,
+    };
+    assert!(ROUTE_INVENTORY.contains(&calendar));
+    assert!(ROUTE_ACCESS_POLICY.contains(&calendar));
+}
+
+#[test]
 fn browser_foundation_preserves_controller_service_repository_direction() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut browser_sources = rust_sources(&root.join("src/controllers/browser"));

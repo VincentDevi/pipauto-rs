@@ -1,6 +1,12 @@
 //! Presentation-safe calendar page, day, entry, segment, and geometry types.
 
-use chrono::{DateTime, Days, NaiveDate, Timelike as _, Utc};
+use std::collections::BTreeMap;
+
+use chrono::{DateTime, Datelike as _, Days, Months, NaiveDate, Timelike as _, Utc};
+use loco_rs::{
+    controller::views::{engines::TeraView, ViewRenderer},
+    Result as LocoResult,
+};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -12,6 +18,12 @@ use crate::{
     },
     services::calendar::CalendarSchedule,
 };
+
+use super::layout::AuthenticatedLayout;
+
+const BROWSER_PAGE_TEMPLATE: &str = "pages/calendar.html";
+const BROWSER_REGION_TEMPLATE: &str = "fragments/calendar.html";
+const MONTH_VISIBLE_ENTRY_LIMIT: usize = 3;
 
 #[derive(Debug, Serialize)]
 pub struct CalendarPage {
@@ -41,7 +53,7 @@ pub struct CalendarEntryView {
     pub status: &'static str,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct CalendarSegment {
     pub entry_id: String,
     pub date: String,
@@ -62,6 +74,254 @@ pub struct CalendarSegment {
     interval_start: DateTime<Utc>,
     #[serde(skip)]
     interval_end: DateTime<Utc>,
+}
+
+/// Complete authenticated Calendar page and replaceable region presentation.
+#[derive(Debug, Serialize)]
+pub struct CalendarBrowserPage<'page> {
+    #[serde(flatten)]
+    layout: AuthenticatedLayout<'page>,
+    title: &'static str,
+    view: &'static str,
+    month_selected: bool,
+    week_selected: bool,
+    period_label: String,
+    timezone_label: String,
+    previous_href: String,
+    today_href: String,
+    next_href: String,
+    month_href: String,
+    week_href: String,
+    days: Vec<CalendarMonthDay>,
+    selected_day_label: String,
+    selected_entries: Vec<CalendarSegment>,
+    selected_entry_count: usize,
+    has_entries: bool,
+    state: &'static str,
+    state_heading: Option<&'static str>,
+    state_message: Option<&'static str>,
+    recovery_href: Option<String>,
+    recovery_label: Option<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+struct CalendarMonthDay {
+    date: String,
+    number: u32,
+    full_label: String,
+    href: String,
+    in_month: bool,
+    selected: bool,
+    today: bool,
+    visible_entries: Vec<CalendarSegment>,
+    hidden_entries: Vec<CalendarSegment>,
+    hidden_count: usize,
+    entry_count: usize,
+}
+
+/// Copy-only metadata for a Calendar-owned non-ready response.
+pub struct CalendarState {
+    pub view: &'static str,
+    pub name: &'static str,
+    pub heading: &'static str,
+    pub message: &'static str,
+    pub recovery: Option<(&'static str, String)>,
+}
+
+impl<'page> CalendarBrowserPage<'page> {
+    /// Build the responsive Month presentation from the shared calendar projection.
+    pub fn month(
+        layout: AuthenticatedLayout<'page>,
+        page: CalendarPage,
+        today: NaiveDate,
+        timezone_label: String,
+    ) -> Result<Self, CalendarPresentationError> {
+        let anchor = parse_presentation_date(&page.anchor_date)?;
+        let month_start = parse_presentation_date(&page.range_start_date)?;
+        let month_end = parse_presentation_date(&page.range_end_date)?;
+        let grid_start = month_start
+            .checked_sub_days(Days::new(u64::from(
+                month_start.weekday().num_days_from_monday(),
+            )))
+            .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        let trailing_days = (7 - month_end.weekday().num_days_from_monday()) % 7;
+        let grid_end = month_end
+            .checked_add_days(Days::new(u64::from(trailing_days)))
+            .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        let mut segments_by_date = page
+            .days
+            .into_iter()
+            .map(|day| (day.date, day.segments))
+            .collect::<BTreeMap<_, _>>();
+        let mut days = Vec::new();
+        let mut date = grid_start;
+        while date < grid_end {
+            let segments = segments_by_date
+                .remove(&date.to_string())
+                .unwrap_or_default();
+            let split = segments.len().min(MONTH_VISIBLE_ENTRY_LIMIT);
+            days.push(CalendarMonthDay {
+                date: date.to_string(),
+                number: date.day(),
+                full_label: date.format("%A %-d %B %Y").to_string(),
+                href: calendar_href("month", date),
+                in_month: date >= month_start && date < month_end,
+                selected: date == anchor,
+                today: date == today,
+                visible_entries: segments[..split].to_vec(),
+                hidden_entries: segments[split..].to_vec(),
+                hidden_count: segments.len().saturating_sub(split),
+                entry_count: segments.len(),
+            });
+            date = date
+                .checked_add_days(Days::new(1))
+                .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        }
+        let selected_entries = days
+            .iter()
+            .find(|day| day.selected)
+            .map(|day| {
+                day.visible_entries
+                    .iter()
+                    .chain(&day.hidden_entries)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let selected_entry_count = selected_entries.len();
+        let has_entries = !page.entries.is_empty();
+        let navigation = CalendarNavigation::new("month", anchor, today)?;
+        Ok(Self {
+            layout,
+            title: "Calendar · Pipauto",
+            view: "month",
+            month_selected: true,
+            week_selected: false,
+            period_label: month_start.format("%B %Y").to_string(),
+            timezone_label,
+            previous_href: navigation.previous_href,
+            today_href: navigation.today_href,
+            next_href: navigation.next_href,
+            month_href: calendar_href("month", anchor),
+            week_href: calendar_href("week", anchor),
+            days,
+            selected_day_label: anchor.format("%A %-d %B %Y").to_string(),
+            selected_entries,
+            selected_entry_count,
+            has_entries,
+            state: "ready",
+            state_heading: None,
+            state_message: None,
+            recovery_href: None,
+            recovery_label: None,
+        })
+    }
+
+    /// Build a Calendar-owned recovery state while preserving authenticated navigation.
+    pub fn state(
+        layout: AuthenticatedLayout<'page>,
+        anchor: NaiveDate,
+        today: NaiveDate,
+        timezone_label: String,
+        state: CalendarState,
+    ) -> Result<Self, CalendarPresentationError> {
+        let navigation = CalendarNavigation::new(state.view, anchor, today)?;
+        let period_label = if state.view == "month" {
+            anchor.format("%B %Y").to_string()
+        } else {
+            let monday = anchor
+                .checked_sub_days(Days::new(u64::from(
+                    anchor.weekday().num_days_from_monday(),
+                )))
+                .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+            let sunday = monday
+                .checked_add_days(Days::new(6))
+                .ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+            format!(
+                "{}–{}",
+                monday.format("%-d %B %Y"),
+                sunday.format("%-d %B %Y")
+            )
+        };
+        let (recovery_label, recovery_href) = state
+            .recovery
+            .map(|(label, href)| (Some(label), Some(href)))
+            .unwrap_or((None, None));
+        Ok(Self {
+            layout,
+            title: "Calendar · Pipauto",
+            view: state.view,
+            month_selected: state.view == "month",
+            week_selected: state.view == "week",
+            period_label,
+            timezone_label,
+            previous_href: navigation.previous_href,
+            today_href: navigation.today_href,
+            next_href: navigation.next_href,
+            month_href: calendar_href("month", anchor),
+            week_href: calendar_href("week", anchor),
+            days: Vec::new(),
+            selected_day_label: anchor.format("%A %-d %B %Y").to_string(),
+            selected_entries: Vec::new(),
+            selected_entry_count: 0,
+            has_entries: false,
+            state: state.name,
+            state_heading: Some(state.heading),
+            state_message: Some(state.message),
+            recovery_href,
+            recovery_label,
+        })
+    }
+
+    pub fn render_page(&self, engine: &TeraView) -> LocoResult<String> {
+        engine.render(BROWSER_PAGE_TEMPLATE, self)
+    }
+
+    pub fn render_region(&self, engine: &TeraView) -> LocoResult<String> {
+        engine.render(BROWSER_REGION_TEMPLATE, self)
+    }
+}
+
+struct CalendarNavigation {
+    previous_href: String,
+    today_href: String,
+    next_href: String,
+}
+
+impl CalendarNavigation {
+    fn new(
+        view: &'static str,
+        anchor: NaiveDate,
+        today: NaiveDate,
+    ) -> Result<Self, CalendarPresentationError> {
+        let (previous, next) = if view == "month" {
+            (
+                anchor.checked_sub_months(Months::new(1)),
+                anchor.checked_add_months(Months::new(1)),
+            )
+        } else {
+            (
+                anchor.checked_sub_days(Days::new(7)),
+                anchor.checked_add_days(Days::new(7)),
+            )
+        };
+        let previous = previous.ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        let next = next.ok_or(CalendarPresentationError::BoundaryOutOfRange)?;
+        Ok(Self {
+            previous_href: calendar_href(view, previous),
+            today_href: calendar_href(view, today),
+            next_href: calendar_href(view, next),
+        })
+    }
+}
+
+fn parse_presentation_date(value: &str) -> Result<NaiveDate, CalendarPresentationError> {
+    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .map_err(|_| CalendarPresentationError::BoundaryOutOfRange)
+}
+
+fn calendar_href(view: &str, date: NaiveDate) -> String {
+    format!("/calendar?view={view}&date={date}")
 }
 
 /// Validated ordinary-day Week positioning values. All serialized values are numeric.

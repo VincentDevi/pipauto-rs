@@ -125,6 +125,7 @@ async fn authenticated_shell_contains_only_safe_identity_and_complete_navigation
         "Customers",
         "Vehicles",
         "Interventions",
+        "Calendar",
         "Knowledge",
         "Invoices",
         "Home",

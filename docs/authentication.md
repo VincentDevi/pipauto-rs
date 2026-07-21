@@ -159,6 +159,7 @@ sessions. Restore `active = true` only after the account is safe.
 | `POST /interventions/{id}/complete` | Authenticated + session CSRF | Complete and lock a Draft with performed work. |
 | `GET /interventions/{id}/cancel` | Authenticated | Review irreversible cancellation details without a reason field. |
 | `POST /interventions/{id}/cancel` | Authenticated + session CSRF | Cancel and retain a Draft in service history. |
+| `GET /calendar` | Authenticated | Read the bounded Calendar Month view; accepts only `view=month\|week` and `date=YYYY-MM-DD`. |
 | `GET /knowledge` | Authenticated | Search and page through active or archived technical notes. |
 | `POST /knowledge` | Authenticated + session CSRF | Create a technical note with validated reusable and source context. |
 | `GET /knowledge/new` | Authenticated | Create a technical note, optionally prefilling vehicle or intervention context. |
@@ -259,8 +260,8 @@ Authentication routes and authenticated application routes apply `Cache-Control:
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.
 Responses use a restrictive same-origin CSP, same-origin referrer policy,
 anti-framing, MIME-sniffing protection, and disabled camera, microphone, and geolocation policies.
-The planned browser routes above are registered for access-policy auditing but intentionally do
-not appear in active navigation until their owning frontend issue replaces each `501` placeholder.
+Only implemented browser routes appear in active navigation. Every route is registered for
+access-policy auditing when its owning frontend issue delivers the complete read path.
 
 ## Production deployment
 
