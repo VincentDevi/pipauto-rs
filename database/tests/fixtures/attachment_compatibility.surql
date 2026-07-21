@@ -28,7 +28,7 @@ DEFINE FIELD IF NOT EXISTS media_type ON attachment TYPE string
     ];
 
 DEFINE FIELD IF NOT EXISTS byte_size ON attachment TYPE option<int>
-    ASSERT $value IS NONE OR ($value >= 1 AND $value <= 26214400);
+    ASSERT $value IS NONE OR ($value >= 0 AND $value <= 26214400);
 
 DEFINE FIELD IF NOT EXISTS caption ON attachment TYPE option<string>
     ASSERT $value IS NONE OR (
@@ -42,8 +42,8 @@ DEFINE FIELD IF NOT EXISTS file ON attachment TYPE option<file<pipauto_attachmen
 DEFINE FIELD IF NOT EXISTS sha256 ON attachment TYPE option<string>
     ASSERT $value IS NONE OR string::matches($value, /^[0-9a-f]{64}$/);
 
-DEFINE FIELD IF NOT EXISTS storage_state ON attachment TYPE string DEFAULT 'pending'
-    ASSERT $value IN ['pending', 'stored', 'deleting'];
+DEFINE FIELD IF NOT EXISTS storage_state ON attachment TYPE string DEFAULT 'metadata_only'
+    ASSERT $value IN ['metadata_only', 'pending', 'stored', 'deleting'];
 
 DEFINE FIELD IF NOT EXISTS created_at ON attachment TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS updated_at ON attachment TYPE datetime DEFAULT ALWAYS time::now();
@@ -80,6 +80,11 @@ DEFINE EVENT IF NOT EXISTS attachment_validate_owner ON TABLE attachment
 DEFINE EVENT IF NOT EXISTS attachment_validate_storage ON TABLE attachment
     WHEN $event IN ['CREATE', 'UPDATE']
     THEN {
+        IF $after.storage_state = 'metadata_only' AND (
+            $after.file IS NOT NONE OR $after.sha256 IS NOT NONE
+        ) {
+            THROW 'metadata-only attachment cannot claim stored bytes';
+        };
         IF $after.storage_state = 'pending' AND (
             $after.file IS NONE
             OR $after.byte_size IS NOT NONE
@@ -90,6 +95,7 @@ DEFINE EVENT IF NOT EXISTS attachment_validate_storage ON TABLE attachment
         IF $after.storage_state = 'stored' AND (
             $after.file IS NONE
             OR $after.byte_size IS NONE
+            OR $after.byte_size < 1
             OR $after.sha256 IS NONE
         ) {
             THROW 'stored attachment storage fields are required';
@@ -97,6 +103,7 @@ DEFINE EVENT IF NOT EXISTS attachment_validate_storage ON TABLE attachment
         IF $after.storage_state = 'deleting' AND (
             $after.file IS NONE
             OR (($after.byte_size IS NONE) != ($after.sha256 IS NONE))
+            OR ($after.byte_size IS NOT NONE AND $after.byte_size < 1)
         ) {
             THROW 'deleting attachment storage fields are invalid';
         };

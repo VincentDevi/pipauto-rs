@@ -44,7 +44,9 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
             include_str!("../../database/schema/business/intervention.surql"),
             include_str!("../../database/schema/business/intervention_line.surql"),
             include_str!("../../database/schema/business/technical_note.surql"),
-            include_str!("../../database/schema/business/attachment.surql"),
+            // VIN-65's additive schema keeps the metadata-only application compatible until
+            // VIN-66 switches the domain and repository to stored attachments.
+            include_str!("../../database/tests/fixtures/attachment_compatibility.surql"),
             include_str!("../../database/schema/business/invoice.surql"),
             include_str!("../../database/schema/business/invoice_line.surql"),
             include_str!("../../database/schema/business/payment.surql"),

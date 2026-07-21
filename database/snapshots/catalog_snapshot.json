@@ -10,12 +10,28 @@
       "file_hash": "ee01731190f7bb6b707f9e40d8349c9318c1c47f4212a0b34c63f22650a8fb83"
     },
     {
+      "kind": "bucket",
+      "scope": null,
+      "name": "pipauto_attachments",
+      "source_path": "database/schema/storage/pipauto_attachments.surql",
+      "statement_hash": "969d55806dc46c197b8675efcfd92565b68800a88c817823df9431a4cc288061",
+      "file_hash": "0d920278c2a23524879f2d2bf5155b560be179be188a89125912790a2cf3d70f"
+    },
+    {
       "kind": "event",
       "scope": "attachment",
       "name": "attachment_validate_owner",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "20627eed10fecc593e835f13d01a6e9ee3ffc2004674b6f2d5613a0eaa49c2c9",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "c9bf9851685cb05cfc45ea366c3b2caff6887d01203fb52447745c27ad6ff498",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
+    },
+    {
+      "kind": "event",
+      "scope": "attachment",
+      "name": "attachment_validate_storage",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "2594fe6cf87b437ae034113b823f2a8753313409e50a69c88c38a74bfc84f9a6",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "event",
@@ -166,8 +182,8 @@
       "scope": "attachment",
       "name": "byte_size",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "98330bcc73dbe523293fa376384a3880a18a41ae290f74b1dfcd9e0a4b81b261",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "9b4943ffa275e1241a7d3c89abe1b82a82f05854408ded96d5c7e2f93c4667b1",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -175,7 +191,7 @@
       "name": "caption",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "87ce9867b84f07b566b0fb99ae18816b35c568926c03978e9c6bb7e2c594d2a6",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -183,7 +199,7 @@
       "name": "created_at",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "e836e2db897747b28287bbfc844b85c0f3b66d58f6d32b5ea2a88c88c72f127f",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -191,7 +207,15 @@
       "name": "display_name",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "18d7a822fae191b0acf5bf4850ed10dc74c69b893c73bdade6168edcb2db72ec",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "file",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "4a47f595590ee83f5ae2c3e78ffb81d96f82662f1926681150969e8d4d3a087e",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -199,7 +223,7 @@
       "name": "intervention",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "23f50c668a95d63f6a417f8bbb4af5aa0bf9a92936533b0fe7225561adf418be",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -207,15 +231,31 @@
       "name": "media_type",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "87a8cba39f71b36d8f826bf3e68b0dea69b49f9803e681aa423e019b4675d9bc",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "sha256",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "714d21d5ae9eb6b3ad358075680ff33eb8c261045bf992eeffc95feb1729424c",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
       "scope": "attachment",
       "name": "storage_state",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "34b132b4cd49ed24c75c462171b5eab29d4d700c9870a70383ee092e0c7d75ad",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "df9e48ba45d659c809f563c6334cabe4138a8d139f7270131039426791791add",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
+    },
+    {
+      "kind": "field",
+      "scope": "attachment",
+      "name": "technical_note",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "0c49f34333608282f35a0864be01618e532ea6e1bdca6f10e691a6ca7fd7e395",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -223,7 +263,7 @@
       "name": "updated_at",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "6ae3c3533c241307e7d88a90d238b809b1090fcc59e87377a739e081ce78278a",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -231,7 +271,7 @@
       "name": "vehicle",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "92ff48045a3f85362ab21cf73dadc60717dc090145a19a1aeaccd0f5cbfd657d",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "field",
@@ -1334,24 +1374,32 @@
       "scope": "attachment",
       "name": "attachment_intervention",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "195d1a24745b79d8bdd6ef77276efc24308fe8fc7d76f42422a3ca0165f98f53",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "73fea834eba4d74341f7a81966981136476267298c13020876eb7e6f6fe794be",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "index",
       "scope": "attachment",
       "name": "attachment_storage_state",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "c64c3cad835074ee91c0161e607155f6f1a59cfcc2d7267d4d186dd0b690df1e",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "cb069dae3f69fd53dd34c7dd061a5e995e4e9dcf4657e24b96f1b448a0e48f2d",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
+    },
+    {
+      "kind": "index",
+      "scope": "attachment",
+      "name": "attachment_technical_note",
+      "source_path": "database/schema/business/attachment.surql",
+      "statement_hash": "687b96a34570fabf68600ce4ed5102baffd2701b6bf45bac4423e71fc35187f5",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "index",
       "scope": "attachment",
       "name": "attachment_vehicle",
       "source_path": "database/schema/business/attachment.surql",
-      "statement_hash": "2eff450ea56165cb558f821ccfc79f7e52599da88315b1804036f580667cdd55",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "statement_hash": "912d6c75b8facb59dfd3ab6b2501fcb40cb51a1c1f6d48686717cf8c47c16e46",
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "index",
@@ -1695,7 +1743,7 @@
       "name": "attachment",
       "source_path": "database/schema/business/attachment.surql",
       "statement_hash": "8bc738e5d6157c31d6a827739e7c14099c8e814d84e7c8f439cab361023e072a",
-      "file_hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "file_hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "kind": "table",

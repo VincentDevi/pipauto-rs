@@ -1,0 +1,206 @@
+id = "20260721104500__stored_attachment_schema"
+name = "stored attachment schema"
+source_schema_hash = "0333beabc3a5f40caa76c742d168eeefcfcb12323506dae8346dbc608c7ca1c3"
+target_schema_hash = "73e76ab32febd6ff58184720070413f83778feee0ec473a9bccdd43440604a41"
+compatibility = "phased"
+renames = []
+
+[[steps]]
+id = "apply_attachment_compatibility_schema"
+phase = "start"
+kind = "apply_schema"
+sql = """
+DEFINE BUCKET IF NOT EXISTS pipauto_attachments
+    BACKEND 'file:/home/nonroot/pipauto_attachments'
+    PERMISSIONS NONE;
+
+DEFINE FIELD IF NOT EXISTS technical_note ON attachment TYPE option<record<technical_note>>
+    REFERENCE ON DELETE REJECT
+    ASSERT $value IS NONE OR record::exists($value);
+
+DEFINE FIELD IF NOT EXISTS file ON attachment TYPE option<file<pipauto_attachments>>;
+
+DEFINE FIELD IF NOT EXISTS sha256 ON attachment TYPE option<string>
+    ASSERT $value IS NONE OR string::matches($value, /^[0-9a-f]{64}$/);
+
+DEFINE FIELD IF NOT EXISTS byte_size ON attachment TYPE option<int>
+    ASSERT $value IS NONE OR ($value >= 0 AND $value <= 26214400);
+
+DEFINE FIELD IF NOT EXISTS storage_state ON attachment TYPE string DEFAULT 'metadata_only'
+    ASSERT $value IN ['metadata_only', 'pending', 'stored', 'deleting'];
+
+DEFINE INDEX IF NOT EXISTS attachment_vehicle ON attachment FIELDS vehicle, created_at;
+DEFINE INDEX IF NOT EXISTS attachment_intervention ON attachment
+    FIELDS intervention, created_at;
+DEFINE INDEX IF NOT EXISTS attachment_technical_note ON attachment
+    FIELDS technical_note, created_at;
+DEFINE INDEX IF NOT EXISTS attachment_storage_state ON attachment
+    FIELDS storage_state, updated_at;
+
+DEFINE EVENT IF NOT EXISTS attachment_validate_owner ON TABLE attachment
+    WHEN $event IN ['CREATE', 'UPDATE']
+    THEN {
+        IF (
+            $after.vehicle IS NONE
+            AND $after.intervention IS NONE
+            AND $after.technical_note IS NONE
+        ) OR (
+            $after.vehicle IS NOT NONE
+            AND $after.intervention IS NOT NONE
+        ) OR (
+            $after.vehicle IS NOT NONE
+            AND $after.technical_note IS NOT NONE
+        ) OR (
+            $after.intervention IS NOT NONE
+            AND $after.technical_note IS NOT NONE
+        ) {
+            THROW 'attachment must have exactly one owner';
+        };
+    };
+
+DEFINE EVENT IF NOT EXISTS attachment_validate_storage ON TABLE attachment
+    WHEN $event IN ['CREATE', 'UPDATE']
+    THEN {
+        IF $after.storage_state = 'metadata_only' AND (
+            $after.file IS NOT NONE OR $after.sha256 IS NOT NONE
+        ) {
+            THROW 'metadata-only attachment cannot claim stored bytes';
+        };
+        IF $after.storage_state = 'pending' AND (
+            $after.file IS NONE
+            OR $after.byte_size IS NOT NONE
+            OR $after.sha256 IS NOT NONE
+        ) {
+            THROW 'pending attachment storage fields are invalid';
+        };
+        IF $after.storage_state = 'stored' AND (
+            $after.file IS NONE
+            OR $after.byte_size IS NONE
+            OR $after.byte_size < 1
+            OR $after.sha256 IS NONE
+        ) {
+            THROW 'stored attachment storage fields are required';
+        };
+        IF $after.storage_state = 'deleting' AND (
+            $after.file IS NONE
+            OR (($after.byte_size IS NONE) != ($after.sha256 IS NONE))
+            OR ($after.byte_size IS NOT NONE AND $after.byte_size < 1)
+        ) {
+            THROW 'deleting attachment storage fields are invalid';
+        };
+    };
+"""
+
+[[steps]]
+id = "assert_attachment_compatibility_rows"
+phase = "start"
+kind = "assert_sql"
+sql = "RETURN count(SELECT * FROM attachment WHERE storage_state NOT IN ['metadata_only', 'pending', 'stored', 'deleting']);"
+expect = "0"
+
+[[steps]]
+id = "delete_metadata_only_attachments"
+phase = "complete"
+kind = "run_sql"
+sql = "DELETE attachment WHERE storage_state = 'metadata_only';"
+
+[[steps]]
+id = "assert_metadata_only_attachments_removed"
+phase = "complete"
+kind = "assert_sql"
+sql = "RETURN count(SELECT * FROM attachment WHERE storage_state = 'metadata_only');"
+expect = "0"
+
+[[steps]]
+id = "apply_stored_attachment_contract"
+phase = "complete"
+kind = "apply_files"
+files = ["database/schema/business/attachment.surql"]
+
+[[steps]]
+id = "record_stored_attachment_schema_hashes"
+phase = "complete"
+kind = "run_sql"
+sql = """
+DELETE __entity WHERE ns = 'sync' AND key IN [
+    'database/schema/business/attachment.surql',
+    'database/schema/storage/pipauto_attachments.surql'
+];
+CREATE __entity CONTENT {
+    ns: 'sync',
+    key: 'database/schema/business/attachment.surql',
+    val: { hash: 'c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1' },
+    updated_at: time::now()
+};
+CREATE __entity CONTENT {
+    ns: 'sync',
+    key: 'database/schema/storage/pipauto_attachments.surql',
+    val: { hash: '0d920278c2a23524879f2d2bf5155b560be179be188a89125912790a2cf3d70f' },
+    updated_at: time::now()
+};
+"""
+
+[[steps]]
+id = "assert_no_stored_attachment_rows_before_rollback"
+phase = "rollback"
+kind = "assert_sql"
+sql = "RETURN count(SELECT * FROM attachment WHERE storage_state != 'metadata_only');"
+expect = "0"
+
+[[steps]]
+id = "restore_metadata_only_attachment_schema"
+phase = "rollback"
+kind = "apply_schema"
+sql = """
+DEFINE FIELD IF NOT EXISTS byte_size ON attachment TYPE option<int>
+    ASSERT $value IS NONE OR $value >= 0;
+
+DEFINE FIELD IF NOT EXISTS storage_state ON attachment TYPE string DEFAULT 'metadata_only'
+    ASSERT $value = 'metadata_only';
+
+DEFINE INDEX IF NOT EXISTS attachment_vehicle ON attachment FIELDS vehicle;
+DEFINE INDEX IF NOT EXISTS attachment_intervention ON attachment FIELDS intervention;
+DEFINE INDEX IF NOT EXISTS attachment_storage_state ON attachment FIELDS storage_state;
+
+DEFINE EVENT IF NOT EXISTS attachment_validate_owner ON TABLE attachment
+    WHEN $event IN ['CREATE', 'UPDATE']
+    THEN {
+        IF ($after.vehicle IS NONE) = ($after.intervention IS NONE) {
+            THROW 'attachment metadata must have exactly one owner';
+        };
+    };
+"""
+
+[[steps]]
+id = "remove_attachment_compatibility_schema"
+phase = "rollback"
+kind = "remove_entities"
+
+[[steps.entities]]
+kind = "event"
+scope = "attachment"
+name = "attachment_validate_storage"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "file"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "sha256"
+
+[[steps.entities]]
+kind = "field"
+scope = "attachment"
+name = "technical_note"
+
+[[steps.entities]]
+kind = "index"
+scope = "attachment"
+name = "attachment_technical_note"
+
+[[steps.entities]]
+kind = "bucket"
+name = "pipauto_attachments"

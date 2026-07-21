@@ -18,6 +18,7 @@ import uuid
 
 PINNED_VERSION = "0.7.0"
 AUTH_TABLES = ("auth_session", "login_throttle", "user")
+STORED_ATTACHMENT_ROLLOUT = "20260721104500__stored_attachment_schema"
 ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_CATALOG = ROOT / "database/tests/fixtures/authentication_catalog.json"
 DEFAULT_REPORT = ROOT / "artifacts/migration-report.json"
@@ -119,14 +120,21 @@ def query(environment: dict[str, str], sql: str) -> list[object]:
     return results
 
 
-def live_catalog(environment: dict[str, str], allow_metadata: bool) -> dict[str, object]:
+def live_catalog(
+    environment: dict[str, str], allow_metadata: bool, allow_business: bool = False
+) -> dict[str, object]:
     statements = ["INFO FOR DB"] + [f"INFO FOR TABLE {table}" for table in AUTH_TABLES]
     database_info, *table_info = query(environment, ";".join(statements) + ";")
     expected_names = set(AUTH_TABLES)
     if allow_metadata:
         expected_names.update(("__entity", "__rollout"))
     live_names = set(database_info["tables"])
-    if live_names != expected_names:
+    valid_names = (
+        expected_names.issubset(live_names)
+        if allow_business
+        else live_names == expected_names
+    )
+    if not valid_names:
         raise SafeFailure("catalog drift detected during database table comparison")
 
     return {
@@ -146,9 +154,11 @@ def record_fingerprint(environment: dict[str, str]) -> str:
     return hashlib.sha256(logical.encode()).hexdigest()
 
 
-def verify_catalog(environment: dict[str, str], allow_metadata: bool) -> None:
+def verify_catalog(
+    environment: dict[str, str], allow_metadata: bool, allow_business: bool = False
+) -> None:
     expected = json.loads(EXPECTED_CATALOG.read_text())
-    actual = live_catalog(environment, allow_metadata)
+    actual = live_catalog(environment, allow_metadata, allow_business)
     if actual != expected:
         for table in AUTH_TABLES:
             if actual.get(table) != expected.get(table):
@@ -258,7 +268,7 @@ def run_rollout_start(arguments: list[str], environment: dict[str, str]) -> int:
     )[0]
     status = rows[0].get("status") if rows else None
     if status is None:
-        verify_catalog(environment, allow_metadata=True)
+        verify_catalog(environment, allow_metadata=True, allow_business=True)
     owner = uuid.uuid4().hex
     query(
         environment,
@@ -274,6 +284,22 @@ def run_rollout_start(arguments: list[str], environment: dict[str, str]) -> int:
             "DELETE __entity WHERE ns = 'pipauto_rollout_gate' "
             f"AND key = 'global' AND val.owner = '{owner}';",
         )
+
+
+def run_rollout_complete(arguments: list[str], environment: dict[str, str]) -> int:
+    if len(arguments) != 3:
+        raise SafeFailure("rollout complete requires exactly one rollout id")
+    selected = rollout_id(arguments[2])
+    if selected == STORED_ATTACHMENT_ROLLOUT:
+        result = query(
+            environment,
+            "RETURN count(SELECT * FROM attachment "
+            "WHERE storage_state = 'metadata_only');",
+        )[0]
+        if not isinstance(result, int) or result < 0:
+            raise SafeFailure("metadata-only attachment count could not be verified")
+        print(f"metadata_only attachments before contract deletion: {result}", flush=True)
+    return run_cli(arguments, environment)
 
 
 def deployment_gate(arguments: list[str], environment: dict[str, str]) -> int:
@@ -341,6 +367,8 @@ def main() -> int:
         return deployment_gate(arguments, environment)
     if arguments[:2] == ["rollout", "start"]:
         return run_rollout_start(arguments, environment)
+    if arguments[:2] == ["rollout", "complete"]:
+        return run_rollout_complete(arguments, environment)
     if arguments[:2] in (["rollout", "repair"], ["rollout", "rollback"]):
         result = run_cli(arguments, environment)
         if result == 0:

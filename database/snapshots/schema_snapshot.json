@@ -15,7 +15,7 @@
     },
     {
       "path": "database/schema/business/attachment.surql",
-      "hash": "3c539b9d43d57b661fc145b05dbe778180bc3fc949626a75c215c9777934c7d3"
+      "hash": "c9ddf2aa8f3be2fd601573f53e4e3e0e274838a682be71f179b4cdcdd2c032b1"
     },
     {
       "path": "database/schema/business/customer.surql",
@@ -48,6 +48,10 @@
     {
       "path": "database/schema/business/vehicle.surql",
       "hash": "826fdbb0ef2862abe38ce4ef8cdc0d16e8cdb7bd2a638541017710fa2af058c7"
+    },
+    {
+      "path": "database/schema/storage/pipauto_attachments.surql",
+      "hash": "0d920278c2a23524879f2d2bf5155b560be179be188a89125912790a2cf3d70f"
     }
   ]
 }

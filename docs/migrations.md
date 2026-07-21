@@ -305,6 +305,11 @@ steps are completed, and the dry run prints `schema already in sync`. `completed
 SurrealKit cannot roll it back; correct later problems with a new forward rollout or restore the
 backup into the disaster-recovery path below.
 
+For rollout `20260721104500__stored_attachment_schema`, the wrapper first prints the count of
+`metadata_only` attachment rows. Capture that count in the deployment record before the contract
+phase deletes those legacy rows. If the count cannot be read, the wrapper blocks completion before
+SurrealKit runs any contract step.
+
 ## Roll back between start and complete
 
 Use rollout rollback when the additive phase succeeded but compatible code cannot safely be

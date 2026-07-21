@@ -2,10 +2,11 @@ name = "attachments_schema"
 tags = ["attachments", "metadata"]
 
 [[cases]]
-name = "attachment_table_is_schemafull"
+name = "attachment_bucket_is_private_and_mounted"
 kind = "schema_metadata"
 sql = "INFO FOR DB;"
 contains = [
+    "DEFINE BUCKET pipauto_attachments BACKEND 'file:/home/nonroot/pipauto_attachments' PERMISSIONS NONE",
     "DEFINE TABLE attachment TYPE NORMAL SCHEMAFULL PERMISSIONS NONE",
 ]
 
@@ -18,25 +19,35 @@ contains = [
     "DEFINE FIELD caption ON attachment TYPE none | string",
     "DEFINE FIELD created_at ON attachment TYPE datetime DEFAULT time::now() READONLY",
     "DEFINE FIELD display_name ON attachment TYPE string",
+    "DEFINE FIELD file ON attachment TYPE none | file<pipauto_attachments>",
     "DEFINE FIELD intervention ON attachment TYPE none | record<intervention>",
     "DEFINE FIELD media_type ON attachment TYPE string",
-    "DEFINE FIELD storage_state ON attachment TYPE string DEFAULT 'metadata_only'",
+    "DEFINE FIELD sha256 ON attachment TYPE none | string",
+    "DEFINE FIELD storage_state ON attachment TYPE string DEFAULT 'pending'",
+    "DEFINE FIELD technical_note ON attachment TYPE none | record<technical_note>",
     "DEFINE FIELD updated_at ON attachment TYPE datetime DEFAULT ALWAYS time::now()",
     "DEFINE FIELD vehicle ON attachment TYPE none | record<vehicle>",
     "REFERENCE ON DELETE REJECT",
-    "DEFINE INDEX attachment_intervention ON attachment FIELDS intervention",
-    "DEFINE INDEX attachment_storage_state ON attachment FIELDS storage_state",
-    "DEFINE INDEX attachment_vehicle ON attachment FIELDS vehicle",
+    "DEFINE INDEX attachment_intervention ON attachment FIELDS intervention, created_at",
+    "DEFINE INDEX attachment_storage_state ON attachment FIELDS storage_state, updated_at",
+    "DEFINE INDEX attachment_technical_note ON attachment FIELDS technical_note, created_at",
+    "DEFINE INDEX attachment_vehicle ON attachment FIELDS vehicle, created_at",
 ]
 
 [[cases]]
-name = "attachment_rejects_negative_byte_size"
+name = "attachment_rejects_zero_byte_size"
 kind = "sql_expect"
-sql = "CREATE attachment:invalid CONTENT { vehicle: vehicle:missing, display_name: 'Photo.jpg', media_type: 'image/jpeg', byte_size: -1 };"
+sql = "CREATE attachment:invalid CONTENT { vehicle: vehicle:missing, display_name: 'Photo.jpg', media_type: 'image/jpeg', file: f'pipauto_attachments:/invalid', byte_size: 0, sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', storage_state: 'stored' };"
+allow = false
+
+[[cases]]
+name = "attachment_rejects_oversized_file"
+kind = "sql_expect"
+sql = "CREATE attachment:oversized CONTENT { vehicle: vehicle:missing, display_name: 'Photo.jpg', media_type: 'image/jpeg', file: f'pipauto_attachments:/oversized', byte_size: 26214401, sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', storage_state: 'stored' };"
 allow = false
 
 [[cases]]
 name = "attachment_rejects_unsupported_media_type"
 kind = "sql_expect"
-sql = "CREATE attachment:invalid_type CONTENT { vehicle: vehicle:missing, display_name: 'Data.bin', media_type: 'application/octet-stream' };"
+sql = "CREATE attachment:invalid_type CONTENT { vehicle: vehicle:missing, display_name: 'Data.bin', media_type: 'application/octet-stream', file: f'pipauto_attachments:/invalid-type', storage_state: 'pending' };"
 allow = false
