@@ -26,7 +26,8 @@ server:
   middlewares:
     limit_payload:
       enable: true
-      body_limit: 64kb
+      # 25 MiB attachment plus a bounded 64 KiB multipart envelope.
+      body_limit: 25664kb
     secure_headers:
       enable: true
       preset: empty
@@ -49,6 +50,8 @@ settings:
     default_currency: EUR
     default_collection_limit: 25
     maximum_collection_limit: 200
+  attachments:
+    maximum_file_bytes: 26214400
   surrealdb:
     endpoint: '{{ get_env(name="SURREALDB_ENDPOINT") }}'
     username: '{{ get_env(name="SURREALDB_ROOT_USERNAME") }}'

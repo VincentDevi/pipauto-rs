@@ -9,10 +9,13 @@ services:
       SURREAL_PATH: rocksdb://pipauto
       SURREAL_DEFAULT_NAMESPACE: ${SURREALDB_NAMESPACE:?SURREALDB_NAMESPACE is required}
       SURREAL_DEFAULT_DATABASE: ${SURREALDB_DATABASE:?SURREALDB_DATABASE is required}
+      SURREAL_CAPS_ALLOW_EXPERIMENTAL: files
+      SURREAL_BUCKET_FOLDER_ALLOWLIST: /home/nonroot/pipauto_attachments
     ports:
       - "8000:8000"
     volumes:
       - pipauto_surrealdb_development:/home/nonroot
+      - pipauto_surrealdb_attachments:/home/nonroot/pipauto_attachments
     healthcheck:
       test: ["CMD", "/surreal", "isready", "--endpoint", "http://localhost:8000"]
       interval: 2s
@@ -23,3 +26,5 @@ services:
 volumes:
   pipauto_surrealdb_development:
     name: pipauto_surrealdb_development
+  pipauto_surrealdb_attachments:
+    name: pipauto_surrealdb_attachments

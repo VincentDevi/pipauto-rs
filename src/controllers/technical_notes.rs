@@ -24,7 +24,8 @@ use crate::{
     settings::BusinessSettings,
 };
 
-const BODY_LIMIT: usize = 128 * 1024;
+// Preserve the former global 64 KiB ceiling now that multipart raises the global middleware.
+const BODY_LIMIT: usize = 64 * 1024;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

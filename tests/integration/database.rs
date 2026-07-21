@@ -60,3 +60,27 @@ async fn incomplete_database_configuration_prevents_startup() {
     assert!(error.to_string().contains("namespace"));
     assert!(!error.to_string().contains("password"));
 }
+
+#[tokio::test]
+async fn attachment_settings_reject_invalid_startup_values_without_echoing_them() {
+    for invalid in [0, 99_999_999] {
+        let mut config = Environment::Test
+            .load()
+            .expect("test configuration should load");
+        config
+            .settings
+            .as_mut()
+            .and_then(|settings| settings.get_mut("attachments"))
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("attachment settings should be an object")
+            .insert("maximum_file_bytes".to_owned(), invalid.into());
+
+        let error = match create_context::<App>(&Environment::Test, config).await {
+            Ok(_) => panic!("startup should reject an invalid attachment limit"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("settings.attachments"));
+        assert!(!error.to_string().contains(&invalid.to_string()));
+    }
+}

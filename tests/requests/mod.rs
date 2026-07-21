@@ -15,6 +15,7 @@ mod intervention_browser;
 mod interventions;
 mod invoice_browser;
 mod invoices;
+mod route_body_limits;
 mod setup;
 mod surrealdb_health;
 mod technical_note_browser;

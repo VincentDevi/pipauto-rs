@@ -744,6 +744,9 @@ impl Hooks for App {
         let business = crate::settings::BusinessSettings::from_config(&ctx.config)
             .map_err(loco_rs::Error::msg)?;
         ctx.shared_store.insert(business);
+        let attachments = crate::settings::AttachmentSettings::from_config(&ctx.config)
+            .map_err(loco_rs::Error::msg)?;
+        ctx.shared_store.insert(attachments);
         crate::initializers::surrealdb::install(&ctx).await?;
         crate::initializers::auth::install(&ctx).await?;
         crate::initializers::business::install(&ctx).await?;

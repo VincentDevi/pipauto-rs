@@ -212,7 +212,7 @@ sessions. Restore `active = true` only after the account is safe.
 | `DELETE /api/v1/attachments/{id}` | Authenticated + session CSRF | Delete a `metadata_only` attachment record. |
 | `/static/*` | Public | Committed same-origin CSS, JavaScript, and vendored HTMX. |
 | `GET /_health` | Public | Loco liveness response with no application data. |
-| `GET /_health/surrealdb` | Public | Non-sensitive database availability state only. |
+| `GET /_health/surrealdb` | Public | Non-sensitive database availability and attachment-bucket catalog state only. |
 | `GET /_ping` | Public | Loco process ping response with no application data. |
 | `GET /_readiness` | Public | Loco readiness response with no application data. |
 

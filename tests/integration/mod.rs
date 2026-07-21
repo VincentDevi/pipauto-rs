@@ -10,4 +10,5 @@ mod database;
 mod interventions;
 mod invoices;
 mod migration;
+mod surrealdb_bucket_capability;
 mod technical_note_attachment_repositories;

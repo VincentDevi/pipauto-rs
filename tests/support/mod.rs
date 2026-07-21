@@ -12,6 +12,20 @@ use tower::ServiceExt;
 
 pub const TEST_ORIGIN: &str = "http://localhost:5150";
 
+/// Explicitly define the private attachment bucket for one disposable test database.
+///
+/// Application startup deliberately does not call this helper. Each selected in-memory database
+/// has its own bucket catalog and object namespace.
+pub async fn define_attachment_memory_bucket(client: &Surreal<Any>) {
+    let response = client
+        .query("DEFINE BUCKET pipauto_attachments BACKEND 'memory' PERMISSIONS NONE;")
+        .await
+        .expect("the attachment test bucket should be definable");
+    response
+        .check()
+        .expect("the attachment test bucket definition should be valid");
+}
+
 /// Apply the committed authentication schema to an isolated test database.
 pub async fn apply_authentication_schema(client: &Surreal<Any>) {
     let schema = [

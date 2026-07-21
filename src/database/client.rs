@@ -6,12 +6,20 @@ use async_trait::async_trait;
 use surrealdb::{
     engine::{any, any::Any},
     opt::auth::Root,
+    opt::{
+        capabilities::{Capabilities, ExperimentalFeature},
+        Config as SurrealConfig,
+    },
+    types::Value,
     Surreal,
 };
 use thiserror::Error;
 use tokio::time::timeout;
 
 use super::settings::{DatabaseEngine, DatabaseSettings};
+
+/// One private bucket shared by all stored attachments.
+pub const ATTACHMENT_BUCKET_NAME: &str = "pipauto_attachments";
 
 /// Cheap-to-clone application database service stored in Loco's shared store.
 #[derive(Clone)]
@@ -27,12 +35,27 @@ impl AppDatabase {
     ///
     /// Returns a stage-specific, secret-free error if startup cannot safely continue.
     pub async fn connect(settings: &DatabaseSettings) -> Result<Self, DatabaseStartupError> {
-        let client = run_startup_operation(
-            settings.connection_timeout(),
-            DatabaseStartupStage::Connection,
-            any::connect(settings.endpoint()),
-        )
-        .await?;
+        let client = match settings.engine() {
+            DatabaseEngine::Websocket => {
+                run_startup_operation(
+                    settings.connection_timeout(),
+                    DatabaseStartupStage::Connection,
+                    any::connect(settings.endpoint()),
+                )
+                .await?
+            }
+            DatabaseEngine::Memory => {
+                let capabilities = Capabilities::new()
+                    .with_experimental_feature_allowed(ExperimentalFeature::Files);
+                let config = SurrealConfig::new().capabilities(capabilities);
+                run_startup_operation(
+                    settings.connection_timeout(),
+                    DatabaseStartupStage::Connection,
+                    any::connect(("mem://", config)),
+                )
+                .await?
+            }
+        };
 
         if settings.engine() == DatabaseEngine::Websocket {
             let credentials = Root {
@@ -102,6 +125,71 @@ impl AppDatabase {
     /// Returns an opaque error. Connection details and raw query errors are deliberately hidden.
     pub async fn health(&self) -> Result<(), DatabaseHealthError> {
         self.health_service.health().await
+    }
+
+    /// Inspect the selected database's bucket catalog without defining schema or touching objects.
+    ///
+    /// The safe status is suitable for readiness diagnostics and rollout preflight checks. It does
+    /// not expose the backend path or raw database errors.
+    pub async fn attachment_bucket_status(
+        &self,
+    ) -> Result<AttachmentBucketStatus, DatabaseBucketCapabilityError> {
+        let client = self.client.as_ref().ok_or(DatabaseBucketCapabilityError)?;
+        let mut response = client
+            .query("RETURN type::file($bucket, '/capability-check'); INFO FOR DB;")
+            .bind(("bucket", ATTACHMENT_BUCKET_NAME))
+            .await
+            .map_err(|_| DatabaseBucketCapabilityError)?
+            .check()
+            .map_err(|_| DatabaseBucketCapabilityError)?;
+        let capability: Value = response
+            .take(0)
+            .map_err(|_| DatabaseBucketCapabilityError)?;
+        let Value::File(capability) = capability else {
+            return Err(DatabaseBucketCapabilityError);
+        };
+        if capability.bucket() != ATTACHMENT_BUCKET_NAME {
+            return Err(DatabaseBucketCapabilityError);
+        }
+        let catalog: Value = response
+            .take(1)
+            .map_err(|_| DatabaseBucketCapabilityError)?;
+        let catalog = catalog.into_json_value();
+        let definition = catalog
+            .get("buckets")
+            .and_then(|buckets| buckets.get(ATTACHMENT_BUCKET_NAME))
+            .and_then(serde_json::Value::as_str);
+
+        Ok(match definition {
+            None => AttachmentBucketStatus::Missing,
+            Some(definition)
+                if definition.contains("PERMISSIONS NONE")
+                    && (definition.contains("BACKEND 'memory'")
+                        || definition.contains("BACKEND 'file:")) =>
+            {
+                AttachmentBucketStatus::Ready
+            }
+            Some(_) => AttachmentBucketStatus::Misconfigured,
+        })
+    }
+}
+
+/// Safe attachment-bucket catalog state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AttachmentBucketStatus {
+    Missing,
+    Ready,
+    Misconfigured,
+}
+
+impl AttachmentBucketStatus {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Missing => "missing",
+            Self::Ready => "ready",
+            Self::Misconfigured => "misconfigured",
+        }
     }
 }
 
@@ -196,3 +284,8 @@ pub struct DatabaseHealthError;
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 #[error("application database client is unavailable")]
 pub struct DatabaseAccessError;
+
+/// Opaque failure from the non-mutating attachment-bucket catalog check.
+#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
+#[error("attachment storage capability is unavailable")]
+pub struct DatabaseBucketCapabilityError;

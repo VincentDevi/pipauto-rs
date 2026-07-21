@@ -1,4 +1,4 @@
-//! Validated workshop business settings.
+//! Validated workshop business and attachment settings.
 
 use std::fmt;
 
@@ -8,8 +8,97 @@ use thiserror::Error;
 
 use crate::domain::{CurrencyCode, PageLimit, MAX_PAGE_LIMIT};
 
-const SETTINGS_KEY: &str = "business";
+const BUSINESS_SETTINGS_KEY: &str = "business";
+const ATTACHMENT_SETTINGS_KEY: &str = "attachments";
 pub const DEFAULT_COLLECTION_LIMIT: u16 = 25;
+
+/// Fixed initial-release maximum for one attachment (25 MiB).
+pub const MAX_ATTACHMENT_FILE_BYTES: usize = 25 * 1_024 * 1_024;
+/// Reserved multipart headers and text-field overhead above the file limit.
+pub const MULTIPART_OVERHEAD_BYTES: usize = 64 * 1_024;
+/// Global request ceiling needed for one maximum-size attachment and its multipart envelope.
+pub const MULTIPART_ENVELOPE_BYTES: usize = MAX_ATTACHMENT_FILE_BYTES + MULTIPART_OVERHEAD_BYTES;
+
+/// Validated maximum bytes accepted for one attachment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AttachmentFileLimit(usize);
+
+impl AttachmentFileLimit {
+    fn new(bytes: usize) -> Result<Self, AttachmentSettingsError> {
+        if bytes == 0 || bytes > MAX_ATTACHMENT_FILE_BYTES {
+            return Err(AttachmentSettingsError::InvalidFileLimit);
+        }
+        Ok(Self(bytes))
+    }
+
+    #[must_use]
+    pub const fn bytes(self) -> usize {
+        self.0
+    }
+}
+
+/// Attachment transport settings validated before application startup completes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AttachmentSettings {
+    maximum_file_bytes: AttachmentFileLimit,
+}
+
+impl AttachmentSettings {
+    /// Read and validate only the `settings.attachments` section.
+    pub fn from_config(config: &Config) -> Result<Self, AttachmentSettingsError> {
+        let settings = config
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.get(ATTACHMENT_SETTINGS_KEY))
+            .cloned()
+            .ok_or(AttachmentSettingsError::MissingSection)?;
+        serde_json::from_value(settings).map_err(|_| AttachmentSettingsError::InvalidFormat)
+    }
+
+    #[must_use]
+    pub const fn maximum_file_bytes(self) -> AttachmentFileLimit {
+        self.maximum_file_bytes
+    }
+
+    /// Maximum complete request body accepted by future multipart upload routes.
+    #[must_use]
+    pub const fn multipart_envelope_bytes(self) -> usize {
+        MULTIPART_ENVELOPE_BYTES
+    }
+}
+
+impl<'de> Deserialize<'de> for AttachmentSettings {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = RawAttachmentSettings::deserialize(deserializer)?;
+        let maximum_file_bytes =
+            AttachmentFileLimit::new(raw.maximum_file_bytes).map_err(D::Error::custom)?;
+        Ok(Self { maximum_file_bytes })
+    }
+}
+
+#[derive(Deserialize)]
+struct RawAttachmentSettings {
+    #[serde(default = "default_attachment_file_bytes")]
+    maximum_file_bytes: usize,
+}
+
+const fn default_attachment_file_bytes() -> usize {
+    MAX_ATTACHMENT_FILE_BYTES
+}
+
+/// Safe attachment-configuration failures which never include configured data.
+#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
+pub enum AttachmentSettingsError {
+    #[error("missing required setting section `settings.attachments`")]
+    MissingSection,
+    #[error("invalid `settings.attachments` configuration")]
+    InvalidFormat,
+    #[error("setting `attachments.maximum_file_bytes` must be between 1 byte and 25 MiB")]
+    InvalidFileLimit,
+}
 
 /// Business defaults shared by collection workflows.
 #[derive(Clone)]
@@ -25,7 +114,7 @@ impl BusinessSettings {
         let settings = config
             .settings
             .as_ref()
-            .and_then(|settings| settings.get(SETTINGS_KEY))
+            .and_then(|settings| settings.get(BUSINESS_SETTINGS_KEY))
             .cloned()
             .ok_or(BusinessSettingsError::MissingSection)?;
         serde_json::from_value(settings).map_err(|_| BusinessSettingsError::InvalidFormat)
@@ -132,6 +221,35 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn attachment_settings_default_to_the_fixed_25_mib_contract() {
+        let settings: AttachmentSettings =
+            serde_json::from_value(json!({})).expect("defaults should be valid");
+
+        assert_eq!(settings.maximum_file_bytes().bytes(), 25 * 1_024 * 1_024);
+        assert_eq!(
+            settings.multipart_envelope_bytes(),
+            settings.maximum_file_bytes().bytes() + 64 * 1_024
+        );
+    }
+
+    #[test]
+    fn attachment_settings_accept_smaller_limits_and_reject_zero_or_oversized_values_safely() {
+        let settings: AttachmentSettings = serde_json::from_value(json!({
+            "maximum_file_bytes": 1_024
+        }))
+        .expect("a smaller positive limit should be valid");
+        assert_eq!(settings.maximum_file_bytes().bytes(), 1_024);
+
+        for invalid in [0, MAX_ATTACHMENT_FILE_BYTES + 1] {
+            let error = serde_json::from_value::<AttachmentSettings>(json!({
+                "maximum_file_bytes": invalid
+            }))
+            .expect_err("invalid limits should be rejected");
+            assert!(!error.to_string().contains(&invalid.to_string()));
+        }
+    }
 
     #[test]
     fn business_settings_default_to_eur_and_documented_limits() {

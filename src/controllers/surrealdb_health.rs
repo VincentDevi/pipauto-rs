@@ -16,15 +16,30 @@ const UNAVAILABLE: &str = "unavailable";
 #[derive(Debug, Serialize)]
 struct HealthResponse {
     status: &'static str,
+    attachment_bucket: &'static str,
 }
 
 async fn health(SharedStore(database): SharedStore<AppDatabase>) -> Response {
     match database.health().await {
-        Ok(()) => (StatusCode::OK, Json(HealthResponse { status: HEALTHY })).into_response(),
+        Ok(()) => {
+            let attachment_bucket = database
+                .attachment_bucket_status()
+                .await
+                .map_or("unavailable", |status| status.as_str());
+            (
+                StatusCode::OK,
+                Json(HealthResponse {
+                    status: HEALTHY,
+                    attachment_bucket,
+                }),
+            )
+                .into_response()
+        }
         Err(_) => (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(HealthResponse {
                 status: UNAVAILABLE,
+                attachment_bucket: "unavailable",
             }),
         )
             .into_response(),

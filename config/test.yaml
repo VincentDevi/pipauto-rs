@@ -24,7 +24,8 @@ server:
   middlewares:
     limit_payload:
       enable: true
-      body_limit: 64kb
+      # Match production transport behavior; unsafe non-upload routes remain explicitly smaller.
+      body_limit: 25664kb
     secure_headers:
       enable: true
       preset: empty
@@ -47,6 +48,8 @@ settings:
     default_currency: EUR
     default_collection_limit: 25
     maximum_collection_limit: 200
+  attachments:
+    maximum_file_bytes: 26214400
   surrealdb:
     endpoint: memory
     username: test

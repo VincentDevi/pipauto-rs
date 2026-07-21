@@ -49,7 +49,10 @@ async fn database_health_endpoint_returns_stable_healthy_and_unavailable_respons
         .await
         .expect("healthy request should complete");
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(response_json(response).await, json!({"status": "healthy"}));
+    assert_eq!(
+        response_json(response).await,
+        json!({"status": "healthy", "attachment_bucket": "unavailable"})
+    );
 
     healthy.store(false, Ordering::Relaxed);
 
@@ -60,7 +63,7 @@ async fn database_health_endpoint_returns_stable_healthy_and_unavailable_respons
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(
         response_json(response).await,
-        json!({"status": "unavailable"})
+        json!({"status": "unavailable", "attachment_bucket": "unavailable"})
     );
 }
 

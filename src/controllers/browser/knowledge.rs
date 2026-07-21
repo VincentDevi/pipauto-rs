@@ -62,7 +62,8 @@ const FORM_FIELDS: &[&str] = &[
     "vehicle_id",
     "source_intervention_id",
 ];
-const FORM_BODY_LIMIT: usize = 128 * 1_024;
+// Preserve the former global 64 KiB ceiling now that multipart raises the global middleware.
+const FORM_BODY_LIMIT: usize = 64 * 1_024;
 
 #[derive(Debug, Default, Deserialize)]
 struct NewNoteQuery {
