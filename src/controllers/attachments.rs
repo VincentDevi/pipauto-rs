@@ -80,6 +80,7 @@ impl From<AttachmentMetadata> for AttachmentDto {
             AttachmentOwner::Intervention(id) => {
                 ("intervention", None, Some(InterventionIdDto::from(id)))
             }
+            AttachmentOwner::TechnicalNote(_) => ("technical_note", None, None),
         };
         Self {
             id: AttachmentIdDto::from(&value.id),
@@ -88,7 +89,7 @@ impl From<AttachmentMetadata> for AttachmentDto {
             intervention_id,
             display_name: value.display_name,
             media_type: value.media_type.as_str().to_owned(),
-            byte_size: value.byte_size,
+            byte_size: Some(value.byte_size),
             caption: value.caption,
             storage_state,
             created_at: value.created_at.into(),
@@ -195,7 +196,7 @@ async fn update(
         media_type: request
             .media_type
             .unwrap_or_else(|| current.media_type.as_str().to_owned()),
-        byte_size: request.byte_size.unwrap_or(current.byte_size),
+        byte_size: request.byte_size.unwrap_or(Some(current.byte_size)),
         caption: request.caption.unwrap_or(current.caption),
     };
     Ok(Json(DataEnvelope::new(

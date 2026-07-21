@@ -19,7 +19,7 @@ use tokio::time::timeout;
 use super::settings::{DatabaseEngine, DatabaseSettings};
 
 /// One private bucket shared by all stored attachments.
-pub const ATTACHMENT_BUCKET_NAME: &str = "pipauto_attachments";
+pub use crate::models::attachment::ATTACHMENT_BUCKET_NAME;
 
 /// Cheap-to-clone application database service stored in Loco's shared store.
 #[derive(Clone)]

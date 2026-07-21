@@ -4,6 +4,7 @@
 //! They must not depend on production credentials or duplicate public request assertions.
 
 mod attachment_schema;
+mod attachment_service;
 mod auth;
 mod auth_repositories;
 mod customer_vehicle_repositories;

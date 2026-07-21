@@ -8,15 +8,18 @@ use crate::{
     database::client::AppDatabase,
     domain::CursorCodec,
     repositories::{
-        attachment::AttachmentRepository,
+        attachment::{AttachmentFileStore, AttachmentRepository},
         customer::CustomerRepository,
         health::HealthRepository,
         intervention::InterventionRepository,
         invoice::InvoiceRepository,
         surreal::{
-            attachment::SurrealAttachmentRepository, customer::SurrealCustomerRepository,
-            health::SurrealHealthRepository, intervention::SurrealInterventionRepository,
-            invoice::SurrealInvoiceRepository, technical_note::SurrealTechnicalNoteRepository,
+            attachment::{SurrealAttachmentFileStore, SurrealAttachmentRepository},
+            customer::SurrealCustomerRepository,
+            health::SurrealHealthRepository,
+            intervention::SurrealInterventionRepository,
+            invoice::SurrealInvoiceRepository,
+            technical_note::SurrealTechnicalNoteRepository,
             vehicle::SurrealVehicleRepository,
         },
         technical_note::TechnicalNoteRepository,
@@ -44,9 +47,7 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
             include_str!("../../database/schema/business/intervention.surql"),
             include_str!("../../database/schema/business/intervention_line.surql"),
             include_str!("../../database/schema/business/technical_note.surql"),
-            // VIN-65's additive schema keeps the metadata-only application compatible until
-            // VIN-66 switches the domain and repository to stored attachments.
-            include_str!("../../database/tests/fixtures/attachment_compatibility.surql"),
+            include_str!("../../database/schema/business/attachment.surql"),
             include_str!("../../database/schema/business/invoice.surql"),
             include_str!("../../database/schema/business/invoice_line.surql"),
             include_str!("../../database/schema/business/payment.surql"),
@@ -74,7 +75,9 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     let invoices: Arc<dyn InvoiceRepository> =
         Arc::new(SurrealInvoiceRepository::new(client.clone()));
     let attachments: Arc<dyn AttachmentRepository> =
-        Arc::new(SurrealAttachmentRepository::new(client));
+        Arc::new(SurrealAttachmentRepository::new(client.clone()));
+    let attachment_files: Arc<dyn AttachmentFileStore> =
+        Arc::new(SurrealAttachmentFileStore::new(client));
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
     ctx.shared_store.insert(HealthService::new(health));
@@ -89,7 +92,7 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         cursors.clone(),
     ));
     ctx.shared_store.insert(TechnicalNoteService::new(
-        notes,
+        notes.clone(),
         vehicles.clone(),
         interventions.clone(),
         cursors.clone(),
@@ -101,7 +104,12 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         interventions.clone(),
         cursors.clone(),
     ));
-    ctx.shared_store
-        .insert(AttachmentService::new(attachments, vehicles, interventions));
+    ctx.shared_store.insert(AttachmentService::new(
+        attachments,
+        attachment_files,
+        vehicles,
+        interventions,
+        notes,
+    ));
     Ok(())
 }

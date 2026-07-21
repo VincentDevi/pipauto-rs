@@ -92,9 +92,7 @@ impl From<AttachmentMetadata> for AttachmentFormValues {
         Self {
             display_name: value.display_name,
             media_type: value.media_type.as_str().to_owned(),
-            byte_size: value
-                .byte_size
-                .map_or(String::new(), |size| size.to_string()),
+            byte_size: value.byte_size.to_string(),
             caption: value.caption.unwrap_or_default(),
         }
     }
@@ -421,7 +419,7 @@ impl<'page> VehicleDetailPage<'page> {
                         id: attachment_id.clone(),
                         display_name: attachment.display_name,
                         media_type: attachment.media_type.as_str().to_owned(),
-                        byte_size: attachment.byte_size,
+                        byte_size: Some(attachment.byte_size),
                         caption: attachment.caption,
                         edit_href: format!("/attachments/{attachment_id}/edit"),
                         delete_action: format!("/attachments/{attachment_id}/delete"),

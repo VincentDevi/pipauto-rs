@@ -386,7 +386,7 @@ impl<'page> InterventionDetailPage<'page> {
                         id: id.clone(),
                         display_name: attachment.display_name,
                         media_type: attachment.media_type.as_str(),
-                        byte_size: attachment.byte_size,
+                        byte_size: Some(attachment.byte_size),
                         caption: attachment.caption,
                         edit_href: format!(
                             "/interventions/{}/attachments/{id}/edit",

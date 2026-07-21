@@ -2,19 +2,25 @@ use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
     database::client::AppDatabase,
-    domain::{PageLimit, VehicleId},
+    domain::{AttachmentId, PageLimit, VehicleId},
     models::{
-        attachment::{AttachmentMediaType, AttachmentOwner, NewAttachmentMetadata},
+        attachment::{
+            AttachmentDigest, AttachmentFilePointer, AttachmentMediaType, AttachmentOwner,
+            NewAttachmentReservation,
+        },
         technical_note::NewTechnicalNote,
     },
     repositories::{
-        attachment::AttachmentRepository,
+        attachment::{AttachmentFileStore, AttachmentRepository},
         surreal::{
-            attachment::SurrealAttachmentRepository, technical_note::SurrealTechnicalNoteRepository,
+            attachment::{SurrealAttachmentFileStore, SurrealAttachmentRepository},
+            technical_note::SurrealTechnicalNoteRepository,
         },
         technical_note::{TechnicalNoteFilter, TechnicalNoteRepository},
     },
 };
+
+use crate::support::define_attachment_memory_bucket;
 
 #[tokio::test]
 async fn technical_note_repository_crud_archive_and_restore() {
@@ -107,27 +113,85 @@ async fn technical_note_search_combines_full_text_exact_filters_and_stable_curso
 }
 
 #[tokio::test]
-async fn attachment_repository_keeps_owner_and_metadata_only_state() {
+async fn attachment_repository_hides_transitions_and_persists_stored_state() {
     let (_, attachments, client) = repositories().await;
     let owner = AttachmentOwner::Vehicle(VehicleId::parse("repository_vehicle").expect("id"));
     client.query("CREATE customer:repository_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' }; CREATE vehicle:repository_vehicle CONTENT { customer: customer:repository_owner, make: 'VW', make_normalized: 'vw', model: 'Golf', model_normalized: 'golf' };").await.expect("fixtures").check().expect("fixtures valid");
-    let input = NewAttachmentMetadata::new(
+    let input = NewAttachmentReservation::new(
+        AttachmentId::parse("repository_attachment").expect("attachment id"),
         owner.clone(),
         "Photo.jpg".into(),
         AttachmentMediaType::Jpeg,
-        Some(42),
         None,
+        AttachmentFilePointer::new(
+            "pipauto_attachments",
+            "0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        .expect("file pointer"),
     )
-    .expect("metadata");
-    let created = attachments.create(&input).await.expect("create attachment");
-    assert_eq!(created.storage_state(), "metadata_only");
-    assert_eq!(attachments.list_owner(&owner).await.expect("list").len(), 1);
-    attachments.delete(&created.id).await.expect("delete");
+    .expect("reservation");
+    let pending = attachments
+        .reserve(&input)
+        .await
+        .expect("reserve attachment");
+    assert_eq!(pending.storage_state.as_str(), "pending");
     assert!(attachments
-        .find_by_id(&created.id)
+        .list_stored_owner(&owner)
+        .await
+        .expect("list")
+        .is_empty());
+    let digest = AttachmentDigest::calculate(b"fixture");
+    let stored = attachments
+        .finalize(&pending.id, 7, &digest)
+        .await
+        .expect("finalize attachment");
+    assert_eq!(stored.storage_state.as_str(), "stored");
+    assert_eq!(
+        attachments
+            .list_stored_owner(&owner)
+            .await
+            .expect("list")
+            .len(),
+        1
+    );
+    attachments
+        .mark_deleting(&stored.id)
+        .await
+        .expect("mark deleting");
+    attachments
+        .delete_deleting(&stored.id)
+        .await
+        .expect("delete");
+    assert!(attachments
+        .find_internal(&stored.id)
         .await
         .expect("find")
         .is_none());
+}
+
+#[tokio::test]
+async fn attachment_file_store_uses_typed_pointer_bytes_and_idempotent_delete() {
+    let client = test_client().await;
+    define_attachment_memory_bucket(&client).await;
+    let store = SurrealAttachmentFileStore::new(client);
+    let pointer = AttachmentFilePointer::new(
+        "pipauto_attachments",
+        "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
+    )
+    .expect("file pointer");
+    let bytes = b"private attachment bytes";
+    store
+        .put_if_absent(&pointer, bytes)
+        .await
+        .expect("put object");
+    assert_eq!(
+        store.head(&pointer).await.expect("head object").byte_size,
+        u64::try_from(bytes.len()).expect("fixture size")
+    );
+    assert_eq!(store.get(&pointer).await.expect("get object"), bytes);
+    assert!(store.put_if_absent(&pointer, bytes).await.is_err());
+    store.delete(&pointer).await.expect("delete object");
+    store.delete(&pointer).await.expect("idempotent delete");
 }
 
 fn note(title: &str, body: &str, tags: Vec<&str>) -> NewTechnicalNote {
