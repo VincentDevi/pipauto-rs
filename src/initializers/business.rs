@@ -6,9 +6,10 @@ use loco_rs::{app::AppContext, environment::Environment, Error, Result};
 
 use crate::{
     database::client::AppDatabase,
-    domain::CursorCodec,
+    domain::{CursorCodec, WorkshopTime},
     repositories::{
         attachment::{AttachmentFileStore, AttachmentRepository},
+        calendar::CalendarRepository,
         customer::CustomerRepository,
         health::HealthRepository,
         intervention::InterventionRepository,
@@ -27,8 +28,9 @@ use crate::{
     },
     services::{
         attachment::AttachmentService, attachment_reconciliation::AttachmentReconciler,
-        customer::CustomerService, health::HealthService, intervention::InterventionService,
-        invoice::InvoiceService, technical_note::TechnicalNoteService, vehicle::VehicleService,
+        calendar::CalendarService, customer::CustomerService, health::HealthService,
+        intervention::InterventionService, invoice::InvoiceService,
+        technical_note::TechnicalNoteService, vehicle::VehicleService,
     },
 };
 
@@ -70,12 +72,17 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         .shared_store
         .get::<CursorCodec>()
         .ok_or_else(|| Error::string("cursor service is not installed"))?;
+    let workshop_time = ctx
+        .shared_store
+        .get::<WorkshopTime>()
+        .ok_or_else(|| Error::string("workshop time is not installed"))?;
     let customers: Arc<dyn CustomerRepository> =
         Arc::new(SurrealCustomerRepository::new(client.clone()));
     let vehicles: Arc<dyn VehicleRepository> =
         Arc::new(SurrealVehicleRepository::new(client.clone()));
-    let interventions: Arc<dyn InterventionRepository> =
-        Arc::new(SurrealInterventionRepository::new(client.clone()));
+    let intervention_repository = Arc::new(SurrealInterventionRepository::new(client.clone()));
+    let interventions: Arc<dyn InterventionRepository> = intervention_repository.clone();
+    let calendar: Arc<dyn CalendarRepository> = intervention_repository;
     let notes: Arc<dyn TechnicalNoteRepository> =
         Arc::new(SurrealTechnicalNoteRepository::new(client.clone()));
     let invoices: Arc<dyn InvoiceRepository> =
@@ -87,6 +94,8 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     ctx.shared_store
         .insert(CustomerService::new(customers.clone(), cursors.clone()));
     ctx.shared_store.insert(HealthService::new(health));
+    ctx.shared_store
+        .insert(CalendarService::new(calendar, workshop_time));
     ctx.shared_store.insert(VehicleService::new(
         vehicles.clone(),
         customers.clone(),

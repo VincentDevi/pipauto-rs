@@ -5,7 +5,7 @@ use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
     database::client::AppDatabase,
-    domain::{CurrencyCode, Money, PageLimit, Quantity},
+    domain::{CurrencyCode, Money, PageLimit, Quantity, WorkshopTime},
     models::{
         customer::NewCustomer,
         intervention::{
@@ -15,6 +15,7 @@ use pipauto::{
         vehicle::NewVehicle,
     },
     repositories::{
+        calendar::CalendarRepository,
         customer::CustomerRepository,
         intervention::{InterventionFilter, InterventionRepository, LineMutation},
         surreal::{
@@ -24,7 +25,110 @@ use pipauto::{
         vehicle::VehicleRepository,
         RepositoryError,
     },
+    services::calendar::CalendarService,
 };
+
+#[tokio::test]
+async fn calendar_repository_returns_exact_bounded_overlap_without_totals_or_live_joins() {
+    let (customers, vehicles, interventions) = repositories().await;
+    let vehicle = vehicle_fixture(&customers, &vehicles).await;
+    let workshop_time = WorkshopTime::system(chrono_tz::Europe::Brussels);
+
+    let ending_at_start = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-06-30T23:00")
+                .expect("boundary fixture"),
+            60,
+            "ending-at-start",
+        ))
+        .await
+        .expect("ending-at-start job");
+    let maximum_lookback = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-06-30T00:30")
+                .expect("maximum-lookback fixture"),
+            1_440,
+            "maximum-lookback",
+        ))
+        .await
+        .expect("maximum-lookback job");
+    let overlapping_lookback = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-06-30T23:30")
+                .expect("lookback fixture"),
+            60,
+            "lookback",
+        ))
+        .await
+        .expect("lookback job");
+    let completed = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-07-15T09:00")
+                .expect("completed fixture"),
+            90,
+            "completed",
+        ))
+        .await
+        .expect("completed job");
+    interventions
+        .transition_draft(&completed.id, InterventionStatus::Completed)
+        .await
+        .expect("complete job");
+    let cancelled = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-07-16T09:00")
+                .expect("cancelled fixture"),
+            60,
+            "cancelled",
+        ))
+        .await
+        .expect("cancelled job");
+    interventions
+        .transition_draft(&cancelled.id, InterventionStatus::Cancelled)
+        .await
+        .expect("cancel job");
+    let starting_at_end = interventions
+        .create(&scheduled_intervention(
+            &vehicle,
+            workshop_time
+                .local_to_utc("2026-08-01T00:00")
+                .expect("range-end fixture"),
+            60,
+            "starting-at-end",
+        ))
+        .await
+        .expect("starting-at-end job");
+
+    let calendar_repository: Arc<dyn CalendarRepository> = interventions;
+    let schedule = CalendarService::new(calendar_repository, workshop_time)
+        .month(Some("2026-07-15".parse().expect("anchor")))
+        .await
+        .expect("calendar query");
+    let ids = schedule
+        .entries
+        .iter()
+        .map(|entry| entry.id.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ids,
+        vec![maximum_lookback.id, overlapping_lookback.id, completed.id]
+    );
+    assert!(!ids.contains(&ending_at_start.id));
+    assert!(!ids.contains(&cancelled.id));
+    assert!(!ids.contains(&starting_at_end.id));
+    assert_eq!(schedule.entries[0].identity_snapshot.customer_name, "Owner");
+}
 
 #[tokio::test]
 async fn intervention_repository_preserves_mileage_history_and_archived_readability() {
@@ -285,6 +389,18 @@ fn intervention(
         Utc::now(),
     )
     .expect("intervention")
+}
+
+fn scheduled_intervention(
+    vehicle: &pipauto::models::vehicle::Vehicle,
+    service_date: chrono::DateTime<Utc>,
+    duration_minutes: u16,
+    performed_work: &str,
+) -> NewIntervention {
+    let mut value = intervention(vehicle, 1, 100_000, Some(performed_work));
+    value.service_date = service_date;
+    value.estimated_duration = EstimatedDuration::new(duration_minutes).expect("duration");
+    value
 }
 
 async fn vehicle_fixture(

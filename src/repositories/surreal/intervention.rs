@@ -1,7 +1,7 @@
 //! SurrealDB intervention repository adapter.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::Deserialize;
 use surrealdb::{
     engine::any::Any,
@@ -15,6 +15,7 @@ use crate::{
         Money, PageLimit, Quantity, VehicleId,
     },
     models::{
+        calendar::{CalendarEntry, CalendarRange},
         intervention::{
             EstimatedDuration, Intervention, InterventionIdentitySnapshot, InterventionStatus,
             InterventionTotals, NewIntervention, ServiceHistoryEntry, ServiceHistorySummary,
@@ -22,6 +23,7 @@ use crate::{
         intervention_line::{InterventionLine, InterventionLineCategory, NewInterventionLine},
     },
     repositories::{
+        calendar::CalendarRepository,
         customer::RepositoryPage,
         intervention::{
             InterventionFilter, InterventionRepository, LineMoveDirection, LineMutation,
@@ -34,6 +36,11 @@ use crate::{
 use super::support;
 
 const INTERVENTION_PROJECTION: &str = "id, vehicle, service_date, estimated_duration_minutes, customer_snapshot_id, customer_snapshot_name, vehicle_snapshot_registration, vehicle_snapshot_make, vehicle_snapshot_model, status, mileage, customer_reported_problem, diagnostics, performed_work, recommendations, notes, currency, created_at, updated_at, completed_at, cancelled_at";
+const CALENDAR_PROJECTION: &str = concat!(
+    "id, service_date, estimated_duration_minutes, customer_snapshot_id, ",
+    "customer_snapshot_name, vehicle_snapshot_registration, vehicle_snapshot_make, ",
+    "vehicle_snapshot_model, status"
+);
 const LINE_PROJECTION: &str = "id, intervention, category, description, type::int(quantity * 1000dec) AS quantity_thousandths, unit_label, currency, unit_price_minor, unit_cost_minor, total_price_minor, total_cost_minor, position, created_at, updated_at";
 
 #[derive(Clone)]
@@ -130,6 +137,49 @@ struct DbIntervention {
     updated_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     cancelled_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, SurrealValue)]
+struct DbCalendarEntry {
+    id: RecordId,
+    service_date: DateTime<Utc>,
+    estimated_duration_minutes: i64,
+    customer_snapshot_id: RecordId,
+    customer_snapshot_name: String,
+    vehicle_snapshot_registration: Option<String>,
+    vehicle_snapshot_make: String,
+    vehicle_snapshot_model: String,
+    status: String,
+}
+
+impl TryFrom<DbCalendarEntry> for CalendarEntry {
+    type Error = RepositoryError;
+
+    fn try_from(value: DbCalendarEntry) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: InterventionId::parse(support::record_key(&value.id, "intervention")?)
+                .map_err(|_| RepositoryError::CorruptData)?,
+            start: value.service_date,
+            estimated_duration: EstimatedDuration::new(
+                u16::try_from(value.estimated_duration_minutes)
+                    .map_err(|_| RepositoryError::CorruptData)?,
+            )
+            .map_err(|_| RepositoryError::CorruptData)?,
+            status: parse_status(&value.status)?,
+            identity_snapshot: InterventionIdentitySnapshot::new(
+                CustomerId::parse(support::record_key(
+                    &value.customer_snapshot_id,
+                    "customer",
+                )?)
+                .map_err(|_| RepositoryError::CorruptData)?,
+                value.customer_snapshot_name,
+                value.vehicle_snapshot_registration,
+                value.vehicle_snapshot_make,
+                value.vehicle_snapshot_model,
+            )
+            .map_err(|_| RepositoryError::CorruptData)?,
+        })
+    }
 }
 
 impl TryFrom<DbIntervention> for Intervention {
@@ -268,6 +318,48 @@ impl TryFrom<DbSnapshotSource> for InterventionIdentitySnapshot {
             value.vehicle_model,
         )
         .map_err(|_| RepositoryError::CorruptData)
+    }
+}
+
+#[async_trait]
+impl CalendarRepository for SurrealInterventionRepository {
+    async fn entries(&self, range: &CalendarRange) -> Result<Vec<CalendarEntry>, RepositoryError> {
+        let candidate_start = range
+            .start()
+            .checked_sub_signed(TimeDelta::hours(24))
+            .ok_or(RepositoryError::CorruptData)?;
+        let query = format!(concat!(
+            "SELECT {CALENDAR_PROJECTION} FROM intervention ",
+            "WHERE service_date >= $candidate_start AND service_date < $range_end ",
+            "AND status IN ['draft', 'completed'] ",
+            "ORDER BY service_date ASC, id ASC;"
+        ));
+        let mut response = support::checked_response(
+            self.client
+                .query(query)
+                .bind(("candidate_start", candidate_start))
+                .bind(("range_end", range.end()))
+                .await,
+        )?;
+        let rows: Vec<DbCalendarEntry> = support::take(&mut response, 0)?;
+        let mut entries = Vec::with_capacity(rows.len());
+        for row in rows {
+            let entry: CalendarEntry = row.try_into()?;
+            let end = entry.end().ok_or(RepositoryError::CorruptData)?;
+            if entry.start < range.end() && end > range.start() {
+                entries.push(entry);
+            }
+        }
+        entries.sort_by(|left, right| {
+            let left_end = left.end().expect("calendar ends were validated above");
+            let right_end = right.end().expect("calendar ends were validated above");
+            left.start
+                .cmp(&right.start)
+                .then_with(|| left_end.cmp(&right_end))
+                .then_with(|| status_order(left.status).cmp(&status_order(right.status)))
+                .then_with(|| left.id.as_str().cmp(right.id.as_str()))
+        });
+        Ok(entries)
     }
 }
 
@@ -846,6 +938,14 @@ fn status_value(status: InterventionStatus) -> &'static str {
         InterventionStatus::Draft => "draft",
         InterventionStatus::Completed => "completed",
         InterventionStatus::Cancelled => "cancelled",
+    }
+}
+
+const fn status_order(status: InterventionStatus) -> u8 {
+    match status {
+        InterventionStatus::Draft => 0,
+        InterventionStatus::Completed => 1,
+        InterventionStatus::Cancelled => 2,
     }
 }
 

@@ -6,6 +6,7 @@
 pub mod attachment;
 pub mod attachment_reconciliation;
 pub mod auth;
+pub mod calendar;
 pub mod customer;
 pub mod health;
 pub mod intervention;

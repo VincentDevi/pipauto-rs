@@ -4,6 +4,7 @@
 //! parse HTTP requests, implement business rules, or query repositories and databases.
 
 pub mod auth;
+pub mod calendar;
 pub mod context;
 pub mod customer;
 pub mod dashboard;
