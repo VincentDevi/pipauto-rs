@@ -88,18 +88,12 @@ impl<'page> InterventionListPage<'page> {
         layout: AuthenticatedLayout<'page>,
         filters: InterventionFilterValues,
         page: Page<ServiceHistorySummary>,
-        row_vehicles: Vec<Vehicle>,
         filter_vehicles: Vec<Vehicle>,
         next_href: Option<String>,
         filter_error: Option<String>,
     ) -> Self {
         let selected = filters.vehicle.clone();
-        let items = page
-            .items
-            .into_iter()
-            .zip(row_vehicles)
-            .map(|(entry, vehicle)| list_item(entry, vehicle))
-            .collect();
+        let items = page.items.into_iter().map(list_item).collect();
         Self {
             layout,
             title: "Interventions · Pipauto",
@@ -134,6 +128,10 @@ pub struct InterventionFormValues {
     #[serde(default)]
     pub service_date: String,
     #[serde(default)]
+    pub start_time: String,
+    #[serde(default)]
+    pub estimated_duration_minutes: String,
+    #[serde(default)]
     pub mileage: String,
     #[serde(default)]
     pub customer_reported_problem: String,
@@ -145,22 +143,6 @@ pub struct InterventionFormValues {
     pub recommendations: String,
     #[serde(default)]
     pub notes: String,
-}
-
-impl From<&Intervention> for InterventionFormValues {
-    fn from(value: &Intervention) -> Self {
-        Self {
-            service_date: value.service_date.to_string(),
-            mileage: value
-                .mileage
-                .map_or_else(String::new, |value| value.to_string()),
-            customer_reported_problem: value.customer_reported_problem.clone().unwrap_or_default(),
-            diagnostics: value.diagnostics.clone().unwrap_or_default(),
-            performed_work: value.performed_work.clone().unwrap_or_default(),
-            recommendations: value.recommendations.clone().unwrap_or_default(),
-            notes: value.notes.clone().unwrap_or_default(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -348,7 +330,7 @@ impl<'page> InterventionDetailPage<'page> {
         layout: AuthenticatedLayout<'page>,
         intervention: Intervention,
         vehicle: Vehicle,
-        owner: Customer,
+        _owner: Customer,
         lines: Vec<InterventionLine>,
         attachments: Vec<AttachmentMetadata>,
         totals: InterventionTotals,
@@ -357,17 +339,18 @@ impl<'page> InterventionDetailPage<'page> {
         let (status, status_class) = status(intervention.status);
         let attachments_mutable =
             intervention.status == InterventionStatus::Draft && !vehicle.is_archived();
+        let snapshot = intervention.identity_snapshot.clone();
         Self {
             layout,
             title: "Intervention · Pipauto",
             id: intervention.id.as_str().to_owned(),
             vehicle_id: vehicle.id.as_str().to_owned(),
-            vehicle_name: format!("{} {}", vehicle.make, vehicle.model),
-            registration: vehicle
-                .registration
+            vehicle_name: format!("{} {}", snapshot.vehicle_make, snapshot.vehicle_model),
+            registration: snapshot
+                .vehicle_registration
                 .unwrap_or_else(|| "No registration".into()),
-            owner_href: format!("/customers/{}", owner.id.as_str()),
-            owner_name: owner.display_name,
+            owner_href: format!("/customers/{}", snapshot.customer_id.as_str()),
+            owner_name: snapshot.customer_name,
             service_date: intervention.service_date.format("%d %b %Y").to_string(),
             mileage: intervention.mileage,
             status,
@@ -575,7 +558,7 @@ impl<'page> InterventionTransitionPage<'page> {
     pub fn new(
         layout: AuthenticatedLayout<'page>,
         intervention: &Intervention,
-        vehicle: &Vehicle,
+        _vehicle: &Vehicle,
         total: Money,
         completion: bool,
     ) -> Self {
@@ -607,7 +590,16 @@ impl<'page> InterventionTransitionPage<'page> {
             explanation,
             destructive: !completion,
             id: intervention.id.as_str().to_owned(),
-            vehicle: vehicle_label(vehicle),
+            vehicle: format!(
+                "{} · {} {}",
+                intervention
+                    .identity_snapshot
+                    .vehicle_registration
+                    .as_deref()
+                    .unwrap_or("No registration"),
+                intervention.identity_snapshot.vehicle_make,
+                intervention.identity_snapshot.vehicle_model,
+            ),
             service_date: intervention.service_date.format("%d %b %Y").to_string(),
             mileage: intervention.mileage,
             total: money(total),
@@ -627,14 +619,19 @@ impl<'page> InterventionTransitionPage<'page> {
     }
 }
 
-fn list_item(entry: ServiceHistorySummary, vehicle: Vehicle) -> ListItem {
+fn list_item(entry: ServiceHistorySummary) -> ListItem {
     let intervention = entry.intervention;
     let (status, status_class) = status(intervention.status);
     ListItem {
         date: intervention.service_date.format("%d %b %Y").to_string(),
-        vehicle: format!("{} {}", vehicle.make, vehicle.model),
-        registration: vehicle
-            .registration
+        vehicle: format!(
+            "{} {}",
+            intervention.identity_snapshot.vehicle_make,
+            intervention.identity_snapshot.vehicle_model
+        ),
+        registration: intervention
+            .identity_snapshot
+            .vehicle_registration
             .unwrap_or_else(|| "No registration".into()),
         mileage: intervention.mileage,
         summary: intervention

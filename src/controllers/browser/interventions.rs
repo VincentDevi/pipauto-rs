@@ -24,6 +24,7 @@ use crate::{
     domain::{
         AttachmentId, InterventionId, InterventionLineId, OpaqueCursor, Page, PageLimit,
         PageRequest, Quantity, ValidationCode, ValidationError, ValidationErrors, VehicleId,
+        WorkshopTime,
     },
     models::{
         attachment::{
@@ -61,6 +62,8 @@ use crate::{
 
 const FORM_FIELDS: &[&str] = &[
     "service_date",
+    "start_time",
+    "estimated_duration_minutes",
     "mileage",
     "customer_reported_problem",
     "diagnostics",
@@ -79,6 +82,7 @@ const LINE_FORM_FIELDS: &[&str] = &[
     "position",
 ];
 const ATTACHMENT_FORM_FIELDS: &[&str] = &["file", "display_name", "caption"];
+type OptionalUtcBounds = (Option<chrono::DateTime<Utc>>, Option<chrono::DateTime<Utc>>);
 
 async fn list(
     context: BrowserRequestContext,
@@ -92,13 +96,12 @@ async fn list(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "vehicle selection")),
     };
-    let filter = match parse_filter(&filters) {
+    let filter = match parse_filter(&filters, &settings) {
         Ok(value) => value,
         Err(message) => {
             return render_list(
                 &context,
                 &engine,
-                &vehicles,
                 filters,
                 empty_page(),
                 filter_vehicles,
@@ -115,7 +118,6 @@ async fn list(
             return render_list(
                 &context,
                 &engine,
-                &vehicles,
                 filters,
                 empty_page(),
                 filter_vehicles,
@@ -139,7 +141,6 @@ async fn list(
             return render_list(
                 &context,
                 &engine,
-                &vehicles,
                 filters,
                 empty_page(),
                 filter_vehicles,
@@ -159,7 +160,6 @@ async fn list(
     render_list(
         &context,
         &engine,
-        &vehicles,
         filters,
         page,
         filter_vehicles,
@@ -174,7 +174,6 @@ async fn list(
 async fn render_list(
     context: &BrowserRequestContext,
     engine: &TeraView,
-    vehicles: &VehicleService,
     mut filters: InterventionFilterValues,
     page: Page<crate::models::intervention::ServiceHistorySummary>,
     filter_vehicles: Vec<Vehicle>,
@@ -182,19 +181,11 @@ async fn render_list(
     filter_error: Option<String>,
     status: StatusCode,
 ) -> Result<Response> {
-    let mut row_vehicles = Vec::with_capacity(page.items.len());
-    for item in &page.items {
-        match vehicles.get(&item.intervention.vehicle_id).await {
-            Ok(vehicle) => row_vehicles.push(vehicle),
-            Err(error) => return Ok(workflow_response(context, error, "intervention vehicle")),
-        }
-    }
     filters.cursor.clear();
     let view = InterventionListPage::new(
         layout(context),
         filters,
         page,
-        row_vehicles,
         filter_vehicles,
         next_href,
         filter_error,
@@ -230,7 +221,9 @@ async fn new_form(
         Err(error) => return Ok(workflow_response(&context, error, "vehicle owner")),
     };
     let values = InterventionFormValues {
-        service_date: Utc::now().date_naive().to_string(),
+        service_date: WorkshopTime::system(settings.workshop_timezone())
+            .current_local_date()
+            .to_string(),
         ..InterventionFormValues::default()
     };
     render_create_form(
@@ -265,7 +258,12 @@ async fn create(
         Err(error) => return Ok(workflow_response(&context, error, "vehicle owner")),
     };
     let values = form.fields;
-    let command = match create_command(&values, vehicle.id.clone(), settings.default_currency()) {
+    let command = match create_command(
+        &values,
+        vehicle.id.clone(),
+        settings.default_currency(),
+        &settings,
+    ) {
         Ok(value) => value,
         Err(errors) => {
             return render_create_form(
@@ -426,12 +424,14 @@ async fn render_detail(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn edit_form(
     context: BrowserRequestContext,
     SharedStore(interventions): SharedStore<InterventionService>,
     SharedStore(vehicles): SharedStore<VehicleService>,
     SharedStore(customers): SharedStore<CustomerService>,
     SharedStore(attachments): SharedStore<AttachmentService>,
+    SharedStore(settings): SharedStore<BusinessSettings>,
     ViewEngine(engine): ViewEngine<TeraView>,
     Path(raw_id): Path<String>,
 ) -> Result<Response> {
@@ -474,7 +474,7 @@ async fn edit_form(
         &intervention,
         &vehicle,
         &owner,
-        FormState::new((&intervention).into()),
+        FormState::new(form_values(&intervention, &settings)),
         None,
         StatusCode::OK,
     )
@@ -487,6 +487,7 @@ async fn update(
     SharedStore(vehicles): SharedStore<VehicleService>,
     SharedStore(customers): SharedStore<CustomerService>,
     SharedStore(attachments): SharedStore<AttachmentService>,
+    SharedStore(settings): SharedStore<BusinessSettings>,
     ViewEngine(engine): ViewEngine<TeraView>,
     Path(raw_id): Path<String>,
     form: AuthenticatedForm<InterventionFormValues>,
@@ -522,7 +523,7 @@ async fn update(
         Err(error) => return Ok(workflow_response(&context, error, "vehicle owner")),
     };
     let values = form.fields;
-    let command = match update_command(&values) {
+    let command = match update_command(&values, &settings) {
         Ok(value) => value,
         Err(errors) => {
             return render_edit_form(
@@ -1360,6 +1361,7 @@ struct EmptyForm {
 
 fn parse_filter(
     values: &InterventionFilterValues,
+    settings: &BusinessSettings,
 ) -> std::result::Result<InterventionFilter, String> {
     let vehicle_id = if values.vehicle.trim().is_empty() {
         None
@@ -1381,11 +1383,12 @@ fn parse_filter(
     if from.zip(to).is_some_and(|(from, to)| from > to) {
         return Err("The From date must be on or before the To date.".to_owned());
     }
+    let (service_date_from, service_date_until) = browser_date_bounds(from, to, settings)?;
     Ok(InterventionFilter {
         vehicle_id,
         status,
-        service_date_from: from,
-        service_date_to: to,
+        service_date_from,
+        service_date_until,
     })
 }
 
@@ -1393,11 +1396,13 @@ fn create_command(
     values: &InterventionFormValues,
     vehicle_id: VehicleId,
     currency: crate::domain::CurrencyCode,
+    settings: &BusinessSettings,
 ) -> std::result::Result<CreateIntervention, ValidationErrors> {
-    let (service_date, mileage) = validate_form(values)?;
+    let (service_date, estimated_duration_minutes, mileage) = validate_form(values, settings)?;
     Ok(CreateIntervention {
         vehicle_id,
         service_date,
+        estimated_duration_minutes,
         mileage,
         customer_reported_problem: optional_text(&values.customer_reported_problem),
         diagnostics: optional_text(&values.diagnostics),
@@ -1410,10 +1415,12 @@ fn create_command(
 
 fn update_command(
     values: &InterventionFormValues,
+    settings: &BusinessSettings,
 ) -> std::result::Result<UpdateIntervention, ValidationErrors> {
-    let (service_date, mileage) = validate_form(values)?;
+    let (service_date, estimated_duration_minutes, mileage) = validate_form(values, settings)?;
     Ok(UpdateIntervention {
         service_date: Some(service_date),
+        estimated_duration_minutes: Some(estimated_duration_minutes),
         mileage: Some(mileage),
         customer_reported_problem: Some(optional_text(&values.customer_reported_problem)),
         diagnostics: Some(optional_text(&values.diagnostics)),
@@ -1426,14 +1433,24 @@ fn update_command(
 
 fn validate_form(
     values: &InterventionFormValues,
-) -> std::result::Result<(NaiveDate, Option<u64>), ValidationErrors> {
+    settings: &BusinessSettings,
+) -> std::result::Result<(chrono::DateTime<Utc>, u16, Option<u64>), ValidationErrors> {
     let mut errors = Vec::new();
-    let service_date = NaiveDate::parse_from_str(&values.service_date, "%Y-%m-%d").map_err(|_| {
-        errors.push(validation_error(
-            "service_date",
-            "Enter a valid service date.",
-        ));
-    });
+    let service_date = WorkshopTime::system(settings.workshop_timezone())
+        .local_to_utc(&format!("{}T{}", values.service_date, values.start_time))
+        .map_err(|error| errors.push(validation_error("service_date", &error.to_string())));
+    let estimated_duration = values
+        .estimated_duration_minutes
+        .parse::<u16>()
+        .ok()
+        .and_then(|minutes| crate::models::intervention::EstimatedDuration::new(minutes).ok())
+        .map(crate::models::intervention::EstimatedDuration::minutes)
+        .ok_or_else(|| {
+            errors.push(validation_error(
+                "estimated_duration_minutes",
+                "Choose a duration from 30 minutes through 24 hours.",
+            ));
+        });
     let mileage = if values.mileage.trim().is_empty() {
         Ok(None)
     } else {
@@ -1444,10 +1461,54 @@ fn validate_form(
             ));
         })
     };
-    match (service_date, mileage) {
-        (Ok(date), Ok(mileage)) => Ok((date, mileage)),
+    match (service_date, estimated_duration, mileage) {
+        (Ok(date), Ok(duration), Ok(mileage)) => Ok((date, duration, mileage)),
         _ => Err(ValidationErrors::from_vec(errors).expect("form validation errors are non-empty")),
     }
+}
+
+fn form_values(intervention: &Intervention, settings: &BusinessSettings) -> InterventionFormValues {
+    let local =
+        WorkshopTime::system(settings.workshop_timezone()).utc_to_local(intervention.service_date);
+    InterventionFormValues {
+        service_date: local.format("%Y-%m-%d").to_string(),
+        start_time: local.format("%H:%M").to_string(),
+        estimated_duration_minutes: intervention.estimated_duration.minutes().to_string(),
+        mileage: intervention
+            .mileage
+            .map_or_else(String::new, |value| value.to_string()),
+        customer_reported_problem: intervention
+            .customer_reported_problem
+            .clone()
+            .unwrap_or_default(),
+        diagnostics: intervention.diagnostics.clone().unwrap_or_default(),
+        performed_work: intervention.performed_work.clone().unwrap_or_default(),
+        recommendations: intervention.recommendations.clone().unwrap_or_default(),
+        notes: intervention.notes.clone().unwrap_or_default(),
+    }
+}
+
+fn browser_date_bounds(
+    from: Option<NaiveDate>,
+    to: Option<NaiveDate>,
+    settings: &BusinessSettings,
+) -> std::result::Result<OptionalUtcBounds, String> {
+    use chrono::Days;
+
+    let workshop_time = WorkshopTime::system(settings.workshop_timezone());
+    let from = from
+        .map(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    let until = to
+        .map(|date| {
+            date.checked_add_days(Days::new(1))
+                .ok_or(crate::domain::WorkshopTimeError::CalendarBoundaryOutOfRange)
+                .and_then(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        })
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    Ok((from, until))
 }
 
 fn line_command(

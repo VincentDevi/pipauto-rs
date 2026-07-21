@@ -110,6 +110,21 @@ impl WorkshopTime {
         self.date_range(start, end)
     }
 
+    /// Resolve workshop-local inclusive civil-date filters into half-open UTC bounds.
+    pub fn inclusive_date_boundaries(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<UtcRange, WorkshopTimeError> {
+        let end = end
+            .checked_add_days(Days::new(1))
+            .ok_or(WorkshopTimeError::CalendarBoundaryOutOfRange)?;
+        if start >= end {
+            return Err(WorkshopTimeError::CalendarBoundaryOutOfRange);
+        }
+        self.date_range(start, end)
+    }
+
     fn date_range(&self, start: NaiveDate, end: NaiveDate) -> Result<UtcRange, WorkshopTimeError> {
         let start = start
             .and_hms_opt(0, 0, 0)

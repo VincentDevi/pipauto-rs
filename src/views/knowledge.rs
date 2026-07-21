@@ -250,13 +250,14 @@ impl<'page> KnowledgeFormPage<'page> {
                 .collect(),
             interventions: interventions
                 .into_iter()
-                .map(|(intervention, vehicle)| SelectOption {
+                .map(|(intervention, _vehicle)| SelectOption {
                     selected: selected_source == intervention.id.as_str(),
                     id: intervention.id.as_str().to_owned(),
                     label: format!(
-                        "{} · {}",
+                        "{} · {} {}",
                         intervention.service_date.format("%d %b %Y"),
-                        vehicle_label(&vehicle)
+                        intervention.identity_snapshot.vehicle_make,
+                        intervention.identity_snapshot.vehicle_model,
                     ),
                 })
                 .collect(),

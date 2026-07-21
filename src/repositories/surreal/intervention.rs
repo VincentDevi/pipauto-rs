@@ -1,7 +1,7 @@
 //! SurrealDB intervention repository adapter.
 
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use surrealdb::{
     engine::any::Any,
@@ -11,13 +11,13 @@ use surrealdb::{
 
 use crate::{
     domain::{
-        CurrencyCode, CursorSortValue, CursorTuple, InterventionId, InterventionLineId, Money,
-        PageLimit, Quantity, VehicleId,
+        CurrencyCode, CursorSortValue, CursorTuple, CustomerId, InterventionId, InterventionLineId,
+        Money, PageLimit, Quantity, VehicleId,
     },
     models::{
         intervention::{
-            Intervention, InterventionStatus, InterventionTotals, NewIntervention,
-            ServiceHistoryEntry, ServiceHistorySummary,
+            EstimatedDuration, Intervention, InterventionIdentitySnapshot, InterventionStatus,
+            InterventionTotals, NewIntervention, ServiceHistoryEntry, ServiceHistorySummary,
         },
         intervention_line::{InterventionLine, InterventionLineCategory, NewInterventionLine},
     },
@@ -33,7 +33,7 @@ use crate::{
 
 use super::support;
 
-const INTERVENTION_PROJECTION: &str = "id, vehicle, service_date, status, mileage, customer_reported_problem, diagnostics, performed_work, recommendations, notes, currency, created_at, updated_at, completed_at, cancelled_at";
+const INTERVENTION_PROJECTION: &str = "id, vehicle, service_date, estimated_duration_minutes, customer_snapshot_id, customer_snapshot_name, vehicle_snapshot_registration, vehicle_snapshot_make, vehicle_snapshot_model, status, mileage, customer_reported_problem, diagnostics, performed_work, recommendations, notes, currency, created_at, updated_at, completed_at, cancelled_at";
 const LINE_PROJECTION: &str = "id, intervention, category, description, type::int(quantity * 1000dec) AS quantity_thousandths, unit_label, currency, unit_price_minor, unit_cost_minor, total_price_minor, total_cost_minor, position, created_at, updated_at";
 
 #[derive(Clone)]
@@ -69,16 +69,16 @@ impl SurrealInterventionRepository {
             .map(|id| support::record_id("vehicle", id.as_str()))
             .transpose()?;
         let query = format!(
-            "SELECT {INTERVENTION_PROJECTION} FROM intervention WHERE ($vehicle IS NONE OR vehicle = $vehicle) AND ($status IS NONE OR status = $status) AND ($date_from IS NONE OR service_date >= $date_from) AND ($date_to IS NONE OR service_date <= $date_to) AND ($after_date IS NONE OR service_date < $after_date OR (service_date = $after_date AND created_at < $after_created_at) OR (service_date = $after_date AND created_at = $after_created_at AND id < $after_id)) ORDER BY service_date DESC, created_at DESC, id DESC LIMIT $fetch_limit;"
+            "SELECT {INTERVENTION_PROJECTION} FROM intervention WHERE ($vehicle IS NONE OR vehicle = $vehicle) AND ($status IS NONE OR status = $status) AND ($date_from IS NONE OR service_date >= $date_from) AND ($date_until IS NONE OR service_date < $date_until) AND ($after_date IS NONE OR service_date < $after_date OR (service_date = $after_date AND created_at < $after_created_at) OR (service_date = $after_date AND created_at = $after_created_at AND id < $after_id)) ORDER BY service_date DESC, created_at DESC, id DESC LIMIT $fetch_limit;"
         );
         let mut response = support::checked_response(
             self.client
                 .query(query)
                 .bind(("vehicle", vehicle))
                 .bind(("status", filter.status.map(status_value).map(str::to_owned)))
-                .bind(("date_from", filter.service_date_from.map(midnight)))
-                .bind(("date_to", filter.service_date_to.map(midnight)))
-                .bind(("after_date", after_date.map(midnight)))
+                .bind(("date_from", filter.service_date_from))
+                .bind(("date_until", filter.service_date_until))
+                .bind(("after_date", after_date))
                 .bind(("after_created_at", after_created_at))
                 .bind(("after_id", after_id))
                 .bind(("fetch_limit", i64::from(limit.value()) + 1))
@@ -112,6 +112,12 @@ struct DbIntervention {
     id: RecordId,
     vehicle: RecordId,
     service_date: DateTime<Utc>,
+    estimated_duration_minutes: i64,
+    customer_snapshot_id: RecordId,
+    customer_snapshot_name: String,
+    vehicle_snapshot_registration: Option<String>,
+    vehicle_snapshot_make: String,
+    vehicle_snapshot_model: String,
     status: String,
     mileage: Option<i64>,
     customer_reported_problem: Option<String>,
@@ -135,7 +141,24 @@ impl TryFrom<DbIntervention> for Intervention {
                 .map_err(|_| RepositoryError::CorruptData)?,
             vehicle_id: VehicleId::parse(support::record_key(&value.vehicle, "vehicle")?)
                 .map_err(|_| RepositoryError::CorruptData)?,
-            service_date: value.service_date.date_naive(),
+            service_date: value.service_date,
+            estimated_duration: EstimatedDuration::new(
+                u16::try_from(value.estimated_duration_minutes)
+                    .map_err(|_| RepositoryError::CorruptData)?,
+            )
+            .map_err(|_| RepositoryError::CorruptData)?,
+            identity_snapshot: InterventionIdentitySnapshot::new(
+                CustomerId::parse(support::record_key(
+                    &value.customer_snapshot_id,
+                    "customer",
+                )?)
+                .map_err(|_| RepositoryError::CorruptData)?,
+                value.customer_snapshot_name,
+                value.vehicle_snapshot_registration,
+                value.vehicle_snapshot_make,
+                value.vehicle_snapshot_model,
+            )
+            .map_err(|_| RepositoryError::CorruptData)?,
             status: parse_status(&value.status)?,
             mileage: value
                 .mileage
@@ -223,6 +246,31 @@ struct DbCurrency {
     currency: String,
 }
 
+#[derive(Deserialize, SurrealValue)]
+struct DbSnapshotSource {
+    customer_id: RecordId,
+    customer_name: String,
+    vehicle_registration: Option<String>,
+    vehicle_make: String,
+    vehicle_model: String,
+}
+
+impl TryFrom<DbSnapshotSource> for InterventionIdentitySnapshot {
+    type Error = RepositoryError;
+
+    fn try_from(value: DbSnapshotSource) -> Result<Self, Self::Error> {
+        InterventionIdentitySnapshot::new(
+            CustomerId::parse(support::record_key(&value.customer_id, "customer")?)
+                .map_err(|_| RepositoryError::CorruptData)?,
+            value.customer_name,
+            value.vehicle_registration,
+            value.vehicle_make,
+            value.vehicle_model,
+        )
+        .map_err(|_| RepositoryError::CorruptData)
+    }
+}
+
 #[async_trait]
 impl InterventionRepository for SurrealInterventionRepository {
     async fn create(&self, value: &NewIntervention) -> Result<Intervention, RepositoryError> {
@@ -235,17 +283,20 @@ impl InterventionRepository for SurrealInterventionRepository {
         let result = async {
             let mut active = support::checked_response(
                 transaction
-                    .query("SELECT VALUE id FROM ONLY $vehicle WHERE archived_at IS NONE;")
+                    .query("SELECT customer AS customer_id, customer.display_name AS customer_name, registration AS vehicle_registration, make AS vehicle_make, model AS vehicle_model FROM ONLY $vehicle WHERE archived_at IS NONE AND customer.archived_at IS NONE;")
                     .bind(("vehicle", support::record_id("vehicle", value.vehicle_id.as_str())?))
                     .await,
             )?;
-            let found: Option<RecordId> = support::take(&mut active, 0)?;
-            if found.is_none() {
+            let source: Option<DbSnapshotSource> = support::take(&mut active, 0)?;
+            let snapshot: InterventionIdentitySnapshot = source
+                .ok_or(RepositoryError::Conflict)?
+                .try_into()?;
+            if snapshot != value.identity_snapshot {
                 return Err(RepositoryError::Conflict);
             }
             let mut response = write_intervention_query(
                 &transaction,
-                "CREATE intervention SET vehicle = $vehicle, service_date = $service_date, mileage = $mileage, customer_reported_problem = $customer_reported_problem, diagnostics = $diagnostics, performed_work = $performed_work, recommendations = $recommendations, notes = $notes, currency = $currency RETURN AFTER;",
+                "CREATE intervention SET vehicle = $vehicle, service_date = $service_date, estimated_duration_minutes = $estimated_duration_minutes, customer_snapshot_id = $customer_snapshot_id, customer_snapshot_name = $customer_snapshot_name, vehicle_snapshot_registration = $vehicle_snapshot_registration, vehicle_snapshot_make = $vehicle_snapshot_make, vehicle_snapshot_model = $vehicle_snapshot_model, mileage = $mileage, customer_reported_problem = $customer_reported_problem, diagnostics = $diagnostics, performed_work = $performed_work, recommendations = $recommendations, notes = $notes, currency = $currency RETURN AFTER;",
                 None,
                 value,
             )
@@ -288,7 +339,7 @@ impl InterventionRepository for SurrealInterventionRepository {
         let result = async {
             let mut response = write_intervention_query(
                 &transaction,
-                "UPDATE ONLY $record SET vehicle = $vehicle, service_date = $service_date, mileage = $mileage, customer_reported_problem = $customer_reported_problem, diagnostics = $diagnostics, performed_work = $performed_work, recommendations = $recommendations, notes = $notes, currency = $currency WHERE status = 'draft' RETURN AFTER;",
+                "UPDATE ONLY $record SET vehicle = $vehicle, service_date = $service_date, estimated_duration_minutes = $estimated_duration_minutes, mileage = $mileage, customer_reported_problem = $customer_reported_problem, diagnostics = $diagnostics, performed_work = $performed_work, recommendations = $recommendations, notes = $notes, currency = $currency WHERE status = 'draft' RETURN AFTER;",
                 Some(support::record_id("intervention", id.as_str())?),
                 value,
             )
@@ -333,7 +384,7 @@ impl InterventionRepository for SurrealInterventionRepository {
                 .query(format!("SELECT {INTERVENTION_PROJECTION} FROM intervention WHERE vehicle = $vehicle AND id != $id AND status != 'cancelled' AND mileage IS NOT NONE AND ((service_date < $date) OR (service_date = $date AND created_at < $created_at) OR (service_date = $date AND created_at = $created_at AND id < $id)) ORDER BY service_date DESC, created_at DESC, id DESC LIMIT 1; SELECT {INTERVENTION_PROJECTION} FROM intervention WHERE vehicle = $vehicle AND id != $id AND status != 'cancelled' AND mileage IS NOT NONE AND ((service_date > $date) OR (service_date = $date AND created_at > $created_at) OR (service_date = $date AND created_at = $created_at AND id > $id)) ORDER BY service_date ASC, created_at ASC, id ASC LIMIT 1;"))
                 .bind(("vehicle", support::record_id("vehicle", vehicle_id.as_str())?))
                 .bind(("id", support::record_id("intervention", candidate.id.as_str())?))
-                .bind(("date", midnight(candidate.service_date)))
+                .bind(("date", candidate.service_date))
                 .bind(("created_at", candidate.created_at))
                 .await,
         )?;
@@ -514,7 +565,31 @@ async fn write_intervention_query(
             "vehicle",
             support::record_id("vehicle", value.vehicle_id.as_str())?,
         ))
-        .bind(("service_date", midnight(value.service_date)))
+        .bind(("service_date", value.service_date))
+        .bind((
+            "estimated_duration_minutes",
+            i64::from(value.estimated_duration.minutes()),
+        ))
+        .bind((
+            "customer_snapshot_id",
+            support::record_id("customer", value.identity_snapshot.customer_id.as_str())?,
+        ))
+        .bind((
+            "customer_snapshot_name",
+            value.identity_snapshot.customer_name.clone(),
+        ))
+        .bind((
+            "vehicle_snapshot_registration",
+            value.identity_snapshot.vehicle_registration.clone(),
+        ))
+        .bind((
+            "vehicle_snapshot_make",
+            value.identity_snapshot.vehicle_make.clone(),
+        ))
+        .bind((
+            "vehicle_snapshot_model",
+            value.identity_snapshot.vehicle_model.clone(),
+        ))
         .bind(("mileage", mileage))
         .bind((
             "customer_reported_problem",
@@ -766,12 +841,6 @@ async fn finish_transaction<T>(
     }
 }
 
-fn midnight(date: NaiveDate) -> DateTime<Utc> {
-    date.and_hms_opt(0, 0, 0)
-        .expect("a date always has a midnight")
-        .and_utc()
-}
-
 fn status_value(status: InterventionStatus) -> &'static str {
     match status {
         InterventionStatus::Draft => "draft",
@@ -811,7 +880,7 @@ fn parse_category(value: &str) -> Result<InterventionLineCategory, RepositoryErr
 fn history_cursor(row: &DbIntervention) -> Result<CursorTuple, RepositoryError> {
     CursorTuple::new(
         vec![
-            CursorSortValue::Date(row.service_date.date_naive()),
+            CursorSortValue::Timestamp(row.service_date),
             CursorSortValue::Timestamp(row.created_at),
         ],
         support::record_key(&row.id, "intervention")?,
@@ -821,8 +890,8 @@ fn history_cursor(row: &DbIntervention) -> Result<CursorTuple, RepositoryError> 
 
 fn history_cursor_values(
     cursor: &CursorTuple,
-) -> Result<(NaiveDate, DateTime<Utc>, RecordId), RepositoryError> {
-    let [CursorSortValue::Date(date), CursorSortValue::Timestamp(created_at)] =
+) -> Result<(DateTime<Utc>, DateTime<Utc>, RecordId), RepositoryError> {
+    let [CursorSortValue::Timestamp(date), CursorSortValue::Timestamp(created_at)] =
         cursor.sort_values()
     else {
         return Err(RepositoryError::CorruptData);
@@ -840,10 +909,18 @@ mod tests {
 
     #[test]
     fn intervention_repository_cursor_contains_all_history_sort_fields() {
-        let row = DbIntervention {
+        let mut row = DbIntervention {
             id: RecordId::new("intervention", "same_date_b"),
             vehicle: RecordId::new("vehicle", "golf"),
-            service_date: midnight(NaiveDate::from_ymd_opt(2026, 7, 19).expect("valid date")),
+            service_date: DateTime::parse_from_rfc3339("2026-07-19T09:15:00.123456789Z")
+                .expect("valid timestamp")
+                .with_timezone(&Utc),
+            estimated_duration_minutes: 60,
+            customer_snapshot_id: RecordId::new("customer", "owner"),
+            customer_snapshot_name: "Owner".into(),
+            vehicle_snapshot_registration: Some("1-ABC-234".into()),
+            vehicle_snapshot_make: "Volkswagen".into(),
+            vehicle_snapshot_model: "Golf".into(),
             status: "draft".into(),
             mileage: None,
             customer_reported_problem: None,
@@ -859,6 +936,16 @@ mod tests {
         };
         let cursor = history_cursor(&row).expect("valid cursor");
         assert_eq!(cursor.sort_values().len(), 2);
+        assert_eq!(
+            cursor.sort_values()[0],
+            CursorSortValue::Timestamp(row.service_date)
+        );
         assert_eq!(cursor.entity_key(), "same_date_b");
+
+        row.estimated_duration_minutes = 45;
+        assert_eq!(
+            Intervention::try_from(row),
+            Err(RepositoryError::CorruptData)
+        );
     }
 }

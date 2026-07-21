@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 
 use crate::{
     domain::{
@@ -11,8 +11,9 @@ use crate::{
     },
     models::{
         intervention::{
-            validate_service_history_mileage, Intervention, InterventionModelError,
-            InterventionStatus, NewIntervention, ServiceHistoryEntry, ServiceHistorySummary,
+            validate_service_history_mileage, EstimatedDuration, Intervention,
+            InterventionIdentitySnapshot, InterventionModelError, InterventionStatus,
+            NewIntervention, ServiceHistoryEntry, ServiceHistorySummary,
         },
         intervention_line::{
             InterventionLine, InterventionLineCategory, InterventionLineError, NewInterventionLine,
@@ -20,6 +21,7 @@ use crate::{
         vehicle::Vehicle,
     },
     repositories::{
+        customer::CustomerRepository,
         intervention::{
             InterventionFilter, InterventionRepository, LineMoveDirection, LineMutation,
             LineMutationResult,
@@ -33,7 +35,8 @@ use super::WorkflowError;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CreateIntervention {
     pub vehicle_id: VehicleId,
-    pub service_date: NaiveDate,
+    pub service_date: DateTime<Utc>,
+    pub estimated_duration_minutes: u16,
     pub mileage: Option<u64>,
     pub customer_reported_problem: Option<String>,
     pub diagnostics: Option<String>,
@@ -45,7 +48,8 @@ pub struct CreateIntervention {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct UpdateIntervention {
-    pub service_date: Option<NaiveDate>,
+    pub service_date: Option<DateTime<Utc>>,
+    pub estimated_duration_minutes: Option<u16>,
     pub mileage: Option<Option<u64>>,
     pub customer_reported_problem: Option<Option<String>>,
     pub diagnostics: Option<Option<String>>,
@@ -70,6 +74,7 @@ pub struct WriteLine {
 pub struct InterventionService {
     interventions: Arc<dyn InterventionRepository>,
     vehicles: Arc<dyn VehicleRepository>,
+    customers: Arc<dyn CustomerRepository>,
     cursors: CursorCodec,
     resource: CursorResource,
 }
@@ -78,13 +83,15 @@ impl InterventionService {
     pub fn new(
         interventions: Arc<dyn InterventionRepository>,
         vehicles: Arc<dyn VehicleRepository>,
+        customers: Arc<dyn CustomerRepository>,
         cursors: CursorCodec,
     ) -> Self {
         Self {
             interventions,
             vehicles,
+            customers,
             cursors,
-            resource: CursorResource::parse("interventions").expect("static resource is valid"),
+            resource: CursorResource::parse("interventions_v2").expect("static resource is valid"),
         }
     }
 
@@ -93,8 +100,24 @@ impl InterventionService {
         if vehicle.is_archived() {
             return Err(WorkflowError::Conflict);
         }
+        let customer = self
+            .customers
+            .find_by_id(&vehicle.customer_id)
+            .await?
+            .ok_or(WorkflowError::Conflict)?;
+        if customer.is_archived() {
+            return Err(WorkflowError::Conflict);
+        }
+        let snapshot = InterventionIdentitySnapshot::new(
+            customer.id,
+            customer.display_name,
+            vehicle.registration,
+            vehicle.make,
+            vehicle.model,
+        )
+        .map_err(|_| WorkflowError::Internal)?;
         let now = Utc::now();
-        let value = validate_intervention(command, now)?;
+        let value = validate_intervention(command, snapshot, now)?;
         let candidate = ServiceHistoryEntry {
             id: InterventionId::parse("pending_intervention")
                 .expect("static candidate identifier is valid"),
@@ -131,6 +154,9 @@ impl InterventionService {
             CreateIntervention {
                 vehicle_id: current.vehicle_id.clone(),
                 service_date: command.service_date.unwrap_or(current.service_date),
+                estimated_duration_minutes: command
+                    .estimated_duration_minutes
+                    .unwrap_or(current.estimated_duration.minutes()),
                 mileage: command.mileage.unwrap_or(current.mileage),
                 customer_reported_problem: command
                     .customer_reported_problem
@@ -141,6 +167,7 @@ impl InterventionService {
                 notes: command.notes.unwrap_or(current.notes),
                 currency: command.currency.unwrap_or(current.currency),
             },
+            current.identity_snapshot.clone(),
             current.created_at,
         )?;
         let candidate = ServiceHistoryEntry {
@@ -353,6 +380,7 @@ impl InterventionService {
 
 fn validate_intervention(
     command: CreateIntervention,
+    identity_snapshot: InterventionIdentitySnapshot,
     now: chrono::DateTime<Utc>,
 ) -> Result<NewIntervention, WorkflowError> {
     if command.mileage.is_some_and(|value| value > i64::MAX as u64) {
@@ -365,6 +393,9 @@ fn validate_intervention(
     NewIntervention::new(
         command.vehicle_id,
         command.service_date,
+        EstimatedDuration::new(command.estimated_duration_minutes)
+            .map_err(intervention_validation)?,
+        identity_snapshot,
         command.mileage,
         command.customer_reported_problem,
         command.diagnostics,
@@ -409,6 +440,11 @@ fn intervention_validation(error: InterventionModelError) -> WorkflowError {
             "intervention",
             ValidationCode::TooLong,
             "Shorten the submitted workshop narrative.",
+        ),
+        InterventionModelError::InvalidEstimatedDuration => validation(
+            "estimated_duration_minutes",
+            ValidationCode::InvalidFormat,
+            "Use a 30-minute step from 30 minutes through 24 hours.",
         ),
         _ => WorkflowError::Internal,
     }

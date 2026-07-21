@@ -25,6 +25,7 @@ use crate::{
     domain::{
         AttachmentId, CustomerId, NormalizedRegistration, NormalizedVin, OpaqueCursor, Page,
         PageLimit, PageRequest, ValidationCode, ValidationError, ValidationErrors, VehicleId,
+        WorkshopTime,
     },
     errors::AppError,
     models::{
@@ -784,7 +785,7 @@ async fn history(
         Ok(value) => value,
         Err(error) => return Ok(workflow_response(&context, error, "vehicle")),
     };
-    let filter = match parse_history_filter(&filters) {
+    let filter = match parse_history_filter(&filters, &settings) {
         Ok(value) => value,
         Err(message) => {
             return render_history(
@@ -1251,6 +1252,7 @@ fn parse_vehicle_filter(
 
 fn parse_history_filter(
     values: &HistoryFilterValues,
+    settings: &BusinessSettings,
 ) -> std::result::Result<InterventionFilter, String> {
     let status = match values.status.as_str() {
         "" | "all" => None,
@@ -1264,11 +1266,24 @@ fn parse_history_filter(
     if from.zip(to).is_some_and(|(from, to)| from > to) {
         return Err("The From date must be on or before the To date.".to_owned());
     }
+    let workshop_time = WorkshopTime::system(settings.workshop_timezone());
+    let service_date_from = from
+        .map(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    let service_date_until = to
+        .map(|date| {
+            date.checked_add_days(chrono::Days::new(1))
+                .ok_or(crate::domain::WorkshopTimeError::CalendarBoundaryOutOfRange)
+                .and_then(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        })
+        .transpose()
+        .map_err(|error| error.to_string())?;
     Ok(InterventionFilter {
         vehicle_id: None,
         status,
-        service_date_from: from,
-        service_date_to: to,
+        service_date_from,
+        service_date_until,
     })
 }
 

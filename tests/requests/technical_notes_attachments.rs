@@ -29,7 +29,8 @@ async fn technical_notes_api_supports_crud_search_archive_and_source_conflicts()
         &session,
         &csrf,
         json!({
-            "vehicle_id": first_vehicle, "service_date": "2026-07-19"
+            "vehicle_id": first_vehicle, "service_date": "2026-07-19T09:00",
+            "estimated_duration_minutes": 60
         }),
     )
     .await
@@ -143,7 +144,7 @@ async fn technical_note_attachments_api_supports_all_owners_and_transport_safe_p
         "/api/v1/interventions",
         &session,
         &csrf,
-        json!({"vehicle_id": vehicle, "service_date": "2026-07-21"}),
+        json!({"vehicle_id": vehicle, "service_date": "2026-07-21T09:00", "estimated_duration_minutes": 60}),
     )
     .await
     .1["data"]["id"]

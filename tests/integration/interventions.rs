@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{TimeZone as _, Utc};
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
@@ -8,7 +8,9 @@ use pipauto::{
     domain::{CurrencyCode, Money, PageLimit, Quantity},
     models::{
         customer::NewCustomer,
-        intervention::{InterventionStatus, NewIntervention},
+        intervention::{
+            EstimatedDuration, InterventionIdentitySnapshot, InterventionStatus, NewIntervention,
+        },
         intervention_line::{InterventionLineCategory, NewInterventionLine},
         vehicle::NewVehicle,
     },
@@ -30,26 +32,16 @@ async fn intervention_repository_preserves_mileage_history_and_archived_readabil
     let vehicle = vehicle_fixture(&customers, &vehicles).await;
 
     let first = interventions
-        .create(&intervention(
-            &vehicle.id,
-            1,
-            100_000,
-            Some("Initial service"),
-        ))
+        .create(&intervention(&vehicle, 1, 100_000, Some("Initial service")))
         .await
         .expect("first intervention");
     interventions
-        .create(&intervention(
-            &vehicle.id,
-            20,
-            120_000,
-            Some("Later service"),
-        ))
+        .create(&intervention(&vehicle, 20, 120_000, Some("Later service")))
         .await
         .expect("later intervention");
     interventions
         .create(&intervention(
-            &vehicle.id,
+            &vehicle,
             10,
             110_000,
             Some("Backdated service"),
@@ -59,7 +51,7 @@ async fn intervention_repository_preserves_mileage_history_and_archived_readabil
 
     assert_eq!(
         interventions
-            .create(&intervention(&vehicle.id, 15, 120_001, Some("Regression")))
+            .create(&intervention(&vehicle, 15, 120_001, Some("Regression")))
             .await,
         Err(RepositoryError::Conflict)
     );
@@ -79,12 +71,7 @@ async fn intervention_repository_preserves_mileage_history_and_archived_readabil
         .expect("archive vehicle");
     assert_eq!(
         interventions
-            .create(&intervention(
-                &vehicle.id,
-                21,
-                121_000,
-                Some("Archived work")
-            ))
+            .create(&intervention(&vehicle, 21, 121_000, Some("Archived work")))
             .await,
         Err(RepositoryError::Conflict)
     );
@@ -100,11 +87,11 @@ async fn service_history_cursor_and_atomic_line_totals_are_deterministic() {
     let (customers, vehicles, interventions) = repositories().await;
     let vehicle = vehicle_fixture(&customers, &vehicles).await;
     let older = interventions
-        .create(&intervention(&vehicle.id, 19, 100_000, Some("Older")))
+        .create(&intervention(&vehicle, 19, 100_000, Some("Older")))
         .await
         .expect("older same-date intervention");
     let newer = interventions
-        .create(&intervention(&vehicle.id, 19, 100_000, Some("Newer")))
+        .create(&intervention(&vehicle, 19, 100_000, Some("Newer")))
         .await
         .expect("newer same-date intervention");
 
@@ -169,7 +156,7 @@ async fn intervention_concurrency_has_one_transition_winner_and_freezes_lines() 
     let vehicle = vehicle_fixture(&customers, &vehicles).await;
     let intervention = interventions
         .create(&intervention(
-            &vehicle.id,
+            &vehicle,
             19,
             100_000,
             Some("Inspection completed"),
@@ -211,15 +198,83 @@ async fn intervention_concurrency_has_one_transition_winner_and_freezes_lines() 
     );
 }
 
+#[tokio::test]
+async fn intervention_history_filters_and_mileage_use_complete_timestamps() {
+    let (customers, vehicles, interventions) = repositories().await;
+    let vehicle = vehicle_fixture(&customers, &vehicles).await;
+    let mut morning = intervention(&vehicle, 19, 100_000, Some("Morning"));
+    morning.service_date = Utc
+        .with_ymd_and_hms(2026, 7, 19, 9, 0, 0)
+        .single()
+        .expect("morning");
+    let mut afternoon = intervention(&vehicle, 19, 120_000, Some("Afternoon"));
+    afternoon.service_date = Utc
+        .with_ymd_and_hms(2026, 7, 19, 15, 0, 0)
+        .single()
+        .expect("afternoon");
+    let mut midday = intervention(&vehicle, 19, 110_000, Some("Midday"));
+    midday.service_date = Utc
+        .with_ymd_and_hms(2026, 7, 19, 12, 0, 0)
+        .single()
+        .expect("midday");
+
+    interventions.create(&morning).await.expect("morning job");
+    let afternoon = interventions
+        .create(&afternoon)
+        .await
+        .expect("afternoon job");
+    let midday = interventions.create(&midday).await.expect("midday job");
+
+    let page = interventions
+        .vehicle_history(
+            &vehicle.id,
+            &InterventionFilter {
+                service_date_from: Some(
+                    Utc.with_ymd_and_hms(2026, 7, 19, 12, 0, 0)
+                        .single()
+                        .expect("range start"),
+                ),
+                service_date_until: Some(
+                    Utc.with_ymd_and_hms(2026, 7, 19, 16, 0, 0)
+                        .single()
+                        .expect("range end"),
+                ),
+                ..InterventionFilter::default()
+            },
+            PageLimit::new(10).expect("limit"),
+            None,
+        )
+        .await
+        .expect("timestamp-filtered history");
+    assert_eq!(
+        page.items
+            .iter()
+            .map(|entry| &entry.intervention.id)
+            .collect::<Vec<_>>(),
+        vec![&afternoon.id, &midday.id]
+    );
+}
+
 fn intervention(
-    vehicle_id: &pipauto::domain::VehicleId,
+    vehicle: &pipauto::models::vehicle::Vehicle,
     day: u32,
     mileage: u64,
     performed_work: Option<&str>,
 ) -> NewIntervention {
     NewIntervention::new(
-        vehicle_id.clone(),
-        NaiveDate::from_ymd_opt(2026, 7, day).expect("date"),
+        vehicle.id.clone(),
+        Utc.with_ymd_and_hms(2026, 7, day, 9, 0, 0)
+            .single()
+            .expect("timestamp"),
+        EstimatedDuration::new(60).expect("duration"),
+        InterventionIdentitySnapshot::new(
+            vehicle.customer_id.clone(),
+            "Owner".into(),
+            vehicle.registration.clone(),
+            vehicle.make.clone(),
+            vehicle.model.clone(),
+        )
+        .expect("snapshot"),
         Some(mileage),
         None,
         None,

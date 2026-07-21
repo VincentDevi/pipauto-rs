@@ -180,7 +180,8 @@ async fn intervention_browser_draft_completion_and_read_only_history() {
         &csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": "2026-07-19",
+            "service_date": "2026-07-19T09:00",
+            "estimated_duration_minutes": 60,
             "mileage": 126400,
             "customer_reported_problem": "Cancelled booking"
         }),
@@ -260,7 +261,8 @@ async fn intervention_browser_validation_and_chronology_preserve_fragment_values
         &csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": "2026-07-20",
+            "service_date": "2026-07-20T09:00",
+            "estimated_duration_minutes": 60,
             "mileage": 120000,
             "performed_work": "Later dated work"
         }),
@@ -324,7 +326,8 @@ async fn intervention_line_browser_exact_totals_order_and_safe_validation() {
         &csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": "2026-07-20",
+            "service_date": "2026-07-20T09:00",
+            "estimated_duration_minutes": 60,
             "performed_work": "Line workflow verification"
         }),
     )
@@ -448,7 +451,8 @@ async fn legacy_urlencoded_attachment_creation_is_not_supported() {
         &csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": "2026-07-20",
+            "service_date": "2026-07-20T09:00",
+            "estimated_duration_minutes": 60,
             "performed_work": "Attachment workflow verification"
         }),
     )
@@ -593,6 +597,8 @@ fn intervention_form(
     for (key, value) in [
         ("_csrf", csrf),
         ("service_date", service_date),
+        ("start_time", "09:00"),
+        ("estimated_duration_minutes", "60"),
         ("mileage", mileage),
         ("customer_reported_problem", problem),
         ("diagnostics", diagnostics),

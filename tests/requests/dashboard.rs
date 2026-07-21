@@ -190,7 +190,8 @@ async fn create_intervention(
         csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": service_date,
+            "service_date": format!("{service_date}T09:00"),
+            "estimated_duration_minutes": 60,
             "mileage": mileage,
             "performed_work": performed_work
         }),

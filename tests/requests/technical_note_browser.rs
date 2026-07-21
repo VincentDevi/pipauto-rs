@@ -27,7 +27,7 @@ async fn technical_note_browser_supports_safe_search_forms_context_and_lifecycle
         "/api/v1/interventions",
         &session,
         &csrf,
-        json!({"vehicle_id": vehicle, "service_date": "2026-07-19"}),
+        json!({"vehicle_id": vehicle, "service_date": "2026-07-19T09:00", "estimated_duration_minutes": 60}),
     )
     .await["data"]["id"]
         .as_str()
@@ -160,7 +160,7 @@ async fn technical_note_browser_source_conflicts_offer_explicit_corrections() {
         "/api/v1/interventions",
         &session,
         &csrf,
-        json!({"vehicle_id": golf, "service_date": "2026-07-20"}),
+        json!({"vehicle_id": golf, "service_date": "2026-07-20T09:00", "estimated_duration_minutes": 60}),
     )
     .await["data"]["id"]
         .as_str()

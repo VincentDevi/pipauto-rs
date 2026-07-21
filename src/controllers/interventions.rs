@@ -32,6 +32,10 @@ use crate::{
 };
 
 const BODY_LIMIT: usize = 64 * 1024;
+type OptionalUtcBounds = (
+    Option<chrono::DateTime<chrono::Utc>>,
+    Option<chrono::DateTime<chrono::Utc>>,
+);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -48,7 +52,8 @@ struct InterventionQuery {
 #[serde(deny_unknown_fields)]
 struct CreateInterventionRequest {
     vehicle_id: String,
-    service_date: chrono::NaiveDate,
+    service_date: String,
+    estimated_duration_minutes: u16,
     mileage: Option<u64>,
     customer_reported_problem: Option<String>,
     diagnostics: Option<String>,
@@ -61,7 +66,8 @@ struct CreateInterventionRequest {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UpdateInterventionRequest {
-    service_date: Option<chrono::NaiveDate>,
+    service_date: Option<String>,
+    estimated_duration_minutes: Option<u16>,
     #[serde(default, deserialize_with = "super::customers::present_option")]
     mileage: Option<Option<u64>>,
     #[serde(default, deserialize_with = "super::customers::present_option")]
@@ -94,6 +100,9 @@ struct InterventionDto {
     id: InterventionIdDto,
     vehicle_id: VehicleIdDto,
     service_date: String,
+    estimated_duration_minutes: u16,
+    customer_snapshot: CustomerSnapshotDto,
+    vehicle_snapshot: VehicleSnapshotDto,
     status: &'static str,
     mileage: Option<u64>,
     customer_reported_problem: Option<String>,
@@ -110,6 +119,19 @@ struct InterventionDto {
 }
 
 #[derive(Serialize)]
+struct CustomerSnapshotDto {
+    id: String,
+    display_name: String,
+}
+
+#[derive(Serialize)]
+struct VehicleSnapshotDto {
+    registration: Option<String>,
+    make: String,
+    model: String,
+}
+
+#[derive(Serialize)]
 struct InterventionLinksDto {
     detail: String,
     lines: String,
@@ -121,7 +143,19 @@ impl From<Intervention> for InterventionDto {
         Self {
             id: InterventionIdDto::from(&value.id),
             vehicle_id: VehicleIdDto::from(&value.vehicle_id),
-            service_date: value.service_date.to_string(),
+            service_date: value
+                .service_date
+                .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true),
+            estimated_duration_minutes: value.estimated_duration.minutes(),
+            customer_snapshot: CustomerSnapshotDto {
+                id: value.identity_snapshot.customer_id.as_str().to_owned(),
+                display_name: value.identity_snapshot.customer_name.clone(),
+            },
+            vehicle_snapshot: VehicleSnapshotDto {
+                registration: value.identity_snapshot.vehicle_registration.clone(),
+                make: value.identity_snapshot.vehicle_make.clone(),
+                model: value.identity_snapshot.vehicle_model.clone(),
+            },
             status: status_value(value.status),
             mileage: value.mileage,
             customer_reported_problem: value.customer_reported_problem,
@@ -237,9 +271,10 @@ async fn list(
 async fn create(
     CurrentUser(_): CurrentUser,
     SharedStore(service): SharedStore<InterventionService>,
+    SharedStore(settings): SharedStore<BusinessSettings>,
     AuthenticatedCsrfJson(request): AuthenticatedCsrfJson<CreateInterventionRequest>,
 ) -> Result<(StatusCode, Json<DataEnvelope<InterventionDto>>), AppError> {
-    let command = create_command(request)?;
+    let command = create_command(request, &settings)?;
     let value = service.create(command).await?;
     Ok((StatusCode::CREATED, Json(DataEnvelope::new(value.into()))))
 }
@@ -257,11 +292,16 @@ async fn show(
 async fn update(
     CurrentUser(_): CurrentUser,
     SharedStore(service): SharedStore<InterventionService>,
+    SharedStore(settings): SharedStore<BusinessSettings>,
     Path(id): Path<String>,
     AuthenticatedCsrfJson(request): AuthenticatedCsrfJson<UpdateInterventionRequest>,
 ) -> Result<Json<DataEnvelope<InterventionDto>>, AppError> {
     let command = UpdateIntervention {
-        service_date: request.service_date,
+        service_date: request
+            .service_date
+            .map(|value| resolve_local_service_date(&value, &settings))
+            .transpose()?,
+        estimated_duration_minutes: request.estimated_duration_minutes,
         mileage: request.mileage,
         customer_reported_problem: request.customer_reported_problem,
         diagnostics: request.diagnostics,
@@ -392,22 +432,28 @@ fn resolve_query(
             "The end date must not precede the start date.",
         ));
     }
+    let (service_date_from, service_date_until) =
+        resolve_date_bounds(query.service_date_from, query.service_date_to, settings)?;
     Ok(PageRequest {
         filter: InterventionFilter {
             vehicle_id,
             status,
-            service_date_from: query.service_date_from,
-            service_date_to: query.service_date_to,
+            service_date_from,
+            service_date_until,
         },
         limit: pagination.limit,
         after: pagination.after,
     })
 }
 
-fn create_command(request: CreateInterventionRequest) -> Result<CreateIntervention, AppError> {
+fn create_command(
+    request: CreateInterventionRequest,
+    settings: &BusinessSettings,
+) -> Result<CreateIntervention, AppError> {
     Ok(CreateIntervention {
         vehicle_id: parse_vehicle_id(request.vehicle_id)?,
-        service_date: request.service_date,
+        service_date: resolve_local_service_date(&request.service_date, settings)?,
+        estimated_duration_minutes: request.estimated_duration_minutes,
         mileage: request.mileage,
         customer_reported_problem: request.customer_reported_problem,
         diagnostics: request.diagnostics,
@@ -418,6 +464,38 @@ fn create_command(request: CreateInterventionRequest) -> Result<CreateInterventi
             .currency
             .map_or_else(|| parse_currency("EUR".into()), parse_currency)?,
     })
+}
+
+fn resolve_local_service_date(
+    value: &str,
+    settings: &BusinessSettings,
+) -> Result<chrono::DateTime<chrono::Utc>, AppError> {
+    crate::domain::WorkshopTime::system(settings.workshop_timezone())
+        .local_to_utc(value)
+        .map_err(|error| invalid("service_date", &error.to_string()))
+}
+
+fn resolve_date_bounds(
+    from: Option<chrono::NaiveDate>,
+    to: Option<chrono::NaiveDate>,
+    settings: &BusinessSettings,
+) -> Result<OptionalUtcBounds, AppError> {
+    use chrono::Days;
+
+    let workshop_time = crate::domain::WorkshopTime::system(settings.workshop_timezone());
+    let from = from
+        .map(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        .transpose()
+        .map_err(|error| invalid("service_date_from", &error.to_string()))?;
+    let until = to
+        .map(|date| {
+            date.checked_add_days(Days::new(1))
+                .ok_or(crate::domain::WorkshopTimeError::CalendarBoundaryOutOfRange)
+                .and_then(|date| workshop_time.local_to_utc(&format!("{date}T00:00")))
+        })
+        .transpose()
+        .map_err(|error| invalid("service_date_to", &error.to_string()))?;
+    Ok((from, until))
 }
 
 fn line_command(request: WriteLineRequest) -> Result<WriteLine, AppError> {

@@ -219,8 +219,10 @@ impl<'page> InvoiceFormPage<'page> {
                     selected: values.intervention_id == intervention.id.as_str(),
                     id: intervention.id.as_str().to_owned(),
                     label: format!(
-                        "{} · {}",
+                        "{} · {} {} · {}",
                         intervention.service_date,
+                        intervention.identity_snapshot.vehicle_make,
+                        intervention.identity_snapshot.vehicle_model,
                         intervention_status(intervention.status)
                     ),
                     unavailable: intervention.status == InterventionStatus::Cancelled,

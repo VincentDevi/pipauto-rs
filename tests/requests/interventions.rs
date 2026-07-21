@@ -23,7 +23,8 @@ async fn interventions_api_covers_draft_lines_completion_and_history() {
         &csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": "2026-07-19",
+            "service_date": "2026-07-19T09:00",
+            "estimated_duration_minutes": 60,
             "mileage": 100000,
             "performed_work": "Brake inspection"
         }),
@@ -321,6 +322,123 @@ async fn interventions_api_rejects_archived_work_regressions_and_invalid_transit
         .any(|entry| entry["intervention"]["status"] == "cancelled"));
 }
 
+#[tokio::test]
+async fn interventions_preserve_creation_identity_after_customer_and_vehicle_changes() {
+    let (router, session, csrf) = authenticated_app().await;
+    let owner = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/customers",
+        &session,
+        &csrf,
+        json!({"display_name": "Original Owner"}),
+    )
+    .await
+    .1["data"]["id"]
+        .as_str()
+        .expect("owner id")
+        .to_owned();
+    let new_owner = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/customers",
+        &session,
+        &csrf,
+        json!({"display_name": "New Owner"}),
+    )
+    .await
+    .1["data"]["id"]
+        .as_str()
+        .expect("new owner id")
+        .to_owned();
+    let vehicle = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/vehicles",
+        &session,
+        &csrf,
+        json!({
+            "customer_id": owner,
+            "make": "Volkswagen",
+            "model": "Golf",
+            "registration": "1-ABC-234"
+        }),
+    )
+    .await
+    .1["data"]["id"]
+        .as_str()
+        .expect("vehicle id")
+        .to_owned();
+    let intervention = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/interventions",
+        &session,
+        &csrf,
+        json!({
+            "vehicle_id": vehicle,
+            "service_date": "2026-07-22T09:30",
+            "estimated_duration_minutes": 120
+        }),
+    )
+    .await;
+    assert_eq!(intervention.0, StatusCode::CREATED);
+    let intervention_id = intervention.1["data"]["id"]
+        .as_str()
+        .expect("intervention id");
+    let original_snapshot = intervention.1["data"]["customer_snapshot"].clone();
+    let original_vehicle_snapshot = intervention.1["data"]["vehicle_snapshot"].clone();
+    assert_eq!(
+        intervention.1["data"]["service_date"],
+        "2026-07-22T07:30:00Z"
+    );
+    assert_eq!(intervention.1["data"]["estimated_duration_minutes"], 120);
+
+    assert_eq!(
+        write_json(
+            &router,
+            Method::PATCH,
+            &format!("/api/v1/customers/{owner}"),
+            &session,
+            &csrf,
+            json!({"display_name": "Renamed Owner"}),
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        write_json(
+            &router,
+            Method::PATCH,
+            &format!("/api/v1/vehicles/{vehicle}"),
+            &session,
+            &csrf,
+            json!({
+                "customer_id": new_owner,
+                "make": "Peugeot",
+                "model": "208",
+                "registration": "2-XYZ-789"
+            }),
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+
+    let returned = get_json(
+        &router,
+        &format!("/api/v1/interventions/{intervention_id}"),
+        &session,
+    )
+    .await;
+    assert_eq!(returned.1["data"]["customer_snapshot"], original_snapshot);
+    assert_eq!(
+        returned.1["data"]["vehicle_snapshot"],
+        original_vehicle_snapshot
+    );
+}
+
 async fn authenticated_app() -> (axum::Router, String, String) {
     let boot = boot_test::<App>().await.expect("application should boot");
     boot.app_context
@@ -382,7 +500,8 @@ async fn create_intervention(
         csrf,
         json!({
             "vehicle_id": vehicle_id,
-            "service_date": service_date,
+            "service_date": format!("{service_date}T09:00"),
+            "estimated_duration_minutes": 60,
             "mileage": mileage,
             "performed_work": performed_work
         }),

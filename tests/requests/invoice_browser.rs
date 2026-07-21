@@ -184,7 +184,7 @@ async fn invoice_line_browser_authoritative_totals_sources_and_order() {
         "/api/v1/interventions",
         &session,
         &csrf,
-        json!({"vehicle_id": vehicle_id, "service_date": "2026-07-20"}),
+        json!({"vehicle_id": vehicle_id, "service_date": "2026-07-20T09:00", "estimated_duration_minutes": 60}),
     )
     .await;
     let intervention_id = id(&intervention);

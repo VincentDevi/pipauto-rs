@@ -172,7 +172,16 @@ impl From<ServiceHistorySummary> for InterventionPreview {
         Self {
             href: format!("/interventions/{}", intervention.id.as_str()),
             service_date: intervention.service_date.to_string(),
-            vehicle_reference: format!("Vehicle {}", intervention.vehicle_id.as_str()),
+            vehicle_reference: format!(
+                "{} · {} {}",
+                intervention
+                    .identity_snapshot
+                    .vehicle_registration
+                    .as_deref()
+                    .unwrap_or("No registration"),
+                intervention.identity_snapshot.vehicle_make,
+                intervention.identity_snapshot.vehicle_model,
+            ),
             status,
             status_class,
             summary,
@@ -188,13 +197,19 @@ mod tests {
     use super::*;
     use crate::{
         domain::{CurrencyCode, InterventionId, Money, VehicleId},
-        models::intervention::{Intervention, InterventionTotals},
+        models::intervention::{
+            EstimatedDuration, Intervention, InterventionIdentitySnapshot, InterventionTotals,
+        },
     };
 
     #[test]
     fn dashboard_sections_preserve_service_order_without_inferring_a_count() {
-        let first = summary("first", "2026-07-20", InterventionStatus::Completed);
-        let second = summary("second", "2026-07-19", InterventionStatus::Draft);
+        let first = summary(
+            "first",
+            "2026-07-20T09:00:00Z",
+            InterventionStatus::Completed,
+        );
+        let second = summary("second", "2026-07-19T09:00:00Z", InterventionStatus::Draft);
         let section = InterventionSection::recent(Ok(Page {
             items: vec![first, second],
             next_cursor: None,
@@ -221,6 +236,15 @@ mod tests {
                 id: InterventionId::parse(id).expect("id"),
                 vehicle_id: VehicleId::parse("vehicle").expect("vehicle"),
                 service_date: date.parse().expect("date"),
+                estimated_duration: EstimatedDuration::new(60).expect("duration"),
+                identity_snapshot: InterventionIdentitySnapshot::new(
+                    crate::domain::CustomerId::parse("owner").expect("customer"),
+                    "Owner".into(),
+                    None,
+                    "Volkswagen".into(),
+                    "Golf".into(),
+                )
+                .expect("snapshot"),
                 status,
                 mileage: Some(120_000),
                 customer_reported_problem: Some(format!("Summary {id}")),

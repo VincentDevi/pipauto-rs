@@ -1,7 +1,7 @@
 //! Persistence-neutral intervention and line-item repository contracts.
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use chrono::{DateTime, SecondsFormat, Utc};
 
 use crate::{
     domain::{
@@ -22,20 +22,20 @@ use super::{customer::RepositoryPage, RepositoryError};
 pub struct InterventionFilter {
     pub vehicle_id: Option<VehicleId>,
     pub status: Option<InterventionStatus>,
-    pub service_date_from: Option<NaiveDate>,
-    pub service_date_to: Option<NaiveDate>,
+    pub service_date_from: Option<DateTime<Utc>>,
+    pub service_date_until: Option<DateTime<Utc>>,
 }
 
 impl CollectionFilter for InterventionFilter {
     fn fingerprint_bytes(&self) -> Vec<u8> {
         format!(
-            "interventions:v1:{}:{:?}:{}:{}",
+            "interventions:v2:{}:{:?}:{}:{}",
             self.vehicle_id.as_ref().map_or("", VehicleId::as_str),
             self.status,
-            self.service_date_from
-                .map_or(String::new(), |date| date.to_string()),
-            self.service_date_to
-                .map_or(String::new(), |date| date.to_string()),
+            self.service_date_from.map_or(String::new(), |date| date
+                .to_rfc3339_opts(SecondsFormat::Nanos, true)),
+            self.service_date_until.map_or(String::new(), |date| date
+                .to_rfc3339_opts(SecondsFormat::Nanos, true)),
         )
         .into_bytes()
     }

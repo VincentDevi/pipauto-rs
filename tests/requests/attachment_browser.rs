@@ -201,7 +201,8 @@ async fn intervention_attachment_browser_uploads_and_keeps_terminal_files_read_o
         &csrf,
         json!({
             "vehicle_id": vehicle,
-            "service_date": "2026-07-21",
+            "service_date": "2026-07-21T09:00",
+            "estimated_duration_minutes": 60,
             "mileage": 100_000,
             "performed_work": "Attachment browser verification"
         }),
@@ -283,7 +284,8 @@ async fn technical_note_attachment_browser_enforces_lifecycle_and_cross_owner_ro
         &csrf,
         json!({
             "vehicle_id": vehicle,
-            "service_date": "2026-07-21",
+            "service_date": "2026-07-21T09:00",
+            "estimated_duration_minutes": 60,
             "mileage": 100_000,
             "performed_work": "Technical note attachment verification"
         }),

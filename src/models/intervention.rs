@@ -1,10 +1,78 @@
 //! Database-independent intervention state and service-history validation.
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 
-use crate::domain::{CurrencyCode, InterventionId, Money, VehicleId};
+use crate::{
+    domain::{CurrencyCode, CustomerId, InterventionId, Money, VehicleId},
+    models::{
+        customer::DISPLAY_NAME_MAX_CHARS,
+        vehicle::{MAKE_MAX_CHARS, MODEL_MAX_CHARS, REGISTRATION_MAX_CHARS},
+    },
+};
 
 pub const NARRATIVE_MAX_CHARS: usize = 10_000;
+pub const MIN_ESTIMATED_DURATION_MINUTES: u16 = 30;
+pub const MAX_ESTIMATED_DURATION_MINUTES: u16 = 1_440;
+pub const ESTIMATED_DURATION_STEP_MINUTES: u16 = 30;
+
+/// A complete planning duration that is always valid for an intervention schedule.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EstimatedDuration(u16);
+
+impl EstimatedDuration {
+    /// Validate an estimated duration in whole minutes.
+    ///
+    /// # Errors
+    ///
+    /// Rejects values outside 30 minutes through 24 hours or not aligned to a 30-minute step.
+    pub const fn new(minutes: u16) -> Result<Self, InterventionModelError> {
+        if minutes < MIN_ESTIMATED_DURATION_MINUTES
+            || minutes > MAX_ESTIMATED_DURATION_MINUTES
+            || !minutes.is_multiple_of(ESTIMATED_DURATION_STEP_MINUTES)
+        {
+            return Err(InterventionModelError::InvalidEstimatedDuration);
+        }
+        Ok(Self(minutes))
+    }
+
+    #[must_use]
+    pub const fn minutes(self) -> u16 {
+        self.0
+    }
+}
+
+/// Historical customer and vehicle display identity captured when an intervention is created.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InterventionIdentitySnapshot {
+    pub customer_id: CustomerId,
+    pub customer_name: String,
+    pub vehicle_registration: Option<String>,
+    pub vehicle_make: String,
+    pub vehicle_model: String,
+}
+
+impl InterventionIdentitySnapshot {
+    /// Validate identity values before they become immutable intervention history.
+    ///
+    /// # Errors
+    ///
+    /// Rejects blank, untrimmed, or oversized displayed identity values.
+    pub fn new(
+        customer_id: CustomerId,
+        customer_name: String,
+        vehicle_registration: Option<String>,
+        vehicle_make: String,
+        vehicle_model: String,
+    ) -> Result<Self, InterventionModelError> {
+        Ok(Self {
+            customer_id,
+            customer_name: snapshot_required(customer_name, DISPLAY_NAME_MAX_CHARS)?,
+            vehicle_registration: snapshot_optional(vehicle_registration, REGISTRATION_MAX_CHARS)?,
+            vehicle_make: snapshot_required(vehicle_make, MAKE_MAX_CHARS)?,
+            vehicle_model: snapshot_required(vehicle_model, MODEL_MAX_CHARS)?,
+        })
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InterventionStatus {
@@ -16,7 +84,9 @@ pub enum InterventionStatus {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NewIntervention {
     pub vehicle_id: VehicleId,
-    pub service_date: NaiveDate,
+    pub service_date: DateTime<Utc>,
+    pub estimated_duration: EstimatedDuration,
+    pub identity_snapshot: InterventionIdentitySnapshot,
     pub status: InterventionStatus,
     pub mileage: Option<u64>,
     pub customer_reported_problem: Option<String>,
@@ -40,7 +110,9 @@ impl NewIntervention {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         vehicle_id: VehicleId,
-        service_date: NaiveDate,
+        service_date: DateTime<Utc>,
+        estimated_duration: EstimatedDuration,
+        identity_snapshot: InterventionIdentitySnapshot,
         mileage: Option<u64>,
         customer_reported_problem: Option<String>,
         diagnostics: Option<String>,
@@ -53,6 +125,8 @@ impl NewIntervention {
         Ok(Self {
             vehicle_id,
             service_date,
+            estimated_duration,
+            identity_snapshot,
             status: InterventionStatus::Draft,
             mileage,
             customer_reported_problem: optional_text(customer_reported_problem)?,
@@ -106,7 +180,9 @@ impl NewIntervention {
 pub struct Intervention {
     pub id: InterventionId,
     pub vehicle_id: VehicleId,
-    pub service_date: NaiveDate,
+    pub service_date: DateTime<Utc>,
+    pub estimated_duration: EstimatedDuration,
+    pub identity_snapshot: InterventionIdentitySnapshot,
     pub status: InterventionStatus,
     pub mileage: Option<u64>,
     pub customer_reported_problem: Option<String>,
@@ -172,14 +248,14 @@ pub struct ServiceHistorySummary {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceHistoryEntry {
     pub id: InterventionId,
-    pub service_date: NaiveDate,
+    pub service_date: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub status: InterventionStatus,
     pub mileage: Option<u64>,
 }
 
 impl ServiceHistoryEntry {
-    fn chronology_key(&self) -> (NaiveDate, DateTime<Utc>, &str) {
+    fn chronology_key(&self) -> (DateTime<Utc>, DateTime<Utc>, &str) {
         (self.service_date, self.created_at, self.id.as_str())
     }
 }
@@ -245,6 +321,10 @@ pub enum InterventionModelError {
     InvalidTransition,
     #[error("intervention mileage conflicts with service-history chronology")]
     MileageRegression,
+    #[error("estimated duration must be 30-minute steps from 30 minutes through 24 hours")]
+    InvalidEstimatedDuration,
+    #[error("intervention identity snapshot is invalid")]
+    InvalidIdentitySnapshot,
     #[error(transparent)]
     Money(#[from] crate::domain::MoneyError),
 }
@@ -265,9 +345,25 @@ fn optional_text(value: Option<String>) -> Result<Option<String>, InterventionMo
         .map(Option::flatten)
 }
 
+fn snapshot_required(value: String, maximum: usize) -> Result<String, InterventionModelError> {
+    if value.is_empty() || value.trim() != value || value.chars().count() > maximum {
+        return Err(InterventionModelError::InvalidIdentitySnapshot);
+    }
+    Ok(value)
+}
+
+fn snapshot_optional(
+    value: Option<String>,
+    maximum: usize,
+) -> Result<Option<String>, InterventionModelError> {
+    value
+        .map(|value| snapshot_required(value, maximum))
+        .transpose()
+}
+
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone as _;
+    use chrono::{TimeZone as _, Timelike as _};
 
     use super::*;
 
@@ -277,10 +373,21 @@ mod tests {
             .expect("valid fixture timestamp")
     }
 
+    fn snapshot() -> InterventionIdentitySnapshot {
+        InterventionIdentitySnapshot::new(
+            CustomerId::parse("owner").expect("valid customer id"),
+            "Owner".into(),
+            Some("1-ABC-234".into()),
+            "Volkswagen".into(),
+            "Golf".into(),
+        )
+        .expect("valid snapshot")
+    }
+
     fn entry(id: &str, day: u32, created_second: u32, mileage: u64) -> ServiceHistoryEntry {
         ServiceHistoryEntry {
             id: InterventionId::parse(id).expect("valid intervention id"),
-            service_date: NaiveDate::from_ymd_opt(2026, 7, day).expect("valid date"),
+            service_date: at(day, 0),
             created_at: at(day, created_second),
             status: InterventionStatus::Completed,
             mileage: Some(mileage),
@@ -291,7 +398,9 @@ mod tests {
     fn intervention_model_timestamps_terminal_transitions_and_prevents_reopening() {
         let mut intervention = NewIntervention::new(
             VehicleId::parse("golf").expect("valid vehicle id"),
-            NaiveDate::from_ymd_opt(2026, 7, 19).expect("valid date"),
+            at(19, 0),
+            EstimatedDuration::new(60).expect("valid duration"),
+            snapshot(),
             Some(120_000),
             Some(" Noise under braking ".into()),
             None,
@@ -316,7 +425,9 @@ mod tests {
     fn intervention_model_requires_performed_work_for_completion() {
         let mut intervention = NewIntervention::new(
             VehicleId::parse("golf").expect("valid vehicle id"),
-            NaiveDate::from_ymd_opt(2026, 7, 19).expect("valid date"),
+            at(19, 0),
+            EstimatedDuration::new(60).expect("valid duration"),
+            snapshot(),
             None,
             None,
             None,
@@ -366,5 +477,36 @@ mod tests {
                 Err(InterventionModelError::MileageRegression)
             );
         }
+    }
+
+    #[test]
+    fn intervention_model_duration_cannot_represent_invalid_steps_or_ranges() {
+        for minutes in [30, 60, 1_440] {
+            assert_eq!(
+                EstimatedDuration::new(minutes)
+                    .expect("valid duration")
+                    .minutes(),
+                minutes
+            );
+        }
+        for minutes in [0, 29, 45, 1_441] {
+            assert_eq!(
+                EstimatedDuration::new(minutes),
+                Err(InterventionModelError::InvalidEstimatedDuration)
+            );
+        }
+    }
+
+    #[test]
+    fn service_history_orders_distinct_times_on_the_same_civil_date() {
+        let mut morning = entry("morning", 19, 0, 100_000);
+        morning.service_date = morning.service_date.with_hour(9).expect("valid hour");
+        let mut afternoon = entry("afternoon", 19, 0, 120_000);
+        afternoon.service_date = afternoon.service_date.with_hour(15).expect("valid hour");
+        let mut midday = entry("midday", 19, 0, 110_000);
+        midday.service_date = midday.service_date.with_hour(12).expect("valid hour");
+
+        validate_service_history_mileage(&midday, &[morning, afternoon])
+            .expect("full timestamp chronology is preserved");
     }
 }

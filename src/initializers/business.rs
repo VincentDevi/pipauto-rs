@@ -95,6 +95,7 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     ctx.shared_store.insert(InterventionService::new(
         interventions.clone(),
         vehicles.clone(),
+        customers.clone(),
         cursors.clone(),
     ));
     ctx.shared_store.insert(TechnicalNoteService::new(
