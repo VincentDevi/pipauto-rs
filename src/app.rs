@@ -633,6 +633,16 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/api/v1/technical-notes/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/api/v1/technical-notes/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/api/v1/attachments/{id}",
         class: AccessClass::Authenticated,
     },
@@ -644,6 +654,16 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     RouteAccess {
         method: "DELETE",
         path: "/api/v1/attachments/{id}",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/attachments/{id}/content",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/api/v1/attachments/{id}/download",
         class: AccessClass::Authenticated,
     },
     RouteAccess {

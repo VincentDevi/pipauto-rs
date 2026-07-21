@@ -8,7 +8,7 @@ use surrealdb::types::{Bytes, File, Value};
 use crate::support::define_attachment_memory_bucket;
 
 #[tokio::test]
-async fn surrealdb_bucket_capability_is_non_mutating_and_isolated_by_test_database() {
+async fn surrealdb_bucket_capability_is_ready_and_isolated_by_test_database() {
     let boot = boot_test::<App>().await.expect("application should boot");
     let database = boot
         .app_context
@@ -24,8 +24,8 @@ async fn surrealdb_bucket_capability_is_non_mutating_and_isolated_by_test_databa
             .attachment_bucket_status()
             .await
             .expect("catalog inspection should succeed"),
-        AttachmentBucketStatus::Missing,
-        "startup must not define the bucket"
+        AttachmentBucketStatus::Ready,
+        "test startup must define the disposable memory bucket"
     );
 
     define_attachment_memory_bucket(&client).await;
@@ -75,7 +75,7 @@ async fn surrealdb_bucket_capability_is_non_mutating_and_isolated_by_test_databa
             .attachment_bucket_status()
             .await
             .expect("second catalog inspection should succeed"),
-        AttachmentBucketStatus::Missing,
-        "bucket definitions must remain isolated per disposable database"
+        AttachmentBucketStatus::Ready,
+        "each disposable test database must receive its own ready bucket"
     );
 }

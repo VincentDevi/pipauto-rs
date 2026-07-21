@@ -21,6 +21,8 @@ pub enum AppError {
     MalformedRequest,
     #[error("request content type is not supported")]
     UnsupportedMediaType,
+    #[error("request multipart content type is not supported")]
+    UnsupportedMultipartMediaType,
     #[error("request body is too large")]
     PayloadTooLarge,
     #[error("request validation failed")]
@@ -64,6 +66,14 @@ impl IntoResponse for AppError {
                 ErrorEnvelope::new(
                     "malformed_request",
                     "Content-Type must be application/json.",
+                ),
+                None,
+            ),
+            Self::UnsupportedMultipartMediaType => (
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                ErrorEnvelope::new(
+                    "malformed_request",
+                    "Content-Type must be multipart/form-data.",
                 ),
                 None,
             ),

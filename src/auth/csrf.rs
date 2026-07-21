@@ -3,9 +3,9 @@
 use std::fmt;
 
 use axum::{
-    extract::{Form, FromRef, FromRequest, Json, Request},
+    extract::{Form, FromRef, FromRequest, FromRequestParts, Json, Multipart, Request},
     http::{
-        header::{CACHE_CONTROL, LOCATION, ORIGIN, REFERER},
+        header::{CACHE_CONTROL, CONTENT_TYPE, LOCATION, ORIGIN, REFERER},
         HeaderMap, HeaderValue, StatusCode,
     },
     response::{IntoResponse, Response},
@@ -23,9 +23,14 @@ use url::Url;
 
 use super::settings::AuthSettings;
 use crate::{
-    auth::{cookies::AuthCookies, extractors::append_vary_hx_request},
+    auth::{
+        cookies::AuthCookies,
+        extractors::{append_vary_hx_request, CurrentUser},
+    },
     errors::AppError,
+    models::attachment::{CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
     services::auth::{AuthError, AuthService},
+    settings::AttachmentSettings,
 };
 
 type HmacSha256 = Hmac<Sha256>;
@@ -489,6 +494,173 @@ where
     }
 }
 
+/// One authenticated, CSRF-validated attachment upload decoded from multipart form data.
+///
+/// Authentication is completed before the request body is consumed. The extractor accepts only
+/// the singleton `file`, `display_name`, `caption`, and `_csrf` fields shared by every attachment
+/// owner route.
+pub struct AuthenticatedAttachmentMultipart {
+    pub bytes: Vec<u8>,
+    pub display_name: Option<String>,
+    pub original_filename: Option<String>,
+    pub caption: Option<String>,
+}
+
+impl<S> FromRequest<S> for AuthenticatedAttachmentMultipart
+where
+    AppContext: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = Response;
+
+    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let (mut parts, body) = request.into_parts();
+        let CurrentUser(_) = CurrentUser::from_request_parts(&mut parts, state).await?;
+        let headers = parts.headers.clone();
+        let jar = CookieJar::from_headers(&headers);
+        let ctx = AppContext::from_ref(state);
+        let settings =
+            shared::<AuthSettings>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let attachment_settings = shared::<AttachmentSettings>(&ctx)
+            .map_err(|_| AppError::Unavailable.into_response())?;
+        let service =
+            shared::<AuthService>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let csrf =
+            shared::<CsrfService>(&ctx).map_err(|_| AppError::Unavailable.into_response())?;
+        let encoded_jwt = jar
+            .get(settings.session_cookie_name())
+            .map(|cookie| cookie.value().to_owned())
+            .ok_or_else(|| AppError::Unauthenticated.into_response())?;
+        let session = service
+            .authenticate_session(&encoded_jwt)
+            .await
+            .map_err(|error| api_auth_rejection(error, &headers, &settings))?;
+
+        let is_multipart = headers
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.starts_with("multipart/form-data"));
+        if !is_multipart {
+            let token = submitted_token(&headers, None)
+                .ok_or_else(|| AppError::Forbidden.into_response())?;
+            let origin = same_origin(&headers, &settings)
+                .ok_or_else(|| AppError::Forbidden.into_response())?;
+            csrf.validate_authenticated(&token, &session.jti, &origin, Utc::now())
+                .map_err(api_csrf_rejection)?;
+            return Err(AppError::UnsupportedMultipartMediaType.into_response());
+        }
+
+        let request = Request::from_parts(parts, body);
+        let mut multipart = Multipart::from_request(request, state)
+            .await
+            .map_err(api_multipart_rejection)?;
+        let mut file = None;
+        let mut display_name = None;
+        let mut caption = None;
+        let mut form_csrf = None;
+
+        while let Some(field) = multipart.next_field().await.map_err(|error| {
+            if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
+                AppError::PayloadTooLarge.into_response()
+            } else {
+                AppError::MalformedRequest.into_response()
+            }
+        })? {
+            if field
+                .content_type()
+                .is_some_and(|value| value.starts_with("multipart/"))
+            {
+                return Err(AppError::MalformedRequest.into_response());
+            }
+            let name = field
+                .name()
+                .ok_or_else(|| AppError::MalformedRequest.into_response())?
+                .to_owned();
+            match name.as_str() {
+                "file" => {
+                    if file.is_some() {
+                        return Err(multipart_validation("file", "Upload exactly one file."));
+                    }
+                    let original_filename = field.file_name().map(str::to_owned);
+                    let bytes = field.bytes().await.map_err(|error| {
+                        if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
+                            AppError::PayloadTooLarge.into_response()
+                        } else {
+                            AppError::MalformedRequest.into_response()
+                        }
+                    })?;
+                    if bytes.is_empty() {
+                        return Err(multipart_validation("file", "Select a non-empty file."));
+                    }
+                    if bytes.len() > attachment_settings.maximum_file_bytes().bytes() {
+                        return Err(AppError::PayloadTooLarge.into_response());
+                    }
+                    file = Some((bytes.to_vec(), original_filename));
+                }
+                "display_name" => {
+                    reject_file_text_part(&field, "display_name")?;
+                    if display_name.is_some() {
+                        return Err(multipart_validation(
+                            "display_name",
+                            "Submit display name at most once.",
+                        ));
+                    }
+                    display_name = Some(
+                        read_multipart_text(
+                            field,
+                            DISPLAY_NAME_MAX_CHARS.saturating_mul(4),
+                            "display_name",
+                        )
+                        .await?,
+                    );
+                }
+                "caption" => {
+                    reject_file_text_part(&field, "caption")?;
+                    if caption.is_some() {
+                        return Err(multipart_validation(
+                            "caption",
+                            "Submit caption at most once.",
+                        ));
+                    }
+                    caption = Some(
+                        read_multipart_text(field, CAPTION_MAX_CHARS.saturating_mul(4), "caption")
+                            .await?,
+                    );
+                }
+                "_csrf" => {
+                    reject_file_text_part(&field, "_csrf")?;
+                    if form_csrf.is_some() {
+                        return Err(AppError::Forbidden.into_response());
+                    }
+                    form_csrf = Some(read_multipart_text(field, 4_096, "_csrf").await?);
+                }
+                _ => {
+                    return Err(multipart_validation(
+                        "multipart",
+                        "The upload contains an unknown field.",
+                    ));
+                }
+            }
+        }
+
+        let token = submitted_token(&headers, form_csrf.as_deref())
+            .ok_or_else(|| AppError::Forbidden.into_response())?;
+        let origin =
+            same_origin(&headers, &settings).ok_or_else(|| AppError::Forbidden.into_response())?;
+        csrf.validate_authenticated(&token, &session.jti, &origin, Utc::now())
+            .map_err(api_csrf_rejection)?;
+        let (bytes, original_filename) =
+            file.ok_or_else(|| multipart_validation("file", "Select one file to upload."))?;
+
+        Ok(Self {
+            bytes,
+            display_name,
+            original_filename,
+            caption,
+        })
+    }
+}
+
 #[derive(Deserialize)]
 struct CsrfEnvelope<T> {
     #[serde(rename = "_csrf")]
@@ -592,6 +764,63 @@ fn api_json_rejection(rejection: axum::extract::rejection::JsonRejection) -> Res
         StatusCode::PAYLOAD_TOO_LARGE => AppError::PayloadTooLarge.into_response(),
         _ => AppError::MalformedRequest.into_response(),
     }
+}
+
+fn api_multipart_rejection(rejection: axum::extract::multipart::MultipartRejection) -> Response {
+    match rejection.status() {
+        StatusCode::PAYLOAD_TOO_LARGE => AppError::PayloadTooLarge.into_response(),
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => {
+            AppError::UnsupportedMultipartMediaType.into_response()
+        }
+        _ => AppError::MalformedRequest.into_response(),
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn reject_file_text_part(
+    field: &axum::extract::multipart::Field<'_>,
+    name: &str,
+) -> Result<(), Response> {
+    if field.file_name().is_some() {
+        return Err(multipart_validation(
+            name,
+            "Submit this value as a text field.",
+        ));
+    }
+    Ok(())
+}
+
+async fn read_multipart_text(
+    field: axum::extract::multipart::Field<'_>,
+    maximum_bytes: usize,
+    name: &str,
+) -> Result<String, Response> {
+    let bytes = field.bytes().await.map_err(|error| {
+        if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            AppError::PayloadTooLarge.into_response()
+        } else {
+            AppError::MalformedRequest.into_response()
+        }
+    })?;
+    if bytes.len() > maximum_bytes {
+        return Err(multipart_validation(
+            name,
+            "The submitted text is too long.",
+        ));
+    }
+    String::from_utf8(bytes.to_vec()).map_err(|_| AppError::MalformedRequest.into_response())
+}
+
+fn multipart_validation(field: &str, message: &str) -> Response {
+    AppError::Validation(crate::domain::ValidationErrors::one(
+        crate::domain::ValidationError::new(
+            field,
+            crate::domain::ValidationCode::InvalidFormat,
+            message,
+        )
+        .expect("static multipart validation metadata is valid"),
+    ))
+    .into_response()
 }
 
 fn csrf_rejection(error: CsrfError) -> Response {

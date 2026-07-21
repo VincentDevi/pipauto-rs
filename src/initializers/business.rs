@@ -41,6 +41,12 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     let health: Arc<dyn HealthRepository> =
         Arc::new(SurrealHealthRepository::new(database.clone()));
     if ctx.environment == Environment::Test {
+        client
+            .query("DEFINE BUCKET pipauto_attachments BACKEND 'memory' PERMISSIONS NONE;")
+            .await
+            .map_err(|_| Error::string("test attachment bucket definition failed"))?
+            .check()
+            .map_err(|_| Error::string("test attachment bucket definition failed"))?;
         let schema = [
             include_str!("../../database/schema/business/customer.surql"),
             include_str!("../../database/schema/business/vehicle.surql"),

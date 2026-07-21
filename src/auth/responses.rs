@@ -12,6 +12,7 @@ pub async fn no_store_layer(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     response
         .headers_mut()
-        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        .entry(CACHE_CONTROL)
+        .or_insert(HeaderValue::from_static("no-store"));
     response
 }

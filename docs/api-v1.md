@@ -19,14 +19,15 @@ credentials return `401 unauthenticated` and stale cookies are cleared.
 
 Every `POST`, `PATCH`, and `DELETE` request additionally requires:
 
-- `Content-Type: application/json`;
+- `Content-Type: application/json`, except attachment uploads use `multipart/form-data`;
 - the exact configured canonical origin in `Origin` (or a same-origin `Referer` fallback);
 - one `X-CSRF-Token` issued in the authenticated workshop shell.
 
 The CSRF token is HMAC-signed and bound to the unsafe action, canonical origin, active session
 `jti`, and expiry. Missing, expired, wrong-action, wrong-session, wrong-origin, conflicting, or
 duplicate tokens return `403 forbidden` before a business service is invoked. JSON routes do not
-accept `_csrf` in the body.
+accept `_csrf` in the body. Multipart attachment uploads accept the token in either the header or
+one `_csrf` text part; when both are present, they must match.
 
 ## DTO and collection conventions
 
@@ -141,24 +142,34 @@ Response fields are `id`, `title`, `body`, `tags`, `vehicle_id`, `source_interve
 `make`, `model`, `engine`, `created_at`, `updated_at`, and `archived_at`. Each context value is
 `{display, normalized}`.
 
-### Attachment metadata
+### Stored attachments
 
 | Route | Success | Request | Result |
 | --- | --- | --- | --- |
-| `GET /api/v1/vehicles/{id}/attachments` | `200` | — | Vehicle-owned metadata ordered deterministically. |
-| `POST /api/v1/vehicles/{id}/attachments` | `201` | Attachment write DTO | Creates vehicle-owned metadata. |
-| `GET /api/v1/interventions/{id}/attachments` | `200` | — | Intervention-owned metadata. |
-| `POST /api/v1/interventions/{id}/attachments` | `201` | Attachment write DTO | Creates intervention-owned metadata. |
-| `GET /api/v1/attachments/{id}` | `200` | — | Reads metadata. |
-| `PATCH /api/v1/attachments/{id}` | `200` | Attachment patch DTO | Updates metadata without changing owner or storage state. |
-| `DELETE /api/v1/attachments/{id}` | `204` | `null` | Deletes a metadata-only record; response has no body. |
+| `GET /api/v1/vehicles/{id}/attachments` | `200` | — | Lists stored vehicle attachments. |
+| `POST /api/v1/vehicles/{id}/attachments` | `201` | Multipart upload | Uploads one file to an active vehicle. |
+| `GET /api/v1/interventions/{id}/attachments` | `200` | — | Lists stored intervention attachments. |
+| `POST /api/v1/interventions/{id}/attachments` | `201` | Multipart upload | Uploads one file to a Draft intervention on an active vehicle. |
+| `GET /api/v1/technical-notes/{id}/attachments` | `200` | — | Lists stored technical-note attachments. |
+| `POST /api/v1/technical-notes/{id}/attachments` | `201` | Multipart upload | Uploads one file to an active technical note. |
+| `GET /api/v1/attachments/{id}` | `200` | — | Reads transport-safe stored metadata. |
+| `PATCH /api/v1/attachments/{id}` | `200` | Attachment patch DTO | Updates display name and caption only. |
+| `DELETE /api/v1/attachments/{id}` | `204` | `null` | Begins or resumes deletion; response has no body. |
+| `GET /api/v1/attachments/{id}/content` | `200` | — | Returns authenticated inline-capable content. |
+| `GET /api/v1/attachments/{id}/download` | `200` | — | Returns an authenticated forced download. |
 
-Write is `{display_name, media_type, byte_size?, caption?}`; patch makes every field optional and
-allows `null` for `byte_size` and `caption`. Supported media types are `application/pdf`,
-`image/jpeg`, `image/png`, `image/webp`, `image/heic`, and `image/heif`. Response fields are `id`,
-`owner_type`, `vehicle_id`, `intervention_id`, `display_name`, `media_type`, `byte_size`, `caption`,
-`storage_state`, `created_at`, and `updated_at`. `storage_state` is always `metadata_only`; no route
-accepts multipart data, binary content, object locations, checksums, or upload claims.
+Multipart uploads contain exactly one non-empty `file` part, optional singleton `display_name` and
+`caption` text parts, and the CSRF submission described above. The complete request and file are
+bounded for a 25 MiB maximum file. Media type and byte size are derived from bytes; accepted types
+are PDF, JPEG, PNG, WebP, HEIC, and HEIF. Unknown or duplicate fields and malformed multipart are
+rejected.
+
+Patch is `{display_name?, caption?}` and explicit `null` clears `caption`. Response fields are `id`,
+`owner_type`, the applicable owner identifier, `display_name`, `media_type`, `byte_size`, `caption`,
+`storage_state`, timestamps, `content_url`, and `download_url`. Responses never expose checksums,
+bucket names, object keys, file pointers, or transition states. Content responses use persisted
+server-derived type and length, safe content-disposition filenames, `private, no-store`, and
+`nosniff`; HEIC and HEIF are downloads even through `/content`.
 
 ### Invoices, invoice lines, and payments
 
@@ -207,14 +218,14 @@ any payment cannot be voided.
 | --- | --- | --- |
 | `200` | — | Successful read, update, transition, or customer/vehicle creation. |
 | `201` | — | Intervention, line, technical note, attachment, invoice, or payment created. |
-| `204` | — | Attachment metadata deleted. |
-| `400` | `malformed_request` | JSON or query syntax could not be read. |
+| `204` | — | Attachment deleted. |
+| `400` | `malformed_request` | JSON, multipart, or query syntax could not be read. |
 | `401` | `unauthenticated` | Active authenticated session required. |
 | `403` | `forbidden` | CSRF/origin boundary rejected the request. |
 | `404` | `not_found` | Resource is absent or not visible through the requested relationship. |
 | `409` | `conflict` | Unique constraint, relationship, state transition, chronology, or concurrency conflict. |
 | `413` | `malformed_request` | Route-specific request-body limit exceeded. |
-| `415` | `malformed_request` | Unsafe route did not receive JSON. |
+| `415` | `malformed_request` | Unsafe route received the wrong content type. |
 | `422` | `validation_failed` | DTO, filter, cursor, identifier, or domain value is invalid. |
 | `500` | `internal_error` | Opaque internal failure with correlation ID. |
 | `503` | `database_unavailable` | Persistence unavailable, with correlation ID. |

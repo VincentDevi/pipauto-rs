@@ -18,7 +18,7 @@ pub const TEST_ORIGIN: &str = "http://localhost:5150";
 /// has its own bucket catalog and object namespace.
 pub async fn define_attachment_memory_bucket(client: &Surreal<Any>) {
     let response = client
-        .query("DEFINE BUCKET pipauto_attachments BACKEND 'memory' PERMISSIONS NONE;")
+        .query("DEFINE BUCKET IF NOT EXISTS pipauto_attachments BACKEND 'memory' PERMISSIONS NONE;")
         .await
         .expect("the attachment test bucket should be definable");
     response

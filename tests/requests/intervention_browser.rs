@@ -437,7 +437,7 @@ async fn intervention_line_browser_exact_totals_order_and_safe_validation() {
 }
 
 #[tokio::test]
-async fn intervention_attachment_browser_metadata_only_owner_and_terminal_lock() {
+async fn intervention_attachment_browser_rejects_legacy_metadata_creation_and_locks_terminal() {
     let (router, session, csrf) = authenticated_app().await;
     let vehicle_id = vehicle_fixture(&router, &session, &csrf).await;
     let draft = write_json(
@@ -494,15 +494,17 @@ async fn intervention_attachment_browser_metadata_only_owner_and_terminal_lock()
         ),
     )
     .await;
-    assert_eq!(created.0, StatusCode::SEE_OTHER, "{}", created.1);
+    assert_eq!(created.0, StatusCode::UNPROCESSABLE_ENTITY, "{}", created.1);
     let attachments = read_json(
         &router,
         &format!("/api/v1/interventions/{intervention_id}/attachments"),
         &session,
     )
     .await;
-    assert_eq!(attachments["data"][0]["owner_type"], "intervention");
-    assert_eq!(attachments["data"][0]["storage_state"], "metadata_only");
+    assert!(attachments["data"]
+        .as_array()
+        .expect("attachment list")
+        .is_empty());
 
     let completed = send(
         &router,
@@ -525,7 +527,7 @@ async fn intervention_attachment_browser_metadata_only_owner_and_terminal_lock()
         ),
     )
     .await;
-    assert!(terminal.1.contains("Workshop photo metadata"));
+    assert!(!terminal.1.contains("Workshop photo metadata"));
     assert!(!terminal.1.contains("Add attachment metadata"));
     assert!(!terminal.1.contains("Delete metadata"));
     assert!(!terminal.1.contains("Add line item"));
