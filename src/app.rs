@@ -798,7 +798,9 @@ impl Hooks for App {
     async fn after_context(ctx: AppContext) -> Result<AppContext> {
         let business = crate::settings::BusinessSettings::from_config(&ctx.config)
             .map_err(loco_rs::Error::msg)?;
+        let workshop_time = crate::domain::WorkshopTime::system(business.workshop_timezone());
         ctx.shared_store.insert(business);
+        ctx.shared_store.insert(workshop_time);
         let attachments = crate::settings::AttachmentSettings::from_config(&ctx.config)
             .map_err(loco_rs::Error::msg)?;
         ctx.shared_store.insert(attachments);

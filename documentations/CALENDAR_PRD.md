@@ -166,6 +166,10 @@ the intervention's captured values. Snapshot fields are not editable inputs.
 
 ## 9. Data and interface requirements
 
+This is one mandatory, breaking scheduling contract, not an optional calendar-only extension to
+date-only interventions. The schedule, duration, and identity snapshots are adopted together
+before deployment so no runtime path can create or retain a partially scheduled intervention.
+
 The intervention model requires:
 
 - Time-aware `service_date` stored as an unambiguous UTC instant.
@@ -175,7 +179,8 @@ The intervention model requires:
 
 Pipauto has no deployed workshop data. Existing disposable development/test databases are reset
 and reseeded before adopting this contract. Schema rollout must refuse a data-bearing intervention
-table rather than delete records or invent missing values.
+table rather than delete records or invent missing values. There is no automatic backfill: a
+default time, duration, customer identity, or vehicle identity would fabricate service history.
 
 The `/api/v1` intervention create and update contracts use workshop-local `service_date` input and
 valid duration. Read responses include the UTC instant, duration, and captured identity. Existing
@@ -184,6 +189,10 @@ date-range filters remain local-date inputs and are converted to half-open UTC b
 The application provides a period-bounded query returning every Draft or Completed intervention
 whose calculated interval overlaps the visible Month or Week. Calendar reads do not calculate
 financial totals or mutate interventions.
+
+`GET /calendar?view=month|week&date=YYYY-MM-DD` remains a planned browser route until the issue that
+owns Calendar navigation and Month rendering registers it. This contract must not be represented
+by an unavailable placeholder or route that implies the calendar already works.
 
 ## 10. Responsive and accessible experience
 

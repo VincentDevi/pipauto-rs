@@ -55,6 +55,59 @@ copy to production-data operators.
 `--allow-shared-prune` as an ordinary command. If recovery ever appears to require it, stop and
 write a separate, reviewed procedure based on the specific incident and a verified backup.
 
+## Planned mandatory intervention scheduling rollout
+
+The calendar milestone deliberately replaces the complete date-only intervention contract before
+Pipauto is deployed. Every intervention will require one UTC scheduled-start instant resolved from
+workshop-local input, a valid estimated duration, and immutable customer and vehicle identity
+snapshots captured in the creation transaction. API writes accept exact local
+`YYYY-MM-DDTHH:MM` input; reads return the UTC instant and snapshots. The change is mandatory for
+all intervention workflows, not an optional field set used only by Calendar.
+
+There is no backfill. Pipauto has no deployed workshop data, and choosing a default time, duration,
+customer, registration, make, or model would fabricate history. Before the contract rollout,
+dispose of and recreate development and test databases, then reseed them with complete explicit
+schedules and identities. The reviewed rollout must stop if any intervention rows exist; it must
+not delete rows automatically. Any discovered shared, staging, production, or otherwise valuable
+data invalidates the reset assumption and requires a separately approved preservation plan.
+
+The following inventory is the handoff checklist for the schema, domain, persistence, API, and UI
+issues. A subsequent change is incomplete while any listed intervention path still treats
+`service_date` as a `NaiveDate`, converts it to UTC midnight, renders it without the configured
+workshop timezone, or seeds it without a time and duration. Invoice-only `NaiveDate` fields are not
+part of this breaking contract.
+
+| Consumer area | Files that must move together |
+| --- | --- |
+| Domain and service chronology | `src/models/intervention.rs`, `src/services/intervention.rs` |
+| Repository filters, cursors, midnight conversion, ordering, and mileage neighbours | `src/repositories/intervention.rs`, `src/repositories/surreal/intervention.rs`, `src/domain/pagination.rs` |
+| JSON request/response and local-date filters | `src/controllers/interventions.rs` |
+| Browser defaults, forms, validation, and history filters | `src/controllers/browser/interventions.rs`, `src/controllers/browser/vehicles.rs` |
+| Presentation and dependent selectors | `src/views/dashboard.rs`, `src/views/intervention.rs`, `src/views/invoice.rs`, `src/views/knowledge.rs`, `src/views/vehicle.rs` |
+| Browser templates | `assets/views/fragments/intervention_detail.html`, `assets/views/fragments/intervention_form.html`, `assets/views/fragments/intervention_preview.html`, `assets/views/fragments/intervention_transition.html` |
+| Schema, indexes, and migration catalog history | `database/schema/business/intervention.surql`, `database/rollouts/20260719182632__initial_core_domain.toml`, `database/snapshots/catalog_snapshot.json` |
+
+The complete date-only seed and fixture inventory is:
+
+- Database suites: `database/tests/suites/attachments_behavior.toml`,
+  `database/tests/suites/interventions_behavior.toml`,
+  `database/tests/suites/interventions_mileage.toml`,
+  `database/tests/suites/interventions_schema.toml`, and
+  `database/tests/suites/technical-notes_behavior.toml`.
+- Rust unit/integration fixtures embedded in `src/models/intervention.rs`,
+  `src/repositories/surreal/intervention.rs`, `src/views/dashboard.rs`,
+  `tests/integration/interventions.rs`, and `tests/integration/migration.rs`.
+- Request/browser fixtures in `tests/requests/attachment_browser.rs`,
+  `tests/requests/dashboard.rs`, `tests/requests/intervention_browser.rs`,
+  `tests/requests/interventions.rs`, `tests/requests/invoice_browser.rs`,
+  `tests/requests/technical_note_browser.rs`, and
+  `tests/requests/technical_notes_attachments.rs`.
+
+After those consumers and fixtures are updated, repository searches for intervention-related
+`NaiveDate`, date-only `service_date` payloads, and UTC-midnight adapters are a required review
+check. Do not register `GET /calendar` during the data rollout; its owning browser issue must add
+the authenticated complete Calendar read path rather than a placeholder.
+
 ## Install the pinned tool
 
 Install and verify the exact version:

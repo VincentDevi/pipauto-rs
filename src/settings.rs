@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use chrono_tz::Tz;
 use loco_rs::config::Config;
 use serde::{de::Error as _, Deserialize, Deserializer};
 use thiserror::Error;
@@ -106,6 +107,7 @@ pub struct BusinessSettings {
     default_currency: CurrencyCode,
     default_collection_limit: PageLimit,
     maximum_collection_limit: PageLimit,
+    workshop_timezone: Tz,
 }
 
 impl BusinessSettings {
@@ -117,7 +119,9 @@ impl BusinessSettings {
             .and_then(|settings| settings.get(BUSINESS_SETTINGS_KEY))
             .cloned()
             .ok_or(BusinessSettingsError::MissingSection)?;
-        serde_json::from_value(settings).map_err(|_| BusinessSettingsError::InvalidFormat)
+        let raw: RawBusinessSettings =
+            serde_json::from_value(settings).map_err(|_| BusinessSettingsError::InvalidFormat)?;
+        Self::try_from(raw)
     }
 
     #[must_use]
@@ -134,6 +138,11 @@ impl BusinessSettings {
     pub const fn maximum_collection_limit(&self) -> PageLimit {
         self.maximum_collection_limit
     }
+
+    #[must_use]
+    pub const fn workshop_timezone(&self) -> Tz {
+        self.workshop_timezone
+    }
 }
 
 impl fmt::Debug for BusinessSettings {
@@ -143,6 +152,7 @@ impl fmt::Debug for BusinessSettings {
             .field("default_currency", &self.default_currency)
             .field("default_collection_limit", &self.default_collection_limit)
             .field("maximum_collection_limit", &self.maximum_collection_limit)
+            .field("workshop_timezone", &self.workshop_timezone)
             .finish()
     }
 }
@@ -165,6 +175,7 @@ struct RawBusinessSettings {
     default_collection_limit: u16,
     #[serde(default = "maximum_limit")]
     maximum_collection_limit: u16,
+    workshop_timezone: Option<String>,
 }
 
 impl TryFrom<RawBusinessSettings> for BusinessSettings {
@@ -180,10 +191,16 @@ impl TryFrom<RawBusinessSettings> for BusinessSettings {
         if default_collection_limit.value() > maximum_collection_limit.value() {
             return Err(BusinessSettingsError::DefaultExceedsMaximum);
         }
+        let workshop_timezone = raw
+            .workshop_timezone
+            .ok_or(BusinessSettingsError::MissingWorkshopTimezone)?
+            .parse()
+            .map_err(|_| BusinessSettingsError::InvalidWorkshopTimezone)?;
         Ok(Self {
             default_currency,
             default_collection_limit,
             maximum_collection_limit,
+            workshop_timezone,
         })
     }
 }
@@ -214,6 +231,10 @@ pub enum BusinessSettingsError {
     InvalidMaximumLimit,
     #[error("default collection limit cannot exceed maximum collection limit")]
     DefaultExceedsMaximum,
+    #[error("missing required setting `business.workshop_timezone`")]
+    MissingWorkshopTimezone,
+    #[error("setting `business.workshop_timezone` must be a valid IANA timezone")]
+    InvalidWorkshopTimezone,
 }
 
 #[cfg(test)]
@@ -253,25 +274,56 @@ mod tests {
 
     #[test]
     fn business_settings_default_to_eur_and_documented_limits() {
-        let settings: BusinessSettings = serde_json::from_value(json!({})).expect("defaults work");
+        let settings: BusinessSettings = serde_json::from_value(json!({
+            "workshop_timezone": "Europe/Brussels"
+        }))
+        .expect("defaults work");
         assert_eq!(settings.default_currency().as_str(), "EUR");
         assert_eq!(settings.default_collection_limit().value(), 25);
         assert_eq!(settings.maximum_collection_limit().value(), 200);
+        assert_eq!(settings.workshop_timezone(), chrono_tz::Europe::Brussels);
+    }
+
+    #[test]
+    fn business_settings_accept_another_valid_iana_workshop_timezone() {
+        let settings: BusinessSettings = serde_json::from_value(json!({
+            "workshop_timezone": "America/New_York"
+        }))
+        .expect("a valid IANA timezone should load");
+
+        assert_eq!(settings.workshop_timezone(), chrono_tz::America::New_York);
     }
 
     #[test]
     fn business_settings_reject_values_without_echoing_them() {
         let error = serde_json::from_value::<BusinessSettings>(json!({
-            "default_currency": "secret-invalid-value"
+            "default_currency": "secret-invalid-value",
+            "workshop_timezone": "Europe/Brussels"
         }))
         .expect_err("invalid currency is rejected");
         assert!(!error.to_string().contains("secret-invalid-value"));
 
         for value in [0, 201] {
             let error = serde_json::from_value::<BusinessSettings>(json!({
-                "default_collection_limit": value
+                "default_collection_limit": value,
+                "workshop_timezone": "Europe/Brussels"
             }));
             assert!(error.is_err());
         }
+    }
+
+    #[test]
+    fn business_settings_require_a_valid_iana_workshop_timezone_without_echoing_it() {
+        let missing = serde_json::from_value::<BusinessSettings>(json!({}))
+            .expect_err("the workshop timezone is required");
+        assert!(missing.to_string().contains("business.workshop_timezone"));
+
+        let invalid_value = "secret-invalid-timezone";
+        let invalid = serde_json::from_value::<BusinessSettings>(json!({
+            "workshop_timezone": invalid_value
+        }))
+        .expect_err("invalid IANA zones should be rejected");
+        assert!(invalid.to_string().contains("business.workshop_timezone"));
+        assert!(!invalid.to_string().contains(invalid_value));
     }
 }

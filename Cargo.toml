@@ -28,6 +28,7 @@ surrealdb = { version = "3.2.1", default-features = false, features = ["protocol
 axum-extra = { version = "0.10.3", features = ["cookie"] }
 base64 = "0.22"
 chrono = "0.4"
+chrono-tz = "0.9"
 getrandom = "0.3"
 hmac = "0.12"
 rpassword = "7"

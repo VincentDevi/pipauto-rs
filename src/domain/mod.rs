@@ -10,6 +10,7 @@ pub mod normalization;
 pub mod pagination;
 pub mod quantity;
 pub mod validation;
+pub mod workshop_time;
 
 pub use archive::{ArchiveState, EntityTimestamps};
 pub use id::{
@@ -26,3 +27,4 @@ pub use pagination::{
 };
 pub use quantity::{Quantity, QuantityError};
 pub use validation::{FieldPath, ValidationCode, ValidationError, ValidationErrors};
+pub use workshop_time::{Clock, SystemClock, UtcRange, WorkshopTime, WorkshopTimeError};

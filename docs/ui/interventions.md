@@ -71,6 +71,10 @@ for a first intervention. Cursor pagination preserves deterministic server order
 | Validation | Workshop-local date/time including DST gaps/ambiguity; duration in 30-minute increments from 30 minutes through 24 hours; non-negative mileage; chronology; bounded text; immutable state conflicts |
 | Backend | Time-aware create/update, captured customer/vehicle snapshots, duration and chronology validation, and authoritative current mileage update |
 
+The scheduling fields and captured identity form one mandatory contract. Disposable pre-contract
+development and test records are reset and reseeded; the UI and backend must never invent a time,
+duration, or snapshot to preserve a date-only fixture.
+
 ### Desktop wireframe
 
 ```text

@@ -50,6 +50,7 @@ settings:
     default_currency: EUR
     default_collection_limit: 25
     maximum_collection_limit: 200
+    workshop_timezone: Europe/Brussels
   attachments:
     maximum_file_bytes: 26214400
   surrealdb:

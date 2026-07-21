@@ -84,3 +84,26 @@ async fn attachment_settings_reject_invalid_startup_values_without_echoing_them(
         assert!(!error.to_string().contains(&invalid.to_string()));
     }
 }
+
+#[tokio::test]
+async fn business_settings_reject_invalid_timezone_at_startup_without_echoing_it() {
+    let invalid_value = "secret-invalid-timezone";
+    let mut config = Environment::Test
+        .load()
+        .expect("test configuration should load");
+    config
+        .settings
+        .as_mut()
+        .and_then(|settings| settings.get_mut("business"))
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("business settings should be an object")
+        .insert("workshop_timezone".to_owned(), invalid_value.into());
+
+    let error = match create_context::<App>(&Environment::Test, config).await {
+        Ok(_) => panic!("startup should reject an invalid workshop timezone"),
+        Err(error) => error,
+    };
+
+    assert!(error.to_string().contains("business.workshop_timezone"));
+    assert!(!error.to_string().contains(invalid_value));
+}

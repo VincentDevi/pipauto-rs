@@ -101,6 +101,11 @@ after customer reassignment/renaming or vehicle edits. Pipauto has no deployed w
 decision point, so disposable development and test databases are reset and reseeded instead of
 backfilling invented schedule or identity values.
 
+API writes use an exact workshop-local `YYYY-MM-DDTHH:MM` value and required estimated duration;
+reads return the resolved UTC instant and immutable identity snapshots. The documented
+`GET /calendar?view=month|week&date=YYYY-MM-DD` browser route remains planned until its owning
+calendar-rendering issue delivers it; this foundation does not expose a placeholder route.
+
 The basic authenticated calendar is a read-only Month/Week projection of Draft and Completed
 interventions; Cancelled work is excluded. It provides workshop-local Previous, Today, and Next
 navigation, displays duration, overlaps, and midnight continuations, and starts new work through

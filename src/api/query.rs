@@ -73,7 +73,8 @@ mod tests {
     fn settings() -> BusinessSettings {
         serde_json::from_value(json!({
             "default_collection_limit": 25,
-            "maximum_collection_limit": 100
+            "maximum_collection_limit": 100,
+            "workshop_timezone": "Europe/Brussels"
         }))
         .expect("settings should validate")
     }

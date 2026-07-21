@@ -28,6 +28,10 @@ controls in these wireframes.
 | Navigation | Previous, Today, Next, Month, Week, and focused-day links are normal GET navigation |
 | Backend | Bounded overlap query, immutable customer/vehicle snapshots, workshop timezone, duration, midnight segments, and overlap layout |
 
+This table specifies a planned route. It is not part of the implemented route inventory until the
+Calendar navigation/Month issue delivers the complete read path; no placeholder route is exposed
+for this contract issue.
+
 Calendar navigation may replace the calendar region with HTMX and update browser history. Every
 control retains a complete `href`, so refresh, Back, copied URLs, and JavaScript-disabled use
 reproduce the same view.
