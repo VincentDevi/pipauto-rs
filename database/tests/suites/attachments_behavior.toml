@@ -22,7 +22,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:job_attachment_owner CONTENT { display_name: 'Job Attachment Owner', display_name_normalized: 'job attachment owner' };",
     "CREATE vehicle:job_attachment_vehicle CONTENT { customer: customer:job_attachment_owner, make: 'Peugeot', make_normalized: 'peugeot', model: '208', model_normalized: '208' };",
-    "CREATE intervention:attachment_job CONTENT { vehicle: vehicle:job_attachment_vehicle, service_date: d'2026-07-19' };",
+    "CREATE intervention:attachment_job CONTENT { vehicle: vehicle:job_attachment_vehicle, service_date: d'2026-07-19T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:job_attachment_owner, customer_snapshot_name: 'Job Attachment Owner', vehicle_snapshot_make: 'Peugeot', vehicle_snapshot_model: '208' };",
 ]
 action_sql = "CREATE attachment:job_pdf CONTENT { intervention: intervention:attachment_job, display_name: 'Diagnostic report.pdf', media_type: 'application/pdf', file: f'pipauto_attachments:/job-pdf', byte_size: 24512, sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', storage_state: 'stored' };"
 expect_success = true
@@ -59,7 +59,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:two_owner_customer CONTENT { display_name: 'Two Owner', display_name_normalized: 'two owner' };",
     "CREATE vehicle:two_owner_vehicle CONTENT { customer: customer:two_owner_customer, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:two_owner_job CONTENT { vehicle: vehicle:two_owner_vehicle, service_date: d'2026-07-19' };",
+    "CREATE intervention:two_owner_job CONTENT { vehicle: vehicle:two_owner_vehicle, service_date: d'2026-07-19T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:two_owner_customer, customer_snapshot_name: 'Two Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "CREATE technical_note:two_owner_note CONTENT { title: 'Note', body: 'Body' };",
 ]
 action_sql = "CREATE attachment:three_owners CONTENT { vehicle: vehicle:two_owner_vehicle, intervention: intervention:two_owner_job, technical_note: technical_note:two_owner_note, display_name: 'Photo.jpg', media_type: 'image/jpeg', file: f'pipauto_attachments:/three-owners', storage_state: 'pending' };"

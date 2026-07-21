@@ -37,7 +37,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:reference_owner CONTENT { display_name: 'Reference Owner', display_name_normalized: 'reference owner' };",
     "CREATE vehicle:reference_vehicle CONTENT { customer: customer:reference_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:reference_job CONTENT { vehicle: vehicle:reference_vehicle, service_date: d'2026-07-19' };",
+    "CREATE intervention:reference_job CONTENT { vehicle: vehicle:reference_vehicle, service_date: d'2026-07-19T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:reference_owner, customer_snapshot_name: 'Reference Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "CREATE technical_note:referenced CONTENT { title: 'Reference note', body: 'Source details', vehicle: vehicle:reference_vehicle, source_intervention: intervention:reference_job };",
 ]
 action_sql = "DELETE intervention:reference_job;"

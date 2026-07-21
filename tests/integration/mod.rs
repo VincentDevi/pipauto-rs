@@ -10,6 +10,7 @@ mod auth;
 mod auth_repositories;
 mod customer_vehicle_repositories;
 mod database;
+mod intervention_schema;
 mod interventions;
 mod invoices;
 mod migration;

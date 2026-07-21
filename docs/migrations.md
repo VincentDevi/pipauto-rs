@@ -71,6 +71,19 @@ schedules and identities. The reviewed rollout must stop if any intervention row
 not delete rows automatically. Any discovered shared, staging, production, or otherwise valuable
 data invalidates the reset assumption and requires a separately approved preservation plan.
 
+The reviewed artifact is
+`20260721133849__mandatory_intervention_scheduling_snapshots`. Its first manifest step asserts that
+the intervention table is empty, and the wrapper repeats that read-only preflight before rollout
+execution so operators receive explicit disposable-reset guidance. Neither path deletes records.
+After explicitly resetting a disposable development or test database, synchronize and seed it,
+then verify convergence before using it:
+
+```bash
+./scripts/surrealkit sync
+./scripts/surrealkit seed
+./scripts/surrealkit sync --dry-run
+```
+
 The following inventory is the handoff checklist for the schema, domain, persistence, API, and UI
 issues. A subsequent change is incomplete while any listed intervention path still treats
 `service_date` as a `NaiveDate`, converts it to UTC midnight, renders it without the configured

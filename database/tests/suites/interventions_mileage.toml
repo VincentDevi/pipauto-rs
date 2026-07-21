@@ -7,9 +7,9 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:mileage_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:mileage_vehicle CONTENT { customer: customer:mileage_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:mileage_first CONTENT { vehicle: vehicle:mileage_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
+    "CREATE intervention:mileage_first CONTENT { vehicle: vehicle:mileage_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
 ]
-action_sql = "CREATE intervention:mileage_current CONTENT { vehicle: vehicle:mileage_vehicle, service_date: d'2026-07-20T00:00:00Z', mileage: 100000 };"
+action_sql = "CREATE intervention:mileage_current CONTENT { vehicle: vehicle:mileage_vehicle, service_date: d'2026-07-20T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };"
 expect_success = true
 
 [[cases]]
@@ -18,10 +18,10 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:backdated_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:backdated_vehicle CONTENT { customer: customer:backdated_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:backdated_first CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
-    "CREATE intervention:backdated_last CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-20T00:00:00Z', mileage: 120000 };",
+    "CREATE intervention:backdated_first CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:backdated_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
+    "CREATE intervention:backdated_last CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-20T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:backdated_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120000 };",
 ]
-action_sql = "CREATE intervention:backdated_middle CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-10T00:00:00Z', mileage: 110000 };"
+action_sql = "CREATE intervention:backdated_middle CONTENT { vehicle: vehicle:backdated_vehicle, service_date: d'2026-07-10T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:backdated_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 110000 };"
 expect_success = true
 
 [[cases]]
@@ -30,9 +30,9 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:regression_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:regression_vehicle CONTENT { customer: customer:regression_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:regression_first CONTENT { vehicle: vehicle:regression_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
+    "CREATE intervention:regression_first CONTENT { vehicle: vehicle:regression_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:regression_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
 ]
-action_sql = "CREATE intervention:regression_current CONTENT { vehicle: vehicle:regression_vehicle, service_date: d'2026-07-20T00:00:00Z', mileage: 99999 };"
+action_sql = "CREATE intervention:regression_current CONTENT { vehicle: vehicle:regression_vehicle, service_date: d'2026-07-20T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:regression_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 99999 };"
 expect_success = false
 
 [[cases]]
@@ -41,10 +41,10 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:below_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:below_vehicle CONTENT { customer: customer:below_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:below_first CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
-    "CREATE intervention:below_last CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-20T00:00:00Z', mileage: 120000 };",
+    "CREATE intervention:below_first CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:below_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
+    "CREATE intervention:below_last CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-20T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:below_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120000 };",
 ]
-action_sql = "CREATE intervention:below_middle CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-10T00:00:00Z', mileage: 99999 };"
+action_sql = "CREATE intervention:below_middle CONTENT { vehicle: vehicle:below_vehicle, service_date: d'2026-07-10T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:below_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 99999 };"
 expect_success = false
 
 [[cases]]
@@ -53,10 +53,10 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:above_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:above_vehicle CONTENT { customer: customer:above_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:above_first CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
-    "CREATE intervention:above_last CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-20T00:00:00Z', mileage: 120000 };",
+    "CREATE intervention:above_first CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:above_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
+    "CREATE intervention:above_last CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-20T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:above_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120000 };",
 ]
-action_sql = "CREATE intervention:above_middle CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-10T00:00:00Z', mileage: 120001 };"
+action_sql = "CREATE intervention:above_middle CONTENT { vehicle: vehicle:above_vehicle, service_date: d'2026-07-10T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:above_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120001 };"
 expect_success = false
 
 [[cases]]
@@ -65,7 +65,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:current_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:current_vehicle CONTENT { customer: customer:current_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', current_mileage: 100000 };",
-    "CREATE intervention:historical_mileage CONTENT { vehicle: vehicle:current_vehicle, service_date: d'2026-07-01T00:00:00Z', mileage: 100000 };",
+    "CREATE intervention:historical_mileage CONTENT { vehicle: vehicle:current_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:current_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
 ]
 action_sql = "UPDATE vehicle:current_vehicle SET current_mileage = 125000;"
 expect_success = true
@@ -74,3 +74,27 @@ verify_sql = "RETURN intervention:historical_mileage.mileage;"
 [[cases.assertions]]
 path = ""
 equals = 100000
+
+[[cases]]
+name = "same_day_full_timestamps_choose_mileage_neighbors"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:timestamp_mileage_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:timestamp_mileage_vehicle CONTENT { customer: customer:timestamp_mileage_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:timestamp_mileage_morning CONTENT { vehicle: vehicle:timestamp_mileage_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:timestamp_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000 };",
+    "CREATE intervention:timestamp_mileage_afternoon CONTENT { vehicle: vehicle:timestamp_mileage_vehicle, service_date: d'2026-07-01T15:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:timestamp_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120000 };",
+]
+action_sql = "CREATE intervention:timestamp_mileage_midday CONTENT { vehicle: vehicle:timestamp_mileage_vehicle, service_date: d'2026-07-01T12:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:timestamp_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 110000 };"
+expect_success = true
+
+[[cases]]
+name = "equal_timestamp_creation_and_id_ties_remain_deterministic"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:tied_mileage_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:tied_mileage_vehicle CONTENT { customer: customer:tied_mileage_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:tied_mileage_a CONTENT { vehicle: vehicle:tied_mileage_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:tied_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 100000, created_at: d'2026-07-01T08:00:00Z' };",
+    "CREATE intervention:tied_mileage_c CONTENT { vehicle: vehicle:tied_mileage_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:tied_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 120000, created_at: d'2026-07-01T08:00:00Z' };",
+]
+action_sql = "CREATE intervention:tied_mileage_b CONTENT { vehicle: vehicle:tied_mileage_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:tied_mileage_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', mileage: 110000, created_at: d'2026-07-01T08:00:00Z' };"
+expect_success = true

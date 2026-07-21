@@ -1,0 +1,81 @@
+id = "20260721133849__mandatory_intervention_scheduling_snapshots"
+name = "mandatory intervention scheduling snapshots"
+source_schema_hash = "73e76ab32febd6ff58184720070413f83778feee0ec473a9bccdd43440604a41"
+target_schema_hash = "0e715f79da0516b7d60d2ece4a3df967634cb4f26c3a9161fb33f4adcce1dc6b"
+compatibility = "phased"
+renames = []
+
+[[steps]]
+id = "preflight_empty_interventions_or_reset_disposable_database"
+phase = "start"
+kind = "assert_sql"
+sql = "RETURN count(SELECT * FROM intervention);"
+expect = "0"
+
+[[steps]]
+id = "apply_mandatory_intervention_schedule_and_snapshots"
+phase = "start"
+kind = "apply_files"
+files = ["database/schema/business/intervention.surql"]
+
+[[steps]]
+id = "restore_date_only_intervention_definitions"
+phase = "rollback"
+kind = "apply_schema"
+sql = """
+DEFINE INDEX IF NOT EXISTS intervention_vehicle_service_history ON intervention
+    FIELDS vehicle, service_date, created_at;
+DEFINE INDEX IF NOT EXISTS intervention_recent_work ON intervention
+    FIELDS service_date, created_at;
+
+DEFINE EVENT IF NOT EXISTS intervention_reject_terminal_update ON TABLE intervention
+    WHEN $event = 'UPDATE' AND $before.status IN ['completed', 'cancelled']
+    THEN {
+        THROW 'completed and cancelled interventions are immutable';
+    };
+"""
+
+[[steps]]
+id = "remove_mandatory_intervention_schedule_and_snapshots"
+phase = "rollback"
+kind = "remove_entities"
+
+[[steps.entities]]
+kind = "event"
+scope = "intervention"
+name = "intervention_reject_snapshot_update"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "customer_snapshot_id"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "customer_snapshot_name"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "estimated_duration_minutes"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "vehicle_snapshot_make"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "vehicle_snapshot_model"
+
+[[steps.entities]]
+kind = "field"
+scope = "intervention"
+name = "vehicle_snapshot_registration"
+
+[[steps.entities]]
+kind = "index"
+scope = "intervention"
+name = "intervention_calendar_candidates"

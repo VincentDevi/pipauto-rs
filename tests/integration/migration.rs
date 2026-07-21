@@ -660,12 +660,24 @@ async fn core_domain_rollout_representative_queries_pass() {
             };
             CREATE intervention:older CONTENT {
                 vehicle: vehicle:golf,
-                service_date: d'2026-06-01T00:00:00Z',
+                service_date: d'2026-06-01T08:30:00Z',
+                estimated_duration_minutes: 60,
+                customer_snapshot_id: customer:filippo,
+                customer_snapshot_name: 'Filippo Customer',
+                vehicle_snapshot_registration: '1-ABC-123',
+                vehicle_snapshot_make: 'Volkswagen',
+                vehicle_snapshot_model: 'Golf',
                 mileage: 120000
             };
             CREATE intervention:newer CONTENT {
                 vehicle: vehicle:golf,
-                service_date: d'2026-07-01T00:00:00Z',
+                service_date: d'2026-07-01T13:00:00Z',
+                estimated_duration_minutes: 120,
+                customer_snapshot_id: customer:filippo,
+                customer_snapshot_name: 'Filippo Customer',
+                vehicle_snapshot_registration: '1-ABC-123',
+                vehicle_snapshot_make: 'Volkswagen',
+                vehicle_snapshot_model: 'Golf',
                 mileage: 121000,
                 performed_work: 'Water pump replacement'
             };

@@ -39,7 +39,7 @@
       "name": "intervention_reject_delete",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "a7d80c3b46e41a5bd093fb4f61a44dbcbab0bbbc549259b0e4d5e16bb9544485",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "event",
@@ -52,10 +52,18 @@
     {
       "kind": "event",
       "scope": "intervention",
+      "name": "intervention_reject_snapshot_update",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "e9e5661e08ca3c63503a964fea676902cb02902a73cba5179e9e104bd9ad2885",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "event",
+      "scope": "intervention",
       "name": "intervention_reject_terminal_update",
       "source_path": "database/schema/business/intervention.surql",
-      "statement_hash": "d33e76bb70b6e0f8ac94cbd6cb4872f38554483b8e15837579e316a18c3c32a4",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "statement_hash": "740556f899ed95bde78f10f7eb77cb3c0021a17f2e5d065c77b014d895c6c332",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "event",
@@ -63,7 +71,7 @@
       "name": "intervention_validate_mileage",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "3f976000dd40ac15013d0b1483c925500c4dfa9ed1f949897817f21baf26646b",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "event",
@@ -71,7 +79,7 @@
       "name": "intervention_validate_state",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "9ef53ceccd3259fd94932ab8fa870edf6a6ed2a005ec4f0e1a55be8138e148cf",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "event",
@@ -471,7 +479,7 @@
       "name": "cancelled_at",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "54ab06b3b40758d98923de7dcf986430374d53347df27ebff8d67b67ce451fab",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -479,7 +487,7 @@
       "name": "completed_at",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "eb89faad026b53d50ae063f02385003b0da1cdc1aa1dcc6c6ce666145a98c47f",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -487,7 +495,7 @@
       "name": "created_at",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "39b7812bcc11198f9537f44c940691ca31d4c8c08fe0c56e8d018649e7372cf3",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -495,7 +503,7 @@
       "name": "currency",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "6de1c119876e05cd50b7773502eec97b42133f2921d21acdf435253d2e680a09",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -503,7 +511,23 @@
       "name": "customer_reported_problem",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "b3fb0b3ab0e0ef5950df4bfe3e3ec81e407d5aef5f0c203f398d24211acc476a",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "customer_snapshot_id",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "46bcf3c8fb2f3a855824b06c46f4b18f93af49c459a5c63a81bed01a45bf175e",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "customer_snapshot_name",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "16aecc4303609793193c22e4af339abcad112ce83f4dbec8090791530ddc78ce",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -511,7 +535,15 @@
       "name": "diagnostics",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "2cabec2cc2ecb08d60a0bc1175f20153ed81d99e5a4255e948605a08043343df",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "estimated_duration_minutes",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "10b2b7f70dd03245d2062022040260e7df8435dce5ce4aca393e88af3903cc5d",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -519,7 +551,7 @@
       "name": "mileage",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "21b70d621cee4cceac326e822c71b6af82aeaaa26b43a30c3f0736d0b46a8bc1",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -527,7 +559,7 @@
       "name": "notes",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "26474a9d6097228dea15c66285a22fb80f780971bae33edd199ab588e989b755",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -535,7 +567,7 @@
       "name": "performed_work",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "0bd5f01ca8e94ea669c26a004ee01b65c1c7b4151aa2be8d127eed1fd2572759",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -543,7 +575,7 @@
       "name": "recommendations",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "ba603fb567e81a539353128ee57f1341c3d75ef57641c199528e6e62f2e5bb80",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -551,7 +583,7 @@
       "name": "service_date",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "0c832a4d7dc3fea999df30b0cc783214466a10a22a6e5ac9ee57e1822070dbb2",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -559,7 +591,7 @@
       "name": "status",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "9998ed4696c3cdb19ca8707a499c37a24a9c31585d7a657637dde52900ca1fc4",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -567,7 +599,7 @@
       "name": "updated_at",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "d060acd5de4bb04eb4e5761951817b6912357e09b31a667285a0dd1e5b841048",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -575,7 +607,31 @@
       "name": "vehicle",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "e216662bd0960577ab0609950cf303558de8569bd0375824040ef63e433edd5b",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "vehicle_snapshot_make",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "645ea4ed1b730f944ff9b0a87555f9a1e542f966b5976d635660e629560c80f8",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "vehicle_snapshot_model",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "5d0e52273399eb8ad7d0b91e64115b2f063477695264d3c08e816429c91edd0d",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "field",
+      "scope": "intervention",
+      "name": "vehicle_snapshot_registration",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "a2448150bdc4d5b255e6074cc89dd945e28d361b5fb45760cf20d7b4171850ec",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "field",
@@ -1460,10 +1516,18 @@
     {
       "kind": "index",
       "scope": "intervention",
+      "name": "intervention_calendar_candidates",
+      "source_path": "database/schema/business/intervention.surql",
+      "statement_hash": "79b5fb2f5c988fda1d0c9a14e44eedcc346c24c4653f32ba04ba74290e597c23",
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
+    },
+    {
+      "kind": "index",
+      "scope": "intervention",
       "name": "intervention_recent_work",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "03330af14faa65785183d0e1e5c4305495e6b4ee303a77e69efec5638a5c304c",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "index",
@@ -1471,7 +1535,7 @@
       "name": "intervention_status",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "1e626c4eae0d8fd558c2ae2bfc7c473c0bec2a477f70a4f5c22d03f94a750877",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "index",
@@ -1479,7 +1543,7 @@
       "name": "intervention_vehicle_service_history",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "34d9cf8edbf412c5af25150ffe011df91bffa5c655841945a0cba6376c7918b3",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "index",
@@ -1767,7 +1831,7 @@
       "name": "intervention",
       "source_path": "database/schema/business/intervention.surql",
       "statement_hash": "27699bb05973bf5c2e2a1413a8163f45ea28b212845282944a5721136642347b",
-      "file_hash": "10d4b2f835372b463ef7c35f932dc7645559c06c2ba21d48a353888e9248593b"
+      "file_hash": "ead4b854494f9996edd9115cf1d03df4edb0b9a1f750bc7a40f37bb42e54959c"
     },
     {
       "kind": "table",

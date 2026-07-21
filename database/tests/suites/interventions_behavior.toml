@@ -7,7 +7,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:intervention_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:intervention_vehicle CONTENT { customer: customer:intervention_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:vehicle_delete_guard CONTENT { vehicle: vehicle:intervention_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:vehicle_delete_guard CONTENT { vehicle: vehicle:intervention_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:intervention_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
 ]
 action_sql = "DELETE vehicle:intervention_vehicle;"
 expect_success = false
@@ -18,7 +18,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:completion_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:completion_vehicle CONTENT { customer: customer:completion_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:completion_guard CONTENT { vehicle: vehicle:completion_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:completion_guard CONTENT { vehicle: vehicle:completion_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:completion_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
 ]
 action_sql = "UPDATE intervention:completion_guard SET status = 'completed', completed_at = time::now();"
 expect_success = false
@@ -29,7 +29,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:durable_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:durable_vehicle CONTENT { customer: customer:durable_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:durable CONTENT { vehicle: vehicle:durable_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Oil service' };",
+    "CREATE intervention:durable CONTENT { vehicle: vehicle:durable_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:durable_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', performed_work: 'Oil service' };",
     "CREATE intervention_line:durable_line CONTENT { intervention: intervention:durable, category: 'material', description: 'Engine oil', quantity: 4.5dec, unit_label: 'litre', currency: 'EUR', unit_price_minor: 1200, unit_cost_minor: 700, total_price_minor: 5400, total_cost_minor: 3150, position: 0 };",
     "UPDATE intervention:durable SET status = 'completed', completed_at = time::now();",
 ]
@@ -47,7 +47,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:completed_delete_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:completed_delete_vehicle CONTENT { customer: customer:completed_delete_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:completed_delete_guard CONTENT { vehicle: vehicle:completed_delete_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Inspection completed' };",
+    "CREATE intervention:completed_delete_guard CONTENT { vehicle: vehicle:completed_delete_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:completed_delete_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', performed_work: 'Inspection completed' };",
     "UPDATE intervention:completed_delete_guard SET status = 'completed', completed_at = time::now();",
 ]
 action_sql = "DELETE intervention:completed_delete_guard;"
@@ -64,7 +64,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:timestamp_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:timestamp_vehicle CONTENT { customer: customer:timestamp_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:timestamp_guard CONTENT { vehicle: vehicle:timestamp_vehicle, service_date: d'2026-07-01T00:00:00Z', performed_work: 'Inspection completed' };",
+    "CREATE intervention:timestamp_guard CONTENT { vehicle: vehicle:timestamp_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:timestamp_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', performed_work: 'Inspection completed' };",
 ]
 action_sql = "UPDATE intervention:timestamp_guard SET status = 'completed';"
 expect_success = false
@@ -75,7 +75,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:cancel_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:cancel_vehicle CONTENT { customer: customer:cancel_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:cancelled CONTENT { vehicle: vehicle:cancel_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:cancelled CONTENT { vehicle: vehicle:cancel_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:cancel_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "UPDATE intervention:cancelled SET status = 'cancelled', cancelled_at = time::now();",
 ]
 action_sql = "UPDATE intervention:cancelled SET status = 'draft', cancelled_at = NONE;"
@@ -92,7 +92,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:line_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:line_vehicle CONTENT { customer: customer:line_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:line_parent CONTENT { vehicle: vehicle:line_vehicle, service_date: d'2026-07-01T00:00:00Z', currency: 'EUR' };",
+    "CREATE intervention:line_parent CONTENT { vehicle: vehicle:line_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:line_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', currency: 'EUR' };",
     "CREATE intervention_line:first CONTENT { intervention: intervention:line_parent, category: 'part', description: 'Brake pads', quantity: 1.5dec, unit_label: 'set', currency: 'EUR', unit_price_minor: 101, total_price_minor: 152, position: 0 };",
 ]
 action_sql = "CREATE intervention_line:invalid CONTENT { intervention: intervention:line_parent, category: 'invalid', description: 'Invalid', quantity: 0dec, unit_label: 'set', currency: 'USD', unit_price_minor: 100, total_price_minor: 99, position: 0 };"
@@ -104,7 +104,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:position_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:position_vehicle CONTENT { customer: customer:position_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:position_parent CONTENT { vehicle: vehicle:position_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:position_parent CONTENT { vehicle: vehicle:position_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:position_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "CREATE intervention_line:position_first CONTENT { intervention: intervention:position_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
 ]
 action_sql = "CREATE intervention_line:position_second CONTENT { intervention: intervention:position_parent, category: 'labour', description: 'More labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };"
@@ -116,7 +116,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:total_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:total_vehicle CONTENT { customer: customer:total_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:total_parent CONTENT { vehicle: vehicle:total_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:total_parent CONTENT { vehicle: vehicle:total_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:total_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "CREATE intervention_line:total_guard CONTENT { intervention: intervention:total_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
 ]
 action_sql = "UPDATE intervention_line:total_guard SET quantity = 2dec;"
@@ -133,7 +133,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:half_up_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:half_up_vehicle CONTENT { customer: customer:half_up_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:half_up_parent CONTENT { vehicle: vehicle:half_up_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:half_up_parent CONTENT { vehicle: vehicle:half_up_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:half_up_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
 ]
 action_sql = "CREATE intervention_line:half_up CONTENT { intervention: intervention:half_up_parent, category: 'part', description: 'Half-up boundary', quantity: 1.5dec, unit_label: 'item', currency: 'EUR', unit_price_minor: 101, unit_cost_minor: 51, total_price_minor: 152, total_cost_minor: 77, position: 0 };"
 expect_success = true
@@ -153,7 +153,7 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:currency_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:currency_vehicle CONTENT { customer: customer:currency_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:currency_parent CONTENT { vehicle: vehicle:currency_vehicle, service_date: d'2026-07-01T00:00:00Z' };",
+    "CREATE intervention:currency_parent CONTENT { vehicle: vehicle:currency_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:currency_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
     "CREATE intervention_line:currency_guard CONTENT { intervention: intervention:currency_parent, category: 'labour', description: 'Labour', quantity: 1dec, unit_label: 'hour', currency: 'EUR', unit_price_minor: 5000, total_price_minor: 5000, position: 0 };",
 ]
 action_sql = "UPDATE intervention:currency_parent SET currency = 'USD';"
@@ -170,8 +170,8 @@ kind = "schema_behavior"
 setup_sql = [
     "CREATE customer:history_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
     "CREATE vehicle:history_vehicle CONTENT { customer: customer:history_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
-    "CREATE intervention:history_a CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T00:00:00Z', created_at: d'2026-07-02T10:00:00Z' };",
-    "CREATE intervention:history_b CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T00:00:00Z', created_at: d'2026-07-02T10:00:00Z' };",
+    "CREATE intervention:history_a CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T09:15:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:history_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', created_at: d'2026-07-02T10:00:00Z' };",
+    "CREATE intervention:history_b CONTENT { vehicle: vehicle:history_vehicle, service_date: d'2026-07-01T09:15:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:history_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf', created_at: d'2026-07-02T10:00:00Z' };",
 ]
 action_sql = "RETURN true;"
 expect_success = true
@@ -184,3 +184,96 @@ equals = "intervention:history_b"
 [[cases.assertions]]
 path = "[1]"
 equals = "intervention:history_a"
+
+[[cases]]
+name = "complete_schedule_and_snapshots_are_required"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:required_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:required_vehicle CONTENT { customer: customer:required_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE intervention:missing_contract CONTENT { vehicle: vehicle:required_vehicle, service_date: d'2026-07-01T09:00:00Z' };"
+expect_success = false
+
+[[cases]]
+name = "duration_must_be_in_range_and_on_a_thirty_minute_step"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:duration_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:duration_vehicle CONTENT { customer: customer:duration_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE intervention:invalid_duration CONTENT { vehicle: vehicle:duration_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 45, customer_snapshot_id: customer:duration_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };"
+expect_success = false
+
+[[cases]]
+name = "snapshot_text_uses_source_display_limits_and_normalization"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:snapshot_shape_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:snapshot_shape_vehicle CONTENT { customer: customer:snapshot_shape_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+]
+action_sql = "CREATE intervention:invalid_snapshot_shape CONTENT { vehicle: vehicle:snapshot_shape_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:snapshot_shape_owner, customer_snapshot_name: ' Owner ', vehicle_snapshot_registration: ' 1-ABC-234 ', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };"
+expect_success = false
+
+[[cases]]
+name = "draft_schedule_is_mutable_but_identity_snapshots_are_not"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:mutable_owner CONTENT { display_name: 'Original Owner', display_name_normalized: 'original owner' };",
+    "CREATE vehicle:mutable_vehicle CONTENT { customer: customer:mutable_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf', registration: '1-ABC-234', registration_normalized: '1ABC234' };",
+    "CREATE intervention:mutable_draft CONTENT { vehicle: vehicle:mutable_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:mutable_owner, customer_snapshot_name: 'Original Owner', vehicle_snapshot_registration: '1-ABC-234', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
+    "UPDATE intervention:mutable_draft SET service_date = d'2026-07-01T10:30:00Z', estimated_duration_minutes = 120;",
+]
+action_sql = "UPDATE intervention:mutable_draft SET customer_snapshot_name = 'Rewritten Owner';"
+expect_success = false
+verify_sql = "RETURN [intervention:mutable_draft.service_date, intervention:mutable_draft.estimated_duration_minutes, intervention:mutable_draft.customer_snapshot_name];"
+
+[[cases.assertions]]
+path = "[0]"
+equals = "2026-07-01T10:30:00Z"
+
+[[cases.assertions]]
+path = "[1]"
+equals = 120
+
+[[cases.assertions]]
+path = "[2]"
+equals = "Original Owner"
+
+[[cases]]
+name = "snapshot_display_text_is_independent_and_customer_reference_rejects_delete"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:historical_owner CONTENT { display_name: 'Original Owner', display_name_normalized: 'original owner' };",
+    "CREATE vehicle:historical_vehicle CONTENT { customer: customer:historical_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:historical_snapshot CONTENT { vehicle: vehicle:historical_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:historical_owner, customer_snapshot_name: 'Original Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
+    "UPDATE customer:historical_owner SET display_name = 'Renamed Owner', display_name_normalized = 'renamed owner';",
+]
+action_sql = "DELETE customer:historical_owner;"
+expect_success = false
+verify_sql = "RETURN intervention:historical_snapshot.customer_snapshot_name;"
+
+[[cases.assertions]]
+path = ""
+equals = "Original Owner"
+
+[[cases]]
+name = "terminal_intervention_schedule_is_fully_immutable"
+kind = "schema_behavior"
+setup_sql = [
+    "CREATE customer:terminal_schedule_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' };",
+    "CREATE vehicle:terminal_schedule_vehicle CONTENT { customer: customer:terminal_schedule_owner, make: 'Volkswagen', make_normalized: 'volkswagen', model: 'Golf', model_normalized: 'golf' };",
+    "CREATE intervention:terminal_schedule CONTENT { vehicle: vehicle:terminal_schedule_vehicle, service_date: d'2026-07-01T09:00:00Z', estimated_duration_minutes: 60, customer_snapshot_id: customer:terminal_schedule_owner, customer_snapshot_name: 'Owner', vehicle_snapshot_make: 'Volkswagen', vehicle_snapshot_model: 'Golf' };",
+    "UPDATE intervention:terminal_schedule SET status = 'cancelled', cancelled_at = time::now();",
+]
+action_sql = "UPDATE intervention:terminal_schedule SET service_date = d'2026-07-01T10:00:00Z', estimated_duration_minutes = 120;"
+expect_success = false
+verify_sql = "RETURN [intervention:terminal_schedule.service_date, intervention:terminal_schedule.estimated_duration_minutes];"
+
+[[cases.assertions]]
+path = "[0]"
+equals = "2026-07-01T09:00:00Z"
+
+[[cases.assertions]]
+path = "[1]"
+equals = 60

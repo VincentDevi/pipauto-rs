@@ -6,6 +6,37 @@ DEFINE FIELD IF NOT EXISTS vehicle ON intervention TYPE record<vehicle>
 
 DEFINE FIELD IF NOT EXISTS service_date ON intervention TYPE datetime;
 
+DEFINE FIELD IF NOT EXISTS estimated_duration_minutes ON intervention TYPE int
+    ASSERT $value >= 30
+        AND $value <= 1440
+        AND $value % 30 = 0;
+
+DEFINE FIELD IF NOT EXISTS customer_snapshot_id ON intervention TYPE record<customer>
+    REFERENCE ON DELETE REJECT
+    ASSERT record::exists($value);
+
+DEFINE FIELD IF NOT EXISTS customer_snapshot_name ON intervention TYPE string
+    ASSERT string::trim($value) = $value
+        AND string::len($value) >= 1
+        AND string::len($value) <= 160;
+
+DEFINE FIELD IF NOT EXISTS vehicle_snapshot_registration ON intervention TYPE option<string>
+    ASSERT $value IS NONE OR (
+        string::trim($value) = $value
+        AND string::len($value) >= 1
+        AND string::len($value) <= 40
+    );
+
+DEFINE FIELD IF NOT EXISTS vehicle_snapshot_make ON intervention TYPE string
+    ASSERT string::trim($value) = $value
+        AND string::len($value) >= 1
+        AND string::len($value) <= 80;
+
+DEFINE FIELD IF NOT EXISTS vehicle_snapshot_model ON intervention TYPE string
+    ASSERT string::trim($value) = $value
+        AND string::len($value) >= 1
+        AND string::len($value) <= 80;
+
 DEFINE FIELD IF NOT EXISTS status ON intervention TYPE string DEFAULT 'draft'
     ASSERT $value IN ['draft', 'completed', 'cancelled']
         AND ($before IS NOT NONE OR $value = 'draft')
@@ -75,11 +106,24 @@ DEFINE INDEX IF NOT EXISTS intervention_vehicle_service_history ON intervention
 DEFINE INDEX IF NOT EXISTS intervention_status ON intervention FIELDS status;
 DEFINE INDEX IF NOT EXISTS intervention_recent_work ON intervention
     FIELDS service_date, created_at;
+DEFINE INDEX IF NOT EXISTS intervention_calendar_candidates ON intervention FIELDS service_date;
 
 DEFINE EVENT IF NOT EXISTS intervention_reject_terminal_update ON TABLE intervention
     WHEN $event = 'UPDATE' AND $before.status IN ['completed', 'cancelled']
     THEN {
-        THROW 'completed and cancelled interventions are immutable';
+        THROW 'completed and cancelled interventions are fully immutable';
+    };
+
+DEFINE EVENT IF NOT EXISTS intervention_reject_snapshot_update ON TABLE intervention
+    WHEN $event = 'UPDATE' AND (
+        $after.customer_snapshot_id != $before.customer_snapshot_id
+        OR $after.customer_snapshot_name != $before.customer_snapshot_name
+        OR $after.vehicle_snapshot_registration != $before.vehicle_snapshot_registration
+        OR $after.vehicle_snapshot_make != $before.vehicle_snapshot_make
+        OR $after.vehicle_snapshot_model != $before.vehicle_snapshot_model
+    )
+    THEN {
+        THROW 'intervention identity snapshots are immutable';
     };
 
 DEFINE EVENT IF NOT EXISTS intervention_reject_delete ON TABLE intervention

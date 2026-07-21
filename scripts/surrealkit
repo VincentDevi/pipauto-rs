@@ -19,6 +19,9 @@ import uuid
 PINNED_VERSION = "0.7.0"
 AUTH_TABLES = ("auth_session", "login_throttle", "user")
 STORED_ATTACHMENT_ROLLOUT = "20260721104500__stored_attachment_schema"
+MANDATORY_INTERVENTION_ROLLOUT = (
+    "20260721133849__mandatory_intervention_scheduling_snapshots"
+)
 ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_CATALOG = ROOT / "database/tests/fixtures/authentication_catalog.json"
 DEFAULT_REPORT = ROOT / "artifacts/migration-report.json"
@@ -269,6 +272,19 @@ def run_rollout_start(arguments: list[str], environment: dict[str, str]) -> int:
     status = rows[0].get("status") if rows else None
     if status is None:
         verify_catalog(environment, allow_metadata=True, allow_business=True)
+    if selected == MANDATORY_INTERVENTION_ROLLOUT:
+        result = query(
+            environment,
+            "RETURN count(SELECT * FROM intervention);",
+        )[0]
+        if not isinstance(result, int) or result < 0:
+            raise SafeFailure("intervention rollout preflight count could not be verified")
+        if result != 0:
+            raise SafeFailure(
+                "mandatory intervention scheduling requires an empty intervention table; "
+                "reset and reseed only an explicitly disposable development/test database, "
+                "otherwise stop and request an approved preservation plan"
+            )
     owner = uuid.uuid4().hex
     query(
         environment,
