@@ -278,7 +278,7 @@ async fn technical_note_attachments_api_supports_all_owners_and_transport_safe_p
 }
 
 #[tokio::test]
-async fn attachment_multipart_rejects_unsafe_edges_and_enforces_25_mib_boundary() {
+async fn attachment_security_multipart_rejects_unsafe_edges_and_enforces_25_mib_boundary() {
     let (router, session, csrf) = authenticated_app().await;
     let vehicle = create_vehicle(&router, &session, &csrf, "Boundary").await;
     let uri = format!("/api/v1/vehicles/{vehicle}/attachments");
@@ -442,7 +442,7 @@ async fn attachment_multipart_rejects_unsafe_edges_and_enforces_25_mib_boundary(
 }
 
 #[tokio::test]
-async fn attachment_content_api_is_authenticated_exact_and_corruption_safe() {
+async fn attachment_security_content_is_authenticated_exact_and_corruption_safe() {
     let (router, session, csrf, database) = authenticated_app_with_database().await;
     let vehicle = create_vehicle(&router, &session, &csrf, "Content").await;
     let uri = format!("/api/v1/vehicles/{vehicle}/attachments");

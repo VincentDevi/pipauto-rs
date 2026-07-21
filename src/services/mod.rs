@@ -4,6 +4,7 @@
 //! not depend on HTTP frameworks, templates, database clients, or concrete persistence adapters.
 
 pub mod attachment;
+pub mod attachment_reconciliation;
 pub mod auth;
 pub mod customer;
 pub mod health;

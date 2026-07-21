@@ -174,6 +174,43 @@ async fn attachment_failure_injection_compensates_failed_bucket_write() {
     assert!(records.snapshot().expect("compensated records").is_empty());
 }
 
+#[tokio::test]
+async fn attachment_failure_injection_collision_never_overwrites_existing_bytes() {
+    let key = "777777777777777777777777777777777777777777777777";
+    let (service, records, files) = service("attachment_collision", key).await;
+    let pointer = AttachmentFilePointer::new("pipauto_attachments", key).expect("pointer");
+    let existing = b"%PDF-1.7\nexisting private bytes".to_vec();
+    pipauto::repositories::attachment::AttachmentFileStore::put_if_absent(
+        files.as_ref(),
+        &pointer,
+        &existing,
+    )
+    .await
+    .expect("collision fixture");
+
+    assert_eq!(
+        service
+            .upload(
+                owner(),
+                UploadAttachment {
+                    bytes: b"%PDF-1.7\nreplacement bytes".to_vec(),
+                    display_name: Some("replacement.pdf".into()),
+                    original_filename: None,
+                    caption: None,
+                },
+            )
+            .await,
+        Err(WorkflowError::Conflict)
+    );
+    assert!(records.snapshot().expect("compensated record").is_empty());
+    assert_eq!(
+        pipauto::repositories::attachment::AttachmentFileStore::get(files.as_ref(), &pointer)
+            .await
+            .expect("existing bytes retained"),
+        existing
+    );
+}
+
 async fn service(
     id: &'static str,
     key: &'static str,

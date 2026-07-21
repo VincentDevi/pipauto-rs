@@ -49,6 +49,27 @@ test('@vehicles @service-history @attachments vehicle registration, stored attac
 
   const vehicleUrl = page.url();
   await page.getByRole('link', { name: 'Upload attachment' }).click();
+  const attachmentForm = page.locator('#attachment-form');
+  if (testInfo.project.name !== 'no-javascript') {
+    const accessibility = await new AxeBuilder({ page }).analyze();
+    expect(accessibility.violations).toEqual([]);
+    const undersizedTargets = await attachmentForm
+      .locator('button, input:not([type="hidden"]), textarea, a')
+      .evaluateAll((elements) => elements.filter((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.width < 44 || bounds.height < 44;
+      }).map((element) => element.outerHTML));
+    expect(undersizedTargets).toEqual([]);
+  }
+  if (testInfo.project.name === 'desktop-chromium') {
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    const overflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+    await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+  }
   await page.getByLabel('File (required)').setInputFiles({
     name: `inspection-${variant}.jpg`,
     mimeType: 'image/jpeg',
@@ -56,6 +77,23 @@ test('@vehicles @service-history @attachments vehicle registration, stored attac
   });
   await page.getByLabel('Display name (optional)').fill(`Inspection ${variant}.jpg`);
   await page.getByLabel('Caption').fill('Before repair');
+  if (testInfo.project.name !== 'no-javascript') {
+    await page.route('**/vehicles/*/attachments', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.abort('failed');
+    });
+    const submit = page.getByRole('button', { name: 'Upload file' });
+    await submit.click();
+    await expect(page.getByText('Uploading…')).toBeVisible();
+    await expect(submit).toBeDisabled();
+    await expect(submit).toBeEnabled();
+    await expect(page.getByRole('alert')).toContainText('Reload the latest workshop record');
+    await page.unroute('**/vehicles/*/attachments');
+  }
   await page.getByRole('button', { name: 'Upload file' }).click();
   await expect(page).toHaveURL(vehicleUrl);
   await expect(page.getByText(`Inspection ${variant}.jpg`, { exact: true })).toBeVisible();

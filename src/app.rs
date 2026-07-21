@@ -825,6 +825,7 @@ impl Hooks for App {
     fn register_tasks(tasks: &mut Tasks) {
         tasks.register(crate::tasks::auth::CreateUser);
         tasks.register(crate::tasks::auth_persistence::PurgeExpiredAuthSessions);
+        tasks.register(crate::tasks::attachment_reconciliation::ReconcileAttachments);
     }
 }
 

@@ -1,6 +1,7 @@
 use pipauto::settings::{MULTIPART_ENVELOPE_BYTES, MULTIPART_OVERHEAD_BYTES};
 
 const PREVIOUS_GLOBAL_LIMIT: usize = 64 * 1_024;
+const _: () = assert!(MULTIPART_ENVELOPE_BYTES > PREVIOUS_GLOBAL_LIMIT);
 
 #[test]
 fn route_body_limits_cover_every_unsafe_non_upload_route() {
@@ -89,5 +90,4 @@ fn route_body_limits_keep_previous_ceiling_outside_multipart_uploads() {
     assert!(!api_and_browser_sources.contains("128 * 1024"));
     assert!(!api_and_browser_sources.contains("128 * 1_024"));
     assert_eq!(MULTIPART_OVERHEAD_BYTES, PREVIOUS_GLOBAL_LIMIT);
-    assert!(MULTIPART_ENVELOPE_BYTES > PREVIOUS_GLOBAL_LIMIT);
 }

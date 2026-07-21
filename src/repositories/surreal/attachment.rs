@@ -239,20 +239,23 @@ impl AttachmentRepository for SurrealAttachmentRepository {
     async fn list_state(
         &self,
         state: AttachmentStorageState,
+        offset: usize,
         limit: usize,
     ) -> Result<Vec<AttachmentRecord>, RepositoryError> {
         let limit = i64::try_from(limit).map_err(|_| RepositoryError::CorruptData)?;
+        let offset = i64::try_from(offset).map_err(|_| RepositoryError::CorruptData)?;
         if !(1..=200).contains(&limit) {
             return Err(RepositoryError::CorruptData);
         }
         let query = format!(
-            "SELECT {PROJECTION} FROM attachment WHERE storage_state = $state ORDER BY updated_at, id LIMIT $limit;"
+            "SELECT {PROJECTION} FROM attachment WHERE storage_state = $state ORDER BY updated_at, id LIMIT $limit START $offset;"
         );
         let mut response = support::checked_response(
             self.client
                 .query(query)
                 .bind(("state", state.as_str().to_owned()))
                 .bind(("limit", limit))
+                .bind(("offset", offset))
                 .await,
         )?;
         take_records(&mut response, 0)
@@ -407,9 +410,9 @@ async fn find(
     row.map(TryInto::try_into).transpose()
 }
 
-fn owner_ids(
-    owner: &AttachmentOwner,
-) -> Result<(Option<RecordId>, Option<RecordId>, Option<RecordId>), RepositoryError> {
+type OwnerIds = (Option<RecordId>, Option<RecordId>, Option<RecordId>);
+
+fn owner_ids(owner: &AttachmentOwner) -> Result<OwnerIds, RepositoryError> {
     match owner {
         AttachmentOwner::Vehicle(id) => Ok((
             Some(support::record_id("vehicle", id.as_str())?),

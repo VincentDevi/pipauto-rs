@@ -16,26 +16,39 @@ const PASSWORD: &str = "Workshop-password-123";
 const BOUNDARY: &str = "pipauto-vin-68-boundary";
 
 #[tokio::test]
-async fn vehicle_attachment_browser_uploads_edits_reads_and_respects_archive_lock() {
+async fn attachment_security_vehicle_browser_is_private_and_respects_archive_lock() {
     let (router, session, csrf) = authenticated_app().await;
     let vehicle = vehicle_fixture(&router, &session, &csrf, "1-VIN-068").await;
 
-    let form = html(
+    let form_response = response(
         &router,
         get(&format!("/vehicles/{vehicle}/attachments/new"), &session),
     )
     .await;
-    assert_eq!(form.0, StatusCode::OK);
+    assert_eq!(form_response.status(), StatusCode::OK);
+    assert_eq!(form_response.headers()[header::CACHE_CONTROL], "no-store");
+    let csp = form_response.headers()["Content-Security-Policy"]
+        .to_str()
+        .expect("CSP header");
+    assert!(csp.contains("default-src 'self'"));
+    assert!(csp.contains("form-action 'self'"));
+    let form = String::from_utf8(
+        to_bytes(form_response.into_body(), usize::MAX)
+            .await
+            .expect("form body")
+            .to_vec(),
+    )
+    .expect("UTF-8 form");
     for expected in [
         "enctype=\"multipart/form-data\"",
         "type=\"file\"",
         "up to 25 MiB",
         "detects its type and size from the file content",
     ] {
-        assert!(form.1.contains(expected), "missing {expected}");
+        assert!(form.contains(expected), "missing {expected}");
     }
-    assert!(!form.1.contains("name=\"media_type\""));
-    assert!(!form.1.contains("name=\"byte_size\""));
+    assert!(!form.contains("name=\"media_type\""));
+    assert!(!form.contains("name=\"byte_size\""));
 
     let invalid = html(
         &router,

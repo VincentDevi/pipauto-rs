@@ -47,6 +47,7 @@ pub trait AttachmentRepository: Send + Sync {
     async fn list_state(
         &self,
         state: AttachmentStorageState,
+        offset: usize,
         limit: usize,
     ) -> Result<Vec<AttachmentRecord>, RepositoryError>;
 }
@@ -313,6 +314,7 @@ pub mod memory {
         async fn list_state(
             &self,
             state: AttachmentStorageState,
+            offset: usize,
             limit: usize,
         ) -> Result<Vec<AttachmentRecord>, RepositoryError> {
             self.failure(RepositoryOperation::List)?;
@@ -325,6 +327,7 @@ pub mod memory {
                 .map_err(|_| RepositoryError::CorruptData)?
                 .values()
                 .filter(|record| record.storage_state == state)
+                .skip(offset)
                 .take(limit)
                 .cloned()
                 .collect())

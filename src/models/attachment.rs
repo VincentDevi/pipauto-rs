@@ -529,7 +529,7 @@ mod tests {
             Ok(AttachmentMediaType::Webp)
         );
         assert_eq!(
-            AttachmentMediaType::detect(&bmff(b"heic", &[b"mif1".to_owned()])),
+            AttachmentMediaType::detect(&bmff(b"heic", std::slice::from_ref(b"mif1"))),
             Ok(AttachmentMediaType::Heic)
         );
         assert_eq!(
@@ -549,7 +549,7 @@ mod tests {
             Err(AttachmentModelError::EmptyContent)
         );
         assert_eq!(
-            AttachmentMediaType::detect(&bmff(b"avif", &[b"mif1".to_owned()])),
+            AttachmentMediaType::detect(&bmff(b"avif", std::slice::from_ref(b"mif1"))),
             Err(AttachmentModelError::UnsupportedMediaType)
         );
         assert_eq!(

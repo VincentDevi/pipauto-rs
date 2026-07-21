@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('@knowledge @knowledge-attachments technical notes and stored attachments work progressively', async ({ page }, testInfo) => {
+test('@knowledge @knowledge-attachments @attachments technical notes and stored attachments work progressively', async ({ page }, testInfo) => {
   const variant = testInfo.project.name === 'no-javascript'
     ? 'nojs'
     : testInfo.project.name.replace('-chromium', '');

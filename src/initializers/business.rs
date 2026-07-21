@@ -26,9 +26,9 @@ use crate::{
         vehicle::VehicleRepository,
     },
     services::{
-        attachment::AttachmentService, customer::CustomerService, health::HealthService,
-        intervention::InterventionService, invoice::InvoiceService,
-        technical_note::TechnicalNoteService, vehicle::VehicleService,
+        attachment::AttachmentService, attachment_reconciliation::AttachmentReconciler,
+        customer::CustomerService, health::HealthService, intervention::InterventionService,
+        invoice::InvoiceService, technical_note::TechnicalNoteService, vehicle::VehicleService,
     },
 };
 
@@ -109,6 +109,10 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
         vehicles.clone(),
         interventions.clone(),
         cursors.clone(),
+    ));
+    ctx.shared_store.insert(AttachmentReconciler::new(
+        attachments.clone(),
+        attachment_files.clone(),
     ));
     ctx.shared_store.insert(AttachmentService::new(
         attachments,

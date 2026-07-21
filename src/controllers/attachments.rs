@@ -405,7 +405,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn attachment_content_api_disposition_policy_matches_every_approved_media_type() {
+    fn attachment_security_content_disposition_resists_injection_for_every_media_type() {
         for media_type in [
             AttachmentMediaType::Pdf,
             AttachmentMediaType::Jpeg,

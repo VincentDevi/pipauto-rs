@@ -6,7 +6,7 @@ replace, or remove it and never write probe objects. Tests may explicitly call
 `define_attachment_memory_bucket` after selecting a disposable database.
 
 The bucket permission is `NONE`. Browser and API users never operate on bucket values directly;
-all future object operations go through Pipauto's server-side, root-authenticated SurrealDB adapter.
+all object operations go through Pipauto's server-side, root-authenticated SurrealDB adapter.
 Bucket names, keys, backend paths, and raw catalog errors are not readiness response data.
 
 ## Pinned experimental behavior
@@ -52,5 +52,25 @@ Raising the global middleware limit does not enlarge existing unsafe routes. Eve
 API or browser route has an explicit route limit, and all retain their former effective 64 KiB
 bound or a stricter one. The route audit test requires an explicit layer on every unsafe route.
 
-No upload route or attachment-record change is part of this foundation. A later rollout defines
-the persistent bucket and stored-attachment schema explicitly.
+## Explicit reconciliation
+
+The `attachment_reconciliation` Loco task is dry-run-only when invoked without arguments. It scans
+all `pending`, `stored`, and `deleting` records plus every bounded bucket page before any apply
+operation can start. Its output contains counts and attachment IDs only; filenames, captions,
+owners, file pointers, bucket keys, credentials, and bytes are excluded.
+
+Apply is deliberately gated by two operator assertions:
+
+```bash
+cargo loco task attachment_reconciliation apply:true quiesced_writes:true
+```
+
+Before using apply, stop or otherwise quiesce every attachment upload, metadata edit, and delete
+request. Apply finalizes a pending row only after reading the complete object, confirming its size
+and detected media type, and calculating its checksum. It removes incomplete pending rows through
+the deleting state, resumes deleting rows, and removes objects confirmed to have no attachment
+record. Missing, wrong-sized, or checksum-mismatched content for a `stored` record is reported and
+the record is retained for investigation; reconciliation never invents replacement content.
+
+The task is safe to retry after interruption. An unavailable record store or bucket stops the run
+with a fixed diagnostic message rather than printing backend errors or private storage values.
