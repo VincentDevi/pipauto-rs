@@ -4,12 +4,13 @@ Pipauto is a workshop-oriented Loco application for managing customers, vehicles
 vehicle service histories.
 
 The initial core backend is implemented: password authentication, customers, vehicles,
-interventions and deterministic service history, searchable technical notes, attachment metadata,
-invoices, and append-only payments. See the [architecture](docs/architecture.md),
+interventions and deterministic service history, searchable technical notes, private stored
+attachments, invoices, and append-only payments. See the [architecture](docs/architecture.md),
 [JSON API v1](docs/api-v1.md), [authentication guide](docs/authentication.md), and
 [migration and recovery runbook](docs/migrations.md). For a concise local workflow, see the
 [local development quick start](docs/local-development.md). Frontend maintainers should also read
-the [frontend guide](docs/frontend.md).
+the [frontend guide](docs/frontend.md). Attachment developers and operators must also read the
+[attachment storage guide](docs/attachment-storage.md).
 
 ## Requirements
 
@@ -18,7 +19,9 @@ the [frontend guide](docs/frontend.md).
 - Docker Engine (or Docker Desktop) with `docker compose` or `docker-compose`.
 - Loco CLI compatible with the pinned `loco-rs 0.16.4` application dependency.
 - SurrealKit `0.7.0`; the wrapper rejects every other version.
-- SurrealDB `3.2.1`, supplied by the pinned Compose image.
+- SurrealDB `3.2.1`, supplied by the pinned Compose image. Pipauto uses that release's experimental
+  file-bucket capability and must not be upgraded without the revalidation in the
+  [attachment storage guide](docs/attachment-storage.md#surrealdb-upgrade-gate).
 - Node.js 18 or newer and npm. CI uses Node.js 22.
 - `curl` and `shasum` to refresh and verify the vendored HTMX file.
 
@@ -60,8 +63,14 @@ npx playwright install --with-deps chromium
 ## First-time setup
 
 Docker Compose runs the pinned SurrealDB server, so the SurrealDB binary does not need to be
-installed on the host. Its RocksDB files live in the named
-`pipauto_surrealdb_development` volume and survive ordinary container stops and restarts.
+installed on the host. Its RocksDB files live in `pipauto_surrealdb_development`; attachment bytes
+live separately in `pipauto_surrealdb_attachments`. Both named volumes survive ordinary container
+stops, restarts, and container recreation. Docker must be able to create both volumes and mount the
+attachment volume at `/home/nonroot/pipauto_attachments`.
+
+Compose enables only the experimental `files` capability and allowlists only that attachment
+directory. The committed schema defines one private `pipauto_attachments` disk bucket with
+`PERMISSIONS NONE`; browser and API clients never receive bucket access or object locations.
 
 Copy the local development environment file. The Docker-only SurrealDB credentials are
 `root`/`root`:
@@ -105,6 +114,25 @@ prompts and never belong in the command or environment:
 ./scripts/surrealkit sync --dry-run
 cargo loco task create_user email:filippo@example.com display_name:Filippo
 ```
+
+The dry run must report `schema already in sync`. Confirm the selected database sees the private
+disk bucket without writing a probe object:
+
+```bash
+docker-compose exec -T surrealdb /surreal sql \
+  --endpoint http://localhost:8000 \
+  --username "$SURREALDB_ROOT_USERNAME" \
+  --password "$SURREALDB_ROOT_PASSWORD" \
+  --namespace "$SURREALDB_NAMESPACE" \
+  --database "$SURREALDB_DATABASE" \
+  --hide-welcome --pretty <<'SQL'
+RETURN type::file('pipauto_attachments', '/capability-check');
+INFO FOR DB;
+SQL
+```
+
+Success means the type expression succeeds and `INFO FOR DB` lists `pipauto_attachments` with the
+file backend and `PERMISSIONS NONE`. Do not use the capability-check pointer with `file::put`.
 
 Start Pipauto in development mode:
 
@@ -193,14 +221,19 @@ Restart the stopped database with its existing data:
 docker-compose start surrealdb
 ```
 
+An ordinary stop/start preserves both database metadata and attachment bytes. After restarting,
+open an existing attachment through Pipauto and compare its downloaded SHA-256 with the value
+recorded before the restart. This checks the mounted bucket rather than merely checking its catalog
+definition.
+
 Wait for a restarted database to become healthy:
 
 ```bash
 docker-compose up -d --wait surrealdb
 ```
 
-**Destructive:** the following command stops the Compose project and deliberately deletes the
-development volume and all local SurrealDB data it contains.
+**Destructive:** the following command stops the Compose project and deliberately deletes both the
+database and attachment volumes. It removes all local records and all uploaded bytes.
 
 ```bash
 docker-compose down --volumes
@@ -209,6 +242,41 @@ docker-compose down --volumes
 The application uses namespace `pipauto` and database `pipauto_development`. Database
 `pipauto_test` is reserved for tests that explicitly connect to this standalone server; ordinary
 tests should not use the persistent development database.
+
+A SurrealDB logical export contains attachment records and file pointers, not the mounted bucket
+bytes. Back up and restore the logical database and `pipauto_surrealdb_attachments` volume as one
+quiesced recovery unit. Follow the [paired backup and isolated restore
+procedure](docs/migrations.md#paired-database-and-attachment-backup) before any rollout or recovery
+that could affect stored attachments.
+
+## Stored attachments
+
+Authenticated users can upload, open, download, rename, caption, and delete PDF, JPEG, PNG, WebP,
+HEIC, and HEIF files owned by a vehicle, intervention, or technical note. Pipauto detects the type
+from bytes and accepts one non-empty file up to 25 MiB; filename extensions and multipart
+`Content-Type` values are not trusted. Active vehicles, Draft interventions on active vehicles,
+and active technical notes allow mutation. Archived vehicles/notes and completed or cancelled
+interventions keep existing files readable but locked.
+
+Upload requests are buffered within a 25 MiB file limit plus 64 KiB multipart envelope. Existing
+unsafe non-upload routes retain explicit smaller limits. Attachment content is private and served
+only by authenticated application routes with `private, no-store` and `nosniff`; direct bucket
+URLs are never exposed.
+
+If an upload or delete is interrupted, inspect with the dry-run task first:
+
+```bash
+cargo loco task attachment_reconciliation
+```
+
+Apply mode requires attachment writes to be stopped and an explicit operator assertion:
+
+```bash
+cargo loco task attachment_reconciliation apply:true quiesced_writes:true
+```
+
+See the [attachment storage guide](docs/attachment-storage.md) for the state machine, routes,
+signatures, safe failures, reconciliation behavior, verification matrix, and troubleshooting.
 
 ## Development checks
 
@@ -222,8 +290,10 @@ and removes the container even when a check fails:
 ```
 
 The gate runs formatting, checking, Clippy with warnings denied, every isolated SurrealKit suite,
-lint for every committed rollout manifest, the Rust migration integration tests, the complete Rust
-suite, and the Loco route/task inventories. SurrealKit's
+lint for the latest rollout whose target is the committed desired schema, the Rust migration
+integration tests, the complete Rust suite, and the Loco route/task inventories. Historical
+rollouts remain immutable deployment artifacts and are exercised by migration integration tests;
+SurrealKit lint intentionally compares a manifest target with the current desired schema. Its
 machine-readable result is sanitized to `artifacts/migration-report.json`: it includes suite/case
 names and pass/fail state, but omits connection settings, database names, error payloads, and rows.
 CI uploads that report only when the gate fails.

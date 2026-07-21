@@ -2,8 +2,8 @@
 
 Pipauto's first-release frontend is server-rendered HTML with progressive HTMX enhancement. Every
 workshop workflow remains usable as ordinary links and URL-encoded forms when JavaScript is
-disabled. Calendar screens and binary image storage remain deferred; attachment controls describe
-metadata only.
+disabled. Calendar is an approved planned milestone but is not present in the current route
+inventory; this guide distinguishes its target contract from implemented browser behavior.
 
 ## Runtime boundary
 
@@ -36,6 +36,8 @@ surface and the separately mounted `/api/v1` JSON surface.
 | Intervention lines | `GET /interventions/{id}/lines/new`, `/interventions/{id}/lines/{line_id}/edit` | `POST /interventions/{id}/lines`, `/interventions/{id}/lines/{line_id}/edit`, `/interventions/{id}/lines/{line_id}/delete`, `/interventions/{id}/lines/{line_id}/move-up`, `/interventions/{id}/lines/{line_id}/move-down` |
 | Intervention attachments | `GET /interventions/{id}/attachments/new`, `/interventions/{id}/attachments/{attachment_id}/edit` | `POST /interventions/{id}/attachments`, `/interventions/{id}/attachments/{attachment_id}/edit`, `/interventions/{id}/attachments/{attachment_id}/delete` |
 | Technical knowledge | `GET /knowledge`, `/knowledge/new`, `/knowledge/{id}`, `/knowledge/{id}/edit` | `POST /knowledge`, `/knowledge/{id}/edit`, `/knowledge/{id}/archive`, `/knowledge/{id}/restore` |
+| Technical-note attachments | `GET /knowledge/{id}/attachments/new`, `/knowledge/{id}/attachments/{attachment_id}/edit` | `POST /knowledge/{id}/attachments`, `/knowledge/{id}/attachments/{attachment_id}/edit`, `/knowledge/{id}/attachments/{attachment_id}/delete` |
+| Attachment content | `GET /attachments/{id}/content`, `/attachments/{id}/download` | — |
 | Invoices | `GET /invoices`, `/invoices/new`, `/invoices/{id}`, `/invoices/{id}/edit`, `/invoices/{id}/issue`, `/invoices/{id}/void`, `/invoices/{id}/payments/new` | `POST /invoices`, `/invoices/{id}/edit`, `/invoices/{id}/issue`, `/invoices/{id}/void`, `/invoices/{id}/payments` |
 | Invoice lines | `GET /invoices/{id}/lines/new`, `/invoices/{id}/lines/{line_id}/edit` | `POST /invoices/{id}/lines`, `/invoices/{id}/lines/{line_id}/edit`, `/invoices/{id}/lines/{line_id}/delete`, `/invoices/{id}/lines/{line_id}/move-up`, `/invoices/{id}/lines/{line_id}/move-down` |
 
@@ -91,7 +93,7 @@ text zoom.
 | Form | Visible labels, preserved values after validation/conflict, field errors plus focusable summary, hidden `_csrf`, explicit normal `method` and `action`. |
 | Line region | Server-calculated totals, deterministic positions, POST move controls, and mutation controls only while the parent is a draft. |
 | Transition confirmation | GET review followed by POST confirmation; describe irreversibility and render the refreshed authoritative state after a conflict. |
-| Attachment metadata | State plainly that no binary exists, expose no file input/upload/download control, keep the owner fixed, and show `metadata_only`. |
+| Stored attachment | Multipart file input plus optional display name/caption; fixed owner; type/size from bytes; Open/Download for readable files; edit/delete only when the owner lifecycle permits. |
 | Notification/error | Use a live region or `role="alert"`; expose safe recovery guidance and correlation ID only for unexpected/unavailable failures. |
 | Unavailable state | Keep the owning navigation area active, explain that records are unchanged, and provide a safe retry or return path. |
 
@@ -150,12 +152,12 @@ Chromium, and phone Chromium. The specs under `tests/browser` cover:
 
 - login, protected shell, desktop/phone navigation, skip link, and no leaked authentication
   artifacts;
-- customer creation/editing and validation, vehicle registration/navigation, metadata, archive,
-  restore, and service-history states;
-- intervention draft editing, line ordering, authoritative totals, metadata, completion,
+- customer creation/editing and validation, vehicle registration/navigation, stored attachments,
+  archive, restore, and service-history states;
+- intervention draft editing, line ordering, authoritative totals, stored attachments, completion,
   chronology, and terminal immutability;
 - technical-note creation from vehicle/intervention context, escaping, full-text plus structured
-  filters, no-match, archive, and restore;
+  filters, stored attachments, no-match, archive, and restore;
 - invoice drafts and line ordering, issuance snapshots, immutability, partial/final payments,
   outstanding-balance conflict, derived Paid state, and retained void history;
 - empty, no-match, not-found/unavailable/request failures, expired session, responsive layout,

@@ -165,6 +165,57 @@ For those changes, author and review an explicit phased manifest rather than byp
 Commit the schema files, rollout manifest, and both snapshots as one application change. Run lint
 again from the exact commit that will be deployed.
 
+## Paired database and attachment backup
+
+Once stored attachments exist, a logical SurrealDB export is only the database half of a backup.
+It contains attachment records and opaque file pointers but not bytes stored in the mounted
+`pipauto_surrealdb_attachments` volume. A usable recovery point must pair a verified logical export
+with a consistent copy or snapshot of that bucket volume and identify both in one manifest.
+
+Before capture, stop Pipauto or otherwise quiesce **all** database and attachment writes. Keep
+writes stopped until both artifacts are complete. Create and checksum the logical export using the
+production procedure below, then stop SurrealDB cleanly before copying a non-snapshot-capable local
+volume:
+
+```bash
+docker-compose stop surrealdb
+export DATABASE_CONTAINER="$(docker-compose ps -q surrealdb)"
+test -n "$DATABASE_CONTAINER"
+export BUCKET_BACKUP_DIR="${BACKUP_ROOT}/pipauto-attachments-${BACKUP_STAMP}"
+export BUCKET_BACKUP_FILE="${BUCKET_BACKUP_DIR}.tar"
+install -d -m 700 "$BUCKET_BACKUP_DIR"
+docker cp \
+  "${DATABASE_CONTAINER}:/home/nonroot/pipauto_attachments/." \
+  "$BUCKET_BACKUP_DIR"
+tar -C "$BUCKET_BACKUP_DIR" -cf "$BUCKET_BACKUP_FILE" .
+test -s "$BUCKET_BACKUP_FILE"
+export BUCKET_SHA256="$(shasum -a 256 "$BUCKET_BACKUP_FILE" | awk '{print $1}')"
+printf '%s  %s\n' "$BUCKET_SHA256" "$(basename "$BUCKET_BACKUP_FILE")" \
+  > "${BUCKET_BACKUP_FILE}.sha256"
+(cd "$BACKUP_ROOT" && shasum -a 256 --check "$(basename "${BUCKET_BACKUP_FILE}.sha256")")
+```
+
+`docker cp` is the local Compose rehearsal procedure. Production may use a storage-system snapshot
+instead, but it must provide equivalent consistency while writes are quiesced and must record the
+snapshot identifier and checksum/verification result. Do not copy a live mutable volume and call
+it consistent.
+
+Append the bucket artifact identity to the same credential-free metadata file as the export:
+
+```bash
+(
+  printf 'bucket_artifact=%s\n' "$(basename "$BUCKET_BACKUP_FILE")"
+  printf 'bucket_sha256=%s\n' "$BUCKET_SHA256"
+  printf 'bucket_source_volume=%s\n' 'pipauto_surrealdb_attachments'
+) >> "$BACKUP_METADATA"
+```
+
+Success requires the logical export checksum and bucket checksum to verify, the shared metadata to
+name the exact application commit/database/rollout and bucket artifact, and both artifacts to be
+copied to protected backup storage. Restart SurrealDB only after capture; restart Pipauto/write
+traffic only after the backup record is complete. Retention, encryption, off-site media, and legal
+policy remain deployment decisions outside this runbook.
+
 ## Deployment gate and phased rollout
 
 The release operator must target one required `ROLLOUT_ID` and capture the status output in the
@@ -253,8 +304,11 @@ printf '%s  %s\n' "$BACKUP_SHA256" "$(basename "$BACKUP_FILE")" \
 Success requires: export exits zero, the file is non-empty, checksum verification prints `OK`, and
 the credential-free metadata records server version, namespace, database, rollout ID, exact
 application commit, UTC creation time, and checksum. Confirm the counts file contains one result
-for each expected table. Copy the backup, checksum, counts, and metadata to the approved protected
-storage before continuing. A failed or unverified export blocks production `start`.
+for each expected table. If the database contains or may contain stored attachments, immediately
+complete the [paired bucket capture](#paired-database-and-attachment-backup) while all writes remain
+quiesced. Copy the export, bucket artifact, both checksums, counts, and shared metadata to approved
+protected storage before continuing. A failed, incomplete, or unverified pair blocks production
+`start`.
 
 ### 2. Start the additive phase
 
@@ -360,25 +414,61 @@ needs an incident-specific reviewed recovery plan.
 
 ## Disaster recovery and restore rehearsal
 
-Disaster recovery restores a logical export because live data or a completed rollout cannot be
-made safe with manifest rollback. It is distinct from rollout rollback. Never import over the live
-production database. Create a unique isolated recovery database with production-equivalent access
-controls and no public application traffic:
+Disaster recovery restores the paired logical export and bucket artifact because live data or a
+completed rollout cannot be made safe with manifest rollback. It is distinct from rollout
+rollback. Never import over the live production database and never mount the live attachment
+volume into a rehearsal. Verify both artifacts, then create unique isolated database and attachment
+volumes with production-equivalent access controls and no public application traffic:
 
 ```bash
 (cd "$BACKUP_ROOT" && shasum -a 256 --check "$(basename "${BACKUP_FILE}.sha256")")
+(cd "$BACKUP_ROOT" && shasum -a 256 --check "$(basename "${BUCKET_BACKUP_FILE}.sha256")")
 export SOURCE_DATABASE="$SURREALDB_DATABASE"
-export RECOVERY_DATABASE="pipauto_recovery_${BACKUP_STAMP}"
-test "$RECOVERY_DATABASE" != "$SOURCE_DATABASE"
-surreal import \
-  --endpoint "$SURREAL_ENDPOINT" \
+export SOURCE_ENDPOINT="$SURREALDB_ENDPOINT"
+export SURREALDB_DATABASE="pipauto_recovery_${BACKUP_STAMP}"
+test "$SURREALDB_DATABASE" != "$SOURCE_DATABASE"
+export PIPAUTO_RECOVERY_PORT=18001
+export PIPAUTO_RECOVERY_DB_VOLUME="pipauto_surrealdb_recovery_${BACKUP_STAMP}"
+export PIPAUTO_RECOVERY_ATTACHMENT_VOLUME="pipauto_surrealdb_attachments_recovery_${BACKUP_STAMP}"
+export RECOVERY_PROJECT="pipauto-recovery-${BACKUP_STAMP}"
+export RECOVERY_COMPOSE='compose.recovery.yaml'
+docker-compose --project-name "$RECOVERY_PROJECT" --file "$RECOVERY_COMPOSE" \
+  up -d --wait surrealdb
+```
+
+Stop the isolated server, restore bytes into only its new attachment volume through the mounted
+container path, and restart it. Then copy/import the logical export into that same isolated server:
+
+```bash
+export RECOVERY_CONTAINER="$(docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" ps -q surrealdb)"
+test -n "$RECOVERY_CONTAINER"
+docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" stop surrealdb
+rm -rf "$BUCKET_BACKUP_DIR"
+install -d -m 700 "$BUCKET_BACKUP_DIR"
+tar -C "$BUCKET_BACKUP_DIR" -xf "$BUCKET_BACKUP_FILE"
+docker cp "$BUCKET_BACKUP_DIR/." \
+  "${RECOVERY_CONTAINER}:/home/nonroot/pipauto_attachments/"
+docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" start surrealdb
+docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" exec -T surrealdb \
+  /surreal isready --endpoint http://localhost:8000
+docker cp "$BACKUP_FILE" "${RECOVERY_CONTAINER}:/tmp/pipauto-recovery.surql"
+docker-compose --project-name "$RECOVERY_PROJECT" \
+  --file "$RECOVERY_COMPOSE" exec -T surrealdb \
+  /surreal import --endpoint http://localhost:8000 \
+  --username "$SURREALDB_ROOT_USERNAME" \
+  --password "$SURREALDB_ROOT_PASSWORD" \
   --namespace "$SURREALDB_NAMESPACE" \
-  --database "$RECOVERY_DATABASE" \
-  "$BACKUP_FILE"
+  --database "$SURREALDB_DATABASE" \
+  /tmp/pipauto-recovery.surql
 ```
 
 Import must exit zero. Compare key table counts captured from the source at backup time with the
-recovery database without printing rows:
+recovery database without printing rows. For this local isolated Compose rehearsal, point the
+query command at `http://127.0.0.1:${PIPAUTO_RECOVERY_PORT}` and the recovery database:
 
 ```bash
 export RECOVERY_COUNTS="${BACKUP_FILE}.recovery-counts"
@@ -386,9 +476,9 @@ printf '%s\n' \
   'SELECT count() AS count FROM user GROUP ALL;' \
   'SELECT count() AS count FROM auth_session GROUP ALL;' \
   'SELECT count() AS count FROM login_throttle GROUP ALL;' | surreal sql \
-    --endpoint "$SURREAL_ENDPOINT" \
+    --endpoint "http://127.0.0.1:${PIPAUTO_RECOVERY_PORT}" \
     --namespace "$SURREALDB_NAMESPACE" \
-    --database "$RECOVERY_DATABASE" \
+    --database "$SURREALDB_DATABASE" \
     --hide-welcome > "$RECOVERY_COUNTS"
 diff -- "$BACKUP_COUNTS" "$RECOVERY_COUNTS"
 ```
@@ -399,24 +489,36 @@ same count query may also be run against `SOURCE_DATABASE` as a current-state co
 When customer, vehicle, intervention/job, service-history, and invoice tables exist, add their key
 counts and representative chronological service-history and invoice queries to the rehearsal. A
 restore is not verified by row counts alone. Point a non-public application instance at the
-recovery database, create or use a designated fixture user only where safe, authenticate through
-the normal login flow, and run the same application smoke tests used during rollout. For a safe
-isolated rehearsal, point Pipauto at the restored database and provision the fixture interactively:
+recovery server/database, create or use a designated fixture user only where safe, authenticate
+through the normal login flow, and run the same application smoke tests used during rollout:
 
 ```bash
-export SURREALDB_DATABASE="$RECOVERY_DATABASE"
+export SURREALDB_ENDPOINT="ws://127.0.0.1:${PIPAUTO_RECOVERY_PORT}"
 cargo loco task create_user email:recovery-fixture@example.com display_name:'Recovery Fixture'
 cargo loco start
 ```
 
 Enter the fixture password only at the non-echoing prompts. Verify login, customer → vehicle →
-intervention/line → deterministic service history, technical-note search, attachment metadata,
-invoice issue, partial/final payment status, logout, and rejection of the revoked cookie as
-described in [Authentication operations](authentication.md) and [JSON API v1](api-v1.md).
-Stop the isolated app after the checks and restore `SURREALDB_DATABASE="$SOURCE_DATABASE"` before
-running any other operator command.
+intervention/line → deterministic service history, technical-note search, stored attachment lists,
+open/download access, invoice issue, partial/final payment status, logout, and rejection of the
+revoked cookie as described in [Authentication operations](authentication.md) and [JSON API
+v1](api-v1.md). For every restored attachment, compare downloaded byte count and SHA-256 with the
+source deployment record; a matching row count is not proof that bucket bytes were restored.
 
-Record the import exit status, count comparison, application commit, checks performed, and cleanup
-owner beside the backup metadata. Keep or remove the isolated recovery database according to the
-approved retention policy; never repoint production at it without a separate disaster-recovery
-decision and outage plan.
+Stop the isolated app, remove the copied import file, and tear down only the isolated project and
+volumes. Then restore the source environment variables before any other operator command:
+
+```bash
+docker-compose --project-name "$RECOVERY_PROJECT" --file "$RECOVERY_COMPOSE" \
+  exec -T surrealdb rm -f /tmp/pipauto-recovery.surql
+docker-compose --project-name "$RECOVERY_PROJECT" --file "$RECOVERY_COMPOSE" \
+  down --volumes --remove-orphans
+export SURREALDB_DATABASE="$SOURCE_DATABASE"
+export SURREALDB_ENDPOINT="$SOURCE_ENDPOINT"
+```
+
+Record both checksum results, import exit status, count comparison, attachment checksum/access
+results, application commit, isolated volume names, checks performed, and cleanup owner beside the
+backup metadata. Keep or remove the isolated recovery environment according to approved retention
+policy; never repoint production at it without a separate disaster-recovery decision and outage
+plan.

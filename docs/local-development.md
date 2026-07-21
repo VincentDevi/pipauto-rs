@@ -72,8 +72,10 @@ cargo loco start
 ```
 
 Review the first dry run before applying it when the local data matters. The second dry run must
-report `schema already in sync`. The Compose volume persists through normal container stops and
-restarts.
+report `schema already in sync`. The separate database and attachment Compose volumes persist
+through normal container stops and restarts. A logical database export does not include attachment
+bytes; use the [paired backup procedure](migrations.md#paired-database-and-attachment-backup) before
+preserving or recovering local stored files.
 
 To add another user, stop the foreground application or run this in a second terminal with `.env`
 loaded:

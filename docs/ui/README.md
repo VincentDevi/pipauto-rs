@@ -66,7 +66,7 @@ delivered; this package names required capabilities without inventing final wire
 
 Dialogs and sheets are specified inside their owning page rather than counted as independent
 routes. They include archive/restore, reassignment, complete/cancel, add/edit line, issue/void,
-record payment, filters, and metadata-only attachment forms.
+record payment, filters, and stored-attachment forms.
 
 ## Global product decisions
 
@@ -81,8 +81,9 @@ record payment, filters, and metadata-only attachment forms.
   reporting contract.
 - Customer, vehicle, and technical-note removal uses archive/restore. Historical references remain
   readable. Completed/cancelled interventions and issued invoices are read-only.
-- Attachments in this release are honest metadata records. No upload button, preview, download, or
-  claim that binary content exists is shown.
+- Attachments are private stored files owned by a vehicle, intervention, or technical note. Active
+  mutable owners expose upload/edit/delete; archived or terminal owners retain Open/Download only.
+  Media type and size are server-derived and bucket details are never shown.
 - Invoice export is displayed as unavailable explanatory text until an explicit backend export
   capability exists. It is not rendered as an enabled button.
 

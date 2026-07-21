@@ -173,6 +173,14 @@ The body renders as safe readable text; rich-text editing is not implied. Missin
 sections are omitted. Archive confirmation states that the note leaves default search but linked
 service history remains intact. Restore returns it to active results.
 
+## Stored attachments
+
+An active note exposes Upload attachment. The shared multipart form requires one file and accepts
+optional display name/caption; owner, detected media type, byte size, and storage state are
+server-owned. Each stored row exposes Open and Download plus edit/delete actions while active.
+Archived notes keep attachment Open/Download access but hide every mutation control until restored.
+Attachment changes do not alter tags, search fields, vehicle context, or source-intervention links.
+
 ## State and error coverage
 
 - `422`: title, body, tag, and context errors preserve input and tag order.
@@ -182,5 +190,3 @@ service history remains intact. Restore returns it to active results.
 - Expired session: login redirect preserving the local note/search path.
 - `503`: search results remain visible during enhanced retry; form errors retain safe input.
 - Archived filter is off by default and visually included in the active-filter summary when used.
-
-

@@ -210,13 +210,17 @@ sessions. Restore `active = true` only after the account is safe.
 | `PATCH /api/v1/technical-notes/{id}` | Authenticated + session CSRF | Update technical-note content, context, tags, or sources. |
 | `POST /api/v1/technical-notes/{id}/archive` | Authenticated + session CSRF | Idempotently archive a technical note. |
 | `POST /api/v1/technical-notes/{id}/restore` | Authenticated + session CSRF | Idempotently restore a technical note. |
-| `GET /api/v1/vehicles/{id}/attachments` | Authenticated | List attachment metadata owned by a vehicle. |
-| `POST /api/v1/vehicles/{id}/attachments` | Authenticated + session CSRF | Create metadata for an active vehicle. |
-| `GET /api/v1/interventions/{id}/attachments` | Authenticated | List attachment metadata owned by an intervention. |
-| `POST /api/v1/interventions/{id}/attachments` | Authenticated + session CSRF | Create metadata for an intervention whose vehicle is active. |
-| `GET /api/v1/attachments/{id}` | Authenticated | Read attachment metadata. |
-| `PATCH /api/v1/attachments/{id}` | Authenticated + session CSRF | Update metadata without changing its owner or storage state. |
-| `DELETE /api/v1/attachments/{id}` | Authenticated + session CSRF | Delete a `metadata_only` attachment record. |
+| `GET /api/v1/vehicles/{id}/attachments` | Authenticated | List stored attachments owned by a vehicle. |
+| `POST /api/v1/vehicles/{id}/attachments` | Authenticated + session CSRF | Multipart upload for an active vehicle. |
+| `GET /api/v1/interventions/{id}/attachments` | Authenticated | List stored attachments owned by an intervention. |
+| `POST /api/v1/interventions/{id}/attachments` | Authenticated + session CSRF | Multipart upload for a Draft intervention on an active vehicle. |
+| `GET /api/v1/technical-notes/{id}/attachments` | Authenticated | List stored attachments owned by a technical note. |
+| `POST /api/v1/technical-notes/{id}/attachments` | Authenticated + session CSRF | Multipart upload for an active technical note. |
+| `GET /api/v1/attachments/{id}` | Authenticated | Read transport-safe stored attachment metadata. |
+| `PATCH /api/v1/attachments/{id}` | Authenticated + session CSRF | Update display name/caption without changing owner or storage fields. |
+| `DELETE /api/v1/attachments/{id}` | Authenticated + session CSRF | Begin or resume stored-attachment deletion. |
+| `GET /api/v1/attachments/{id}/content` | Authenticated | Open authenticated inline-capable content. |
+| `GET /api/v1/attachments/{id}/download` | Authenticated | Download authenticated content. |
 | `/static/*` | Public | Committed same-origin CSS, JavaScript, and vendored HTMX. |
 | `GET /_health` | Public | Loco liveness response with no application data. |
 | `GET /_health/surrealdb` | Public | Non-sensitive database availability and attachment-bucket catalog state only. |
@@ -230,11 +234,12 @@ session `jti`, canonical origin, action, and expiry. Unsafe requests accept one 
 unsafe requests, while forms remain fully usable without JavaScript.
 
 Business JSON routes use the same authenticated session boundary below `/api/v1`. Every handler
-extracts `CurrentUser`; unsafe handlers additionally extract `AuthenticatedCsrfJson<T>`, which
+extracts `CurrentUser`; unsafe JSON handlers additionally extract `AuthenticatedCsrfJson<T>`, which
 checks the single `X-CSRF-Token` against the session `jti`, canonical origin, unsafe action, and
-expiry before the handler can invoke a service. Each unsafe route sets an explicit body limit and
-accepts JSON content types only. Stale credentials receive a JSON `401 unauthenticated` response
-and the same expired session cookie used by the browser flow.
+expiry before the handler can invoke a service. Multipart attachment uploads authenticate before
+consuming the body and accept the action-bound token in the header or one `_csrf` part; if both are
+present they must match. Each unsafe route sets an explicit body limit. Stale credentials receive
+a JSON `401 unauthenticated` response and the same expired session cookie used by the browser flow.
 
 Successful single-resource responses use `{ "data": ... }`; collections use
 `{ "data": [...], "next_cursor": null }`. Errors use a stable `error` envelope with public field
@@ -243,11 +248,12 @@ paths. Opaque `500 internal_error` and `503 database_unavailable` responses incl
 safe category, never infrastructure error text or submitted secrets. User-specific API responses
 always carry `Cache-Control: no-store`.
 
-Attachment routes accept JSON metadata only. Their owner kind comes from the vehicle or intervention
-route, and their storage state is always `metadata_only`; multipart bodies, binary content, upload
-claims, and arbitrary owner table names are not accepted. Deletion is temporary and permitted only
-in this state. The later storage milestone will replace this lifecycle when it defines actual
-upload and storage behavior.
+Attachment owner kind comes only from the vehicle, intervention, or technical-note route. Uploads
+accept exactly one bounded file and optional display name/caption; media type, size, checksum,
+pointer, and state remain server-owned. Stored content is delivered only through authenticated
+application routes. Lifecycle locks preserve reads while preventing mutation for archived vehicles
+and notes or terminal interventions. Authentication, CSRF, and validation failures never expose
+bucket details, file bytes, or private persistence fields.
 
 Authentication routes and authenticated application routes apply `Cache-Control: no-store` in a
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.

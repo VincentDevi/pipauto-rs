@@ -291,8 +291,8 @@ history**. Both share the same vehicle identity header.
 | Data | Registration, make/model/year, VIN, current mileage, engine, owner, notes, state; chronological interventions |
 | Primary action | New intervention when active |
 | Secondary | Edit, Reassign owner, Archive/Restore, View complete history |
-| Attachment action | Add/edit/delete metadata only when active; no file controls |
-| Backend | Vehicle detail, customer link, history list, attachment metadata list |
+| Attachment action | Upload/edit/delete while active; Open/Download remain available when archived |
+| Backend | Vehicle detail, customer link, history list, stored-attachment service |
 
 ### Desktop wireframe
 
@@ -309,9 +309,9 @@ history**. Both share the same vehicle identity header.
 │                   │ 03 May     120,100    Annual service               COMPLETED    €180       │
 │                   │ 10 Feb     118,000    Engine noise inspection      CANCELLED    —          │
 │                   │                                                                          │
-│                   │ Notes                                  Attachment records                 │
-│                   │ Customer reports intermittent…         inspection-photo.jpg · METADATA ONLY│
-│                   │                                        [Add attachment metadata]          │
+│                   │ Notes                                  Attachments                        │
+│                   │ Customer reports intermittent…         inspection-photo.jpg · JPEG · 2 MiB│
+│                   │                                        [Open] [Download] [Upload]         │
 └───────────────────┴──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -339,16 +339,17 @@ history**. Both share the same vehicle identity header.
 │ └──────────────────────────┘ │
 │ View complete history →      │
 │                              │
-│ Attachments · METADATA ONLY  │
-│ inspection-photo.jpg         │
-│ [Add metadata]               │
+│ Attachments                  │
+│ inspection-photo.jpg · JPEG  │
+│ [Open] [Download] [Upload]   │
 ├──────────────────────────────┤
 │ Home   Vehicles   Jobs  More │
 └──────────────────────────────┘
 ```
 
 History empty state says no interventions have been recorded and offers New intervention for an
-active vehicle. Archived vehicles show history but disable new work and new attachment metadata.
+active vehicle. Archived vehicles show history and readable attachments but disable new work and
+attachment mutation.
 
 ### Reassign owner confirmation
 
@@ -356,10 +357,9 @@ The action opens a searchable active-customer selector. The confirmation repeats
 old owner, and new owner, and states that service history and invoice snapshots remain unchanged.
 Archived target conflicts keep the vehicle with its current owner and reload target availability.
 
-### Attachment metadata form
+### Stored-attachment form
 
-Fields are display name (required), supported media type (required), optional byte size, and
-caption. A permanent **Metadata only—no file has been uploaded** notice appears above Save. Existing
-metadata can be edited or deleted only while its backend lifecycle permits it.
-
-
+Upload requires one file and accepts optional display name and caption. The server detects media
+type and byte size from the file and rejects unsupported, empty, malformed, spoofed, or oversized
+content. The owner is fixed. Existing display name/caption can be edited and the attachment can be
+deleted only while the vehicle is active; Open and Download remain available after archiving.

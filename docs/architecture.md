@@ -30,7 +30,7 @@ the rest of the application does not need to.
 | `models` | Database-independent authentication, customer, vehicle, intervention, line, technical-note, attachment, invoice, and payment models | Loco, Axum, Tera, or SurrealDB concerns |
 | `api` | Explicit IDs, timestamps, money, quantity, pagination, and error DTOs | SurrealDB rows, repository errors, or business decisions |
 | `services` | Application workflows across models and repository contracts | HTTP, templates, or concrete databases |
-| `repositories` | Persistence-neutral errors and contracts using typed domain filters and cursors | HTTP query strings, SurrealDB types, templates, or workflow policy |
+| `repositories` | Persistence-neutral record and attachment-file contracts, errors, typed domain filters, and cursors | HTTP query strings, SurrealDB types, templates, or workflow policy |
 | `repositories::surreal` | SurrealDB adapters and centralized record-ID, response, query-error, and cursor-tuple mechanics | HTTP or template behavior |
 | `database` | Settings, connection, authentication, database selection, and health checks | Domain persistence contracts or workflows |
 | `initializers` | Loco lifecycle wiring and shared-store registration | Business workflows or HTTP behavior |
@@ -73,7 +73,8 @@ templates and presentation models do not depend on controllers, API DTOs, or per
 Money is stored as checked, non-negative minor units plus an assigned uppercase ISO 4217 code.
 Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.
 Business settings default to EUR, 25 records per collection, and a hard maximum of 200 records.
-Startup rejects invalid settings before serving requests.
+Attachment settings enforce one file up to 25 MiB plus a bounded multipart envelope. Startup
+rejects invalid settings before serving requests.
 
 ## Domain modules and workflow dependencies
 
@@ -87,8 +88,11 @@ HTTP DTOs       <- controller mapping <- domain/model values
 
 Customer and vehicle services own archive and current-owner workflows. Intervention services own
 draft transitions, mileage chronology, line mutations, totals, and deterministic service history.
-Technical-note and attachment services own reusable-knowledge validation and the temporary
-metadata-only attachment lifecycle. Invoice services own draft lines, atomic totals, issued
+Technical-note services own reusable-knowledge validation. The shared attachment service owns
+vehicle, intervention, and technical-note ownership checks plus the `pending` → `stored` and
+`stored` → `deleting` workflows. It coordinates `AttachmentRepository` records with an
+`AttachmentFileStore` without pretending those two side effects are one transaction. Invoice
+services own draft lines, atomic totals, issued
 snapshots and numbering, and append-only payments. Cross-feature checks call repository contracts;
 controllers never join records or encode workflow policy.
 
@@ -100,6 +104,20 @@ includes intervention-line totals, terminal intervention transitions, invoice-li
 issuance and number allocation, and payment balance checks. Controllers perform parsing and DTO
 mapping outside that transaction. A workflow never holds a transaction open across an HTTP
 response, template render, or another external system.
+
+SurrealDB attachment records and bucket objects are a deliberate non-atomic boundary. Upload first
+reserves a `pending` record with an opaque pointer, writes bytes without overwrite, verifies the
+object, then exposes it by marking the row `stored`. Delete first marks the row `deleting`, removes
+or confirms absence of the object, then removes the row. Ordinary reads expose only `stored` rows.
+The explicit dry-run-first reconciliation task reports and safely resumes interrupted states;
+startup, readiness, and ordinary requests never perform storage repair.
+
+The one `pipauto_attachments` bucket uses a memory backend only in isolated tests and a mounted
+disk backend in Compose. It has `PERMISSIONS NONE`; all content flows through authenticated
+application routes. Attachment records, checksums, and opaque file pointers are private persistence
+data. A logical database export does not contain the separately mounted bucket bytes, so recovery
+always pairs both artifacts. The complete contract is documented in the
+[attachment storage guide](attachment-storage.md).
 
 ## Schema and SurrealKit ownership
 

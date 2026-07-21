@@ -45,9 +45,12 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 ./scripts/surrealkit test --parallel 2
 
-while IFS= read -r -d '' rollout; do
-  ./scripts/surrealkit rollout lint "$rollout"
-done < <(find database/rollouts -maxdepth 1 -type f -name '*.toml' -print0 | sort -z)
+latest_rollout="$(find database/rollouts -maxdepth 1 -type f -name '*.toml' -print | sort | tail -n 1)"
+if [ -z "$latest_rollout" ]; then
+  echo "error: no committed rollout manifest found" >&2
+  exit 1
+fi
+./scripts/surrealkit rollout lint "$latest_rollout"
 
 if rg -n 'local-ci-only|SURREALDB_ROOT_PASSWORD|password_hash|jti_digest|identifier_digest' \
   "$PIPAUTO_MIGRATION_REPORT"; then

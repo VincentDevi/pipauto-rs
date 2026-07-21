@@ -164,12 +164,92 @@ bounded for a 25 MiB maximum file. Media type and byte size are derived from byt
 are PDF, JPEG, PNG, WebP, HEIC, and HEIF. Unknown or duplicate fields and malformed multipart are
 rejected.
 
+Given an authenticated cookie jar, an action-bound token, and an opaque owner ID, upload with:
+
+```bash
+curl --fail-with-body \
+  --request POST \
+  --cookie cookies.txt \
+  --header "Origin: $PIPAUTO_CANONICAL_ORIGIN" \
+  --header "X-CSRF-Token: $CSRF_TOKEN" \
+  --form 'file=@/path/to/synthetic.png;type=application/octet-stream' \
+  --form 'display_name=Workshop photo.png' \
+  --form 'caption=Before repair' \
+  "$PIPAUTO_CANONICAL_ORIGIN/api/v1/vehicles/$VEHICLE_ID/attachments"
+```
+
+The deliberately generic multipart type demonstrates that the server detects PNG from bytes. The
+same body shape applies to intervention and technical-note owner routes. Do not put a real session
+cookie or CSRF value in shell history, logs, or committed examples. A form client may send `_csrf`
+as a singleton text part instead of the header; if both are sent they must match.
+
 Patch is `{display_name?, caption?}` and explicit `null` clears `caption`. Response fields are `id`,
 `owner_type`, the applicable owner identifier, `display_name`, `media_type`, `byte_size`, `caption`,
 `storage_state`, timestamps, `content_url`, and `download_url`. Responses never expose checksums,
 bucket names, object keys, file pointers, or transition states. Content responses use persisted
 server-derived type and length, safe content-disposition filenames, `private, no-store`, and
 `nosniff`; HEIC and HEIF are downloads even through `/content`.
+
+An attachment resource has this transport shape (exactly one owner identifier is non-null):
+
+```json
+{
+  "data": {
+    "id": "opaque-attachment-id",
+    "owner_type": "vehicle",
+    "vehicle_id": "opaque-vehicle-id",
+    "intervention_id": null,
+    "technical_note_id": null,
+    "display_name": "Workshop photo.png",
+    "media_type": "image/png",
+    "byte_size": 24512,
+    "caption": "Before repair",
+    "storage_state": "stored",
+    "created_at": "2026-07-21T12:00:00Z",
+    "updated_at": "2026-07-21T12:00:00Z",
+    "content_url": "/api/v1/attachments/opaque-attachment-id/content",
+    "download_url": "/api/v1/attachments/opaque-attachment-id/download"
+  }
+}
+```
+
+Only the three owner types `vehicle`, `intervention`, and `technical_note` are possible. Normal
+clients never observe `pending` or `deleting`; every returned attachment has
+`storage_state: "stored"`. Update display details with the ordinary authenticated JSON contract:
+
+```bash
+curl --fail-with-body \
+  --request PATCH \
+  --cookie cookies.txt \
+  --header "Origin: $PIPAUTO_CANONICAL_ORIGIN" \
+  --header "X-CSRF-Token: $CSRF_TOKEN" \
+  --header 'Content-Type: application/json' \
+  --data '{"display_name":"Water pump inspection.png","caption":null}' \
+  "$PIPAUTO_CANONICAL_ORIGIN/api/v1/attachments/$ATTACHMENT_ID"
+```
+
+For a PNG `/content` response, clients can expect headers equivalent to:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: image/png
+Content-Length: 24512
+Content-Disposition: inline; filename="Workshop photo.png"; filename*=UTF-8''Workshop%20photo.png
+Cache-Control: private, no-store
+X-Content-Type-Options: nosniff
+```
+
+`/download` changes the disposition to `attachment`. HEIC/HEIF also use `attachment` on
+`/content`; byte ranges and `206 Partial Content` are not supported. Filenames are sanitized for
+headers without changing the stored display name.
+
+Attachment-specific safe failures use the shared envelope below: malformed multipart is `400
+malformed_request`; authentication is `401 unauthenticated`; payload/envelope overflow is `413
+payload_too_large`; unsupported, spoofed, empty, or invalid fields are `422 validation_failed`;
+missing/conflicting CSRF is `403 forbidden`; lifecycle locks are `409 conflict`; unknown or
+crafted cross-owner IDs are `404 not_found`; and a known stored row whose object is unavailable or
+corrupt is `503 unavailable` with a correlation ID. No failure includes bytes, filenames, bucket
+details, checksums, pointers, or backend errors.
 
 ### Invoices, invoice lines, and payments
 
@@ -294,7 +374,7 @@ Cookie: pipauto_session=<signed-session>
 
 Use returned opaque IDs to create a vehicle, intervention and line, complete the intervention,
 then read `GET /api/v1/vehicles/{id}/service-history`. Create and search a technical note with
-`q`, create attachment metadata, then create an invoice and line, issue it, and post partial and
-final payments. The executable request suites perform this complete chain and verify deterministic
-history, metadata-only attachment behavior, full-text search, snapshots, balances, and derived
-payment status.
+`q`, upload stored attachments through each owner route, then create an invoice and line, issue it,
+and post partial and final payments. The executable request suites verify deterministic history,
+stored-attachment lifecycle and content delivery, full-text search, snapshots, balances, and
+derived payment status.

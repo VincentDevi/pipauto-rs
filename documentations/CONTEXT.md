@@ -112,12 +112,22 @@ engine context preserves display text alongside normalized exact-search values. 
 separate case-insensitive full-text indexes; tags and vehicle context remain exact structured
 filters. Notes archive without losing their knowledge or source relationships.
 
-Attachment records in this milestone describe metadata only. Each belongs to exactly one vehicle
-or intervention and stores a display name of up to 255 characters, one of the supported PDF or
-JPEG/PNG/WebP/HEIC/HEIF media types, an optional non-negative byte size, and an optional caption of
-up to 1,000 characters. Their storage state is always `metadata_only`; no binary content, object
-location, checksum, or upload claim exists before the later storage milestone defines that
-lifecycle.
+The approved attachment-storage milestone replaces metadata-only placeholders with private files
+stored in a SurrealDB bucket. Each stored attachment belongs to exactly one vehicle, intervention,
+or technical note and has a display name of up to 255 characters, an optional caption of up to
+1,000 characters, a server-derived media type and positive byte size, an integrity checksum, and a
+persistence-private file pointer. Supported content remains limited to PDF, JPEG, PNG, WebP, HEIC,
+and HEIF, with a maximum size of 25 MiB per file. Media type is detected from file bytes rather than
+trusted filenames or request headers.
+
+Attachment upload, metadata editing, deletion, opening, and download are authenticated application
+workflows; bucket locations are never public. Mutations are allowed only for active vehicles,
+Draft interventions on active vehicles, and active technical notes. Attachments remain readable
+when a vehicle or note is archived or an intervention becomes terminal, while their owning record's
+chronology and lifecycle remain unchanged. Existing metadata-only rows are removed by the reviewed
+storage rollout because they contain no binary content. Image transformation, thumbnails, OCR,
+content analysis, public sharing, resumable upload, and external object storage are outside the
+initial release.
 
 ### Finances and invoices
 

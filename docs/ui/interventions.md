@@ -126,9 +126,9 @@ another record. An archived-vehicle conflict sends the user back to read-only ve
 | Property | Specification |
 | --- | --- |
 | Route | `GET /interventions/{id}` |
-| Data | Vehicle/owner, date, mileage, narrative fields, ordered lines, totals, metadata attachments, state timestamps |
+| Data | Captured vehicle/customer identity, start, estimated duration, mileage, narrative fields, ordered lines, totals, attachments, state timestamps |
 | Primary action | Complete intervention |
-| Secondary actions | Edit details, Add line item, Add attachment metadata, Create technical note, Create invoice draft, Cancel intervention |
+| Secondary actions | Edit details, Upload attachment, Add line item, Create technical note, Create invoice draft, Cancel intervention |
 | Restrictions | All ordinary fields and line mutations require Draft state |
 
 ### Desktop wireframe
@@ -149,8 +149,8 @@ another record. An archived-vehicle conflict sends the user back to read-only ve
 │                   │ LABOUR    Brake replacement       2     hour   €50      —       €100       │
 │                   │                                                        Total    €240       │
 │                   │                                                                          │
-│                   │ Attachment metadata [Add metadata]  Technical knowledge [Create note]    │
-│                   │ inspection.jpg · image/jpeg · METADATA ONLY                              │
+│                   │ Attachments [Upload]                 Technical knowledge [Create note]    │
+│                   │ inspection.jpg · JPEG · 2 MiB · [Open] [Download]                        │
 └───────────────────┴──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -180,9 +180,9 @@ another record. An archived-vehicle conflict sends the user back to read-only ve
 │ └──────────────────────────┘ │
 │ Total                  €240  │
 │                              │
-│ Attachments · METADATA ONLY  │
-│ inspection.jpg               │
-│ [Add metadata]               │
+│ Attachments                  │
+│ inspection.jpg · JPEG        │
+│ [Open] [Download] [Upload]   │
 ├──────────────────────────────┤
 │ Home   Vehicles   Jobs  More │
 └──────────────────────────────┘
@@ -282,11 +282,13 @@ controls. The phone layout is the history card stream from vehicle detail with a
 identity header, not a separate navigation shell. Back to vehicle preserves the history cursor only
 when returning to history; the vehicle detail itself always opens at its top.
 
-## Attachment metadata
+## Stored attachments
 
-Intervention attachment metadata uses the same form and **Metadata only** warning as vehicle
-attachments. The owner is derived from this intervention and is not editable. No binary picker,
-camera action, preview, thumbnail, download, checksum, or uploaded-state badge is present.
+Intervention uploads use the shared multipart form with one file and optional display name/caption.
+The owner is derived from the intervention and is not editable. Draft interventions on active
+vehicles expose upload, edit-details, and delete controls. Completed/cancelled interventions and
+interventions on archived vehicles keep Open and Download but expose no mutation controls.
+Thumbnails, previews, transforms, and byte replacement remain unavailable.
 
 ## State and error coverage
 
@@ -297,5 +299,3 @@ camera action, preview, thumbnail, download, checksum, or uploaded-state badge i
 - Expired session: safe login redirect with local return path.
 - `503`: retry panel; draft input retained only when it can be kept without exposing sensitive data.
 - Empty lines/attachments: explain optional next action; completion validation remains authoritative.
-
-

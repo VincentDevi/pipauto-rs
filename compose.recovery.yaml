@@ -1,0 +1,30 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.1
+    working_dir: /home/nonroot
+    command: ["start", "--log", "info"]
+    environment:
+      SURREAL_USER: ${SURREALDB_ROOT_USERNAME:?SURREALDB_ROOT_USERNAME is required}
+      SURREAL_PASS: ${SURREALDB_ROOT_PASSWORD:?SURREALDB_ROOT_PASSWORD is required}
+      SURREAL_PATH: rocksdb://pipauto_recovery
+      SURREAL_DEFAULT_NAMESPACE: ${SURREALDB_NAMESPACE:?SURREALDB_NAMESPACE is required}
+      SURREAL_DEFAULT_DATABASE: ${SURREALDB_DATABASE:?SURREALDB_DATABASE is required}
+      SURREAL_CAPS_ALLOW_EXPERIMENTAL: files
+      SURREAL_BUCKET_FOLDER_ALLOWLIST: /home/nonroot/pipauto_attachments
+    ports:
+      - "127.0.0.1:${PIPAUTO_RECOVERY_PORT:-18001}:8000"
+    volumes:
+      - pipauto_surrealdb_recovery:/home/nonroot
+      - pipauto_surrealdb_attachments_recovery:/home/nonroot/pipauto_attachments
+    healthcheck:
+      test: ["CMD", "/surreal", "isready", "--endpoint", "http://localhost:8000"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  pipauto_surrealdb_recovery:
+    name: ${PIPAUTO_RECOVERY_DB_VOLUME:?PIPAUTO_RECOVERY_DB_VOLUME is required}
+  pipauto_surrealdb_attachments_recovery:
+    name: ${PIPAUTO_RECOVERY_ATTACHMENT_VOLUME:?PIPAUTO_RECOVERY_ATTACHMENT_VOLUME is required}
