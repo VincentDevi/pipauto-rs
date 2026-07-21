@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('@knowledge technical notes search, context, safe text, tags, and lifecycle work progressively', async ({ page }, testInfo) => {
+test('@knowledge @knowledge-attachments technical notes and stored attachments work progressively', async ({ page }, testInfo) => {
   const variant = testInfo.project.name === 'no-javascript'
     ? 'nojs'
     : testInfo.project.name.replace('-chromium', '');
@@ -56,6 +56,26 @@ test('@knowledge technical notes search, context, safe text, tags, and lifecycle
   await expect(page).toHaveURL(detailUrl);
   await expect(page.getByText('vw', { exact: true })).toHaveCount(0);
 
+  await expect(page.getByText('No attachments have been uploaded.')).toBeVisible();
+  await page.getByRole('link', { name: 'Upload attachment' }).click();
+  await page.getByLabel('File (required)').setInputFiles({
+    name: `locking-tool-${variant}.jpg`,
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  });
+  await page.getByLabel('Display name (optional)').fill(`Locking tool ${variant}`);
+  await page.getByLabel('Caption').fill('Correct crankshaft alignment');
+  await page.getByRole('button', { name: 'Upload file' }).click();
+  await expect(page).toHaveURL(detailUrl);
+  await expect(page.getByText(`Locking tool ${variant}`, { exact: true })).toBeVisible();
+  await expect(page.getByText('image/jpeg · 4 bytes')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open' })).toHaveAttribute('href', /\/attachments\/.+\/content/);
+  await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', /\/attachments\/.+\/download/);
+  await page.getByRole('link', { name: 'Edit details' }).click();
+  await page.getByLabel('Display name (required)').fill(`Locking tool aligned ${variant}`);
+  await page.getByRole('button', { name: 'Save details' }).click();
+  await expect(page.getByText(`Locking tool aligned ${variant}`, { exact: true })).toBeVisible();
+
   await page.goto(`/knowledge?q=water&tags=cooling%0Aprocedure&make=volkswagen&model=GOLF&engine=1.4%20tsi`);
   await expect(page.getByText(`Golf water pump ${variant}`, { exact: true })).toBeVisible();
   await expect(page.getByText(/Server relevance and tie-break ordering|Updated/).first()).toBeVisible();
@@ -71,8 +91,17 @@ test('@knowledge technical notes search, context, safe text, tags, and lifecycle
   await page.getByRole('button', { name: 'Confirm archive' }).click();
   await expect(page.getByRole('heading', { name: 'Archived technical note' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Edit technical note' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Upload attachment' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Open' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Edit details' })).toHaveCount(0);
+  await expect(page.getByText('Delete attachment')).toHaveCount(0);
   await page.getByRole('button', { name: 'Restore technical note' }).click();
   await expect(page.getByRole('link', { name: 'Edit technical note' })).toBeVisible();
+  await page.locator('.delete-metadata > summary').click();
+  await page.getByRole('button', { name: 'Delete attachment' }).click();
+  await expect(page).toHaveURL(detailUrl);
+  await expect(page.getByText('No attachments have been uploaded.')).toBeVisible();
 
   if (testInfo.project.name === 'phone-chromium') {
     await expect(page.locator('.phone-navigation')).toBeVisible();

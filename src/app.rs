@@ -378,6 +378,31 @@ pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
     },
     RouteAccess {
         method: "GET",
+        path: "/knowledge/{id}/attachments/new",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/attachments",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
+        path: "/knowledge/{id}/attachments/{attachment_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/attachments/{attachment_id}/edit",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "POST",
+        path: "/knowledge/{id}/attachments/{attachment_id}/delete",
+        class: AccessClass::Authenticated,
+    },
+    RouteAccess {
+        method: "GET",
         path: "/invoices",
         class: AccessClass::Authenticated,
     },

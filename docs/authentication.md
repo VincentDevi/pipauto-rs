@@ -167,6 +167,11 @@ sessions. Restore `active = true` only after the account is safe.
 | `POST /knowledge/{id}/edit` | Authenticated + session CSRF | Save an active technical note after revalidating its context. |
 | `POST /knowledge/{id}/archive` | Authenticated + session CSRF | Archive a technical note without removing relationships. |
 | `POST /knowledge/{id}/restore` | Authenticated + session CSRF | Restore a technical note to default search. |
+| `GET /knowledge/{id}/attachments/new` | Authenticated | Select a stored attachment for an active technical note. |
+| `POST /knowledge/{id}/attachments` | Authenticated + session CSRF | Upload a stored attachment for an active technical note. |
+| `GET /knowledge/{id}/attachments/{attachment_id}/edit` | Authenticated | Edit stored active-note attachment details after validating route ownership. |
+| `POST /knowledge/{id}/attachments/{attachment_id}/edit` | Authenticated + session CSRF | Save stored active-note attachment details after validating route ownership. |
+| `POST /knowledge/{id}/attachments/{attachment_id}/delete` | Authenticated + session CSRF | Delete a stored active-note attachment after validating route ownership. |
 | `GET /invoices` | Authenticated | Filter and page through invoices by lifecycle using opaque cursors. |
 | `POST /invoices` | Authenticated + session CSRF | Create an unnumbered invoice draft from an authoritative relationship and currency. |
 | `GET /invoices/new` | Authenticated | Draft-invoice creation form with optional relationship prefill. |

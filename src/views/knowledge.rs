@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     controllers::browser::forms::FormState,
     domain::Page,
-    models::{intervention::Intervention, technical_note::TechnicalNote, vehicle::Vehicle},
+    models::{
+        attachment::AttachmentMetadata, intervention::Intervention, technical_note::TechnicalNote,
+        vehicle::Vehicle,
+    },
 };
 
 use super::layout::AuthenticatedLayout;
@@ -159,6 +162,18 @@ struct SelectOption {
 }
 
 #[derive(Debug, Serialize)]
+struct AttachmentItem {
+    display_name: String,
+    media_type: String,
+    byte_size: u64,
+    caption: Option<String>,
+    open_href: String,
+    download_href: String,
+    edit_href: String,
+    delete_action: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct KnowledgeFormPage<'page> {
     #[serde(flatten)]
     layout: AuthenticatedLayout<'page>,
@@ -277,6 +292,7 @@ pub struct KnowledgeDetailPage<'page> {
     created_at: String,
     updated_at: String,
     archived_at: Option<String>,
+    attachments: Vec<AttachmentItem>,
 }
 
 impl<'page> KnowledgeDetailPage<'page> {
@@ -286,6 +302,7 @@ impl<'page> KnowledgeDetailPage<'page> {
         note: TechnicalNote,
         vehicle: Option<Vehicle>,
         source: Option<Intervention>,
+        attachments: Vec<AttachmentMetadata>,
     ) -> Self {
         let id = note.id.as_str().to_owned();
         let context = note_context(&note);
@@ -293,7 +310,7 @@ impl<'page> KnowledgeDetailPage<'page> {
         Self {
             layout,
             title: "Technical note · Pipauto",
-            id,
+            id: id.clone(),
             note_title: note.title,
             body: note.body,
             tags: note.tags,
@@ -312,6 +329,24 @@ impl<'page> KnowledgeDetailPage<'page> {
             created_at: timestamp(note.created_at),
             updated_at: timestamp(note.updated_at),
             archived_at: note.archived_at.map(timestamp),
+            attachments: attachments
+                .into_iter()
+                .map(|attachment| {
+                    let attachment_id = attachment.id.as_str().to_owned();
+                    AttachmentItem {
+                        display_name: attachment.display_name,
+                        media_type: attachment.media_type.as_str().to_owned(),
+                        byte_size: attachment.byte_size,
+                        caption: attachment.caption,
+                        open_href: format!("/attachments/{attachment_id}/content"),
+                        download_href: format!("/attachments/{attachment_id}/download"),
+                        edit_href: format!("/knowledge/{id}/attachments/{attachment_id}/edit"),
+                        delete_action: format!(
+                            "/knowledge/{id}/attachments/{attachment_id}/delete"
+                        ),
+                    }
+                })
+                .collect(),
         }
     }
 

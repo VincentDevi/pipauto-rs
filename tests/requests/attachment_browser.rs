@@ -258,6 +258,257 @@ async fn intervention_attachment_browser_uploads_and_keeps_terminal_files_read_o
     assert!(!terminal.contains("Delete attachment"));
 }
 
+#[tokio::test]
+async fn technical_note_attachment_browser_enforces_lifecycle_and_cross_owner_routes() {
+    let (router, session, csrf) = authenticated_app().await;
+    let vehicle = vehicle_fixture(&router, &session, &csrf, "3-VIN-069").await;
+    let intervention = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/interventions",
+        &session,
+        &csrf,
+        json!({
+            "vehicle_id": vehicle,
+            "service_date": "2026-07-21",
+            "mileage": 100_000,
+            "performed_work": "Technical note attachment verification"
+        }),
+    )
+    .await["data"]["id"]
+        .as_str()
+        .expect("intervention id")
+        .to_owned();
+    let note = technical_note_fixture(
+        &router,
+        &session,
+        &csrf,
+        "Water pump locking procedure",
+        Some((&vehicle, &intervention)),
+    )
+    .await;
+    let other_note =
+        technical_note_fixture(&router, &session, &csrf, "Unrelated brake procedure", None).await;
+    let authoritative_before = get_json(
+        &router,
+        &format!("/api/v1/technical-notes/{note}"),
+        &session,
+    )
+    .await;
+    let search_before = get_json(
+        &router,
+        "/api/v1/technical-notes?q=locking&tags=cooling&make=VOLKSWAGEN",
+        &session,
+    )
+    .await;
+
+    let form = html(
+        &router,
+        get(&format!("/knowledge/{note}/attachments/new"), &session),
+    )
+    .await;
+    assert_eq!(form.0, StatusCode::OK);
+    assert!(form.1.contains("Upload attachment"));
+    assert!(form.1.contains("Water pump locking procedure"));
+    assert!(form.1.contains("enctype=\"multipart/form-data\""));
+
+    let created = response(
+        &router,
+        multipart(
+            &format!("/knowledge/{note}/attachments"),
+            &session,
+            &csrf,
+            "Locking tool photo",
+            "Correct alignment",
+            &jpeg_bytes(),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::OK);
+    assert_eq!(
+        created.headers()["HX-Redirect"],
+        format!("/knowledge/{note}")
+    );
+
+    let attachment = first_owner_attachment(&router, &session, "technical-notes", &note)
+        .await
+        .expect("technical-note attachment");
+    let attachment_id = attachment["id"].as_str().expect("attachment id");
+    let detail = html(&router, get(&format!("/knowledge/{note}"), &session))
+        .await
+        .1;
+    for expected in [
+        "Locking tool photo",
+        "Correct alignment",
+        "Open",
+        "Download",
+        "Edit details",
+        "Delete attachment",
+    ] {
+        assert!(detail.contains(expected), "missing {expected}");
+    }
+
+    let edited = response(
+        &router,
+        urlencoded(
+            Method::POST,
+            &format!("/knowledge/{note}/attachments/{attachment_id}/edit"),
+            &session,
+            &csrf,
+            &[
+                ("display_name", "Locking tool aligned"),
+                ("caption", "Reusable procedure evidence"),
+            ],
+        ),
+    )
+    .await;
+    assert_eq!(edited.status(), StatusCode::SEE_OTHER);
+
+    let vehicle_created = response(
+        &router,
+        multipart(
+            &format!("/vehicles/{vehicle}/attachments"),
+            &session,
+            &csrf,
+            "Vehicle photo",
+            "Vehicle owner",
+            &jpeg_bytes(),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(vehicle_created.status(), StatusCode::SEE_OTHER);
+    let vehicle_attachment = first_owner_attachment(&router, &session, "vehicles", &vehicle)
+        .await
+        .expect("vehicle attachment");
+    let vehicle_attachment_id = vehicle_attachment["id"]
+        .as_str()
+        .expect("vehicle attachment id");
+
+    let intervention_created = response(
+        &router,
+        multipart(
+            &format!("/interventions/{intervention}/attachments"),
+            &session,
+            &csrf,
+            "Intervention photo",
+            "Intervention owner",
+            &jpeg_bytes(),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(intervention_created.status(), StatusCode::SEE_OTHER);
+    let intervention_attachment =
+        first_owner_attachment(&router, &session, "interventions", &intervention)
+            .await
+            .expect("intervention attachment");
+    let intervention_attachment_id = intervention_attachment["id"]
+        .as_str()
+        .expect("intervention attachment id");
+
+    for (crafted_note, crafted_attachment) in [
+        (other_note.as_str(), attachment_id),
+        (note.as_str(), vehicle_attachment_id),
+        (note.as_str(), intervention_attachment_id),
+    ] {
+        let response = html(
+            &router,
+            get(
+                &format!("/knowledge/{crafted_note}/attachments/{crafted_attachment}/edit"),
+                &session,
+            ),
+        )
+        .await;
+        assert_eq!(response.0, StatusCode::NOT_FOUND);
+    }
+
+    assert_eq!(
+        authoritative_before,
+        get_json(
+            &router,
+            &format!("/api/v1/technical-notes/{note}"),
+            &session,
+        )
+        .await
+    );
+    assert_eq!(
+        search_before,
+        get_json(
+            &router,
+            "/api/v1/technical-notes?q=locking&tags=cooling&make=VOLKSWAGEN",
+            &session,
+        )
+        .await
+    );
+
+    write_json(
+        &router,
+        Method::POST,
+        &format!("/api/v1/technical-notes/{note}/archive"),
+        &session,
+        &csrf,
+        Value::Null,
+    )
+    .await;
+    let archived = html(&router, get(&format!("/knowledge/{note}"), &session))
+        .await
+        .1;
+    assert!(archived.contains("Locking tool aligned"));
+    assert!(archived.contains("Open"));
+    assert!(archived.contains("Download"));
+    assert!(!archived.contains("Upload attachment"));
+    assert!(!archived.contains("Edit details"));
+    assert!(!archived.contains("Delete attachment"));
+
+    let locked = response(
+        &router,
+        multipart(
+            &format!("/knowledge/{note}/attachments"),
+            &session,
+            &csrf,
+            "Blocked photo",
+            "Archived note",
+            &jpeg_bytes(),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(locked.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        locked.headers()[header::LOCATION],
+        format!("/knowledge/{note}")
+    );
+
+    write_json(
+        &router,
+        Method::POST,
+        &format!("/api/v1/technical-notes/{note}/restore"),
+        &session,
+        &csrf,
+        Value::Null,
+    )
+    .await;
+    let deleted = response(
+        &router,
+        urlencoded(
+            Method::POST,
+            &format!("/knowledge/{note}/attachments/{attachment_id}/delete"),
+            &session,
+            &csrf,
+            &[],
+        ),
+    )
+    .await;
+    assert_eq!(deleted.status(), StatusCode::SEE_OTHER);
+    assert!(
+        first_owner_attachment(&router, &session, "technical-notes", &note)
+            .await
+            .is_none()
+    );
+}
+
 async fn authenticated_app() -> (axum::Router, String, String) {
     let boot = boot_test::<App>().await.expect("application should boot");
     boot.app_context
@@ -305,6 +556,39 @@ async fn vehicle_fixture(
     .await["data"]["id"]
         .as_str()
         .expect("vehicle id")
+        .to_owned()
+}
+
+async fn technical_note_fixture(
+    router: &axum::Router,
+    session: &str,
+    csrf: &str,
+    title: &str,
+    relationship: Option<(&str, &str)>,
+) -> String {
+    let mut value = json!({
+        "title": title,
+        "body": "Use the locking tool before releasing the water pump.",
+        "tags": ["cooling"],
+        "make": "Volkswagen",
+        "model": "Golf",
+        "engine": "1.4 TSI"
+    });
+    if let Some((vehicle, intervention)) = relationship {
+        value["vehicle_id"] = Value::String(vehicle.to_owned());
+        value["source_intervention_id"] = Value::String(intervention.to_owned());
+    }
+    write_json(
+        router,
+        Method::POST,
+        "/api/v1/technical-notes",
+        session,
+        csrf,
+        value,
+    )
+    .await["data"]["id"]
+        .as_str()
+        .expect("technical note id")
         .to_owned()
 }
 
@@ -414,6 +698,31 @@ async fn first_attachment_optional(
     serde_json::from_slice::<Value>(&body).expect("JSON response")["data"]
         .as_array()
         .and_then(|items| items.first().cloned())
+}
+
+async fn first_owner_attachment(
+    router: &axum::Router,
+    session: &str,
+    owner_kind: &str,
+    owner: &str,
+) -> Option<Value> {
+    get_json(
+        router,
+        &format!("/api/v1/{owner_kind}/{owner}/attachments"),
+        session,
+    )
+    .await["data"]
+        .as_array()
+        .and_then(|items| items.first().cloned())
+}
+
+async fn get_json(router: &axum::Router, uri: &str, session: &str) -> Value {
+    let response = response(router, get(uri, session)).await;
+    assert!(response.status().is_success(), "request failed: {uri}");
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("JSON body");
+    serde_json::from_slice(&body).expect("JSON response")
 }
 
 async fn write_json(

@@ -2,7 +2,7 @@ use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
     database::client::AppDatabase,
-    domain::{AttachmentId, PageLimit, VehicleId},
+    domain::{AttachmentId, PageLimit},
     models::{
         attachment::{
             AttachmentDigest, AttachmentFilePointer, AttachmentMediaType, AttachmentOwner,
@@ -113,10 +113,17 @@ async fn technical_note_search_combines_full_text_exact_filters_and_stable_curso
 }
 
 #[tokio::test]
-async fn attachment_repository_hides_transitions_and_persists_stored_state() {
-    let (_, attachments, client) = repositories().await;
-    let owner = AttachmentOwner::Vehicle(VehicleId::parse("repository_vehicle").expect("id"));
-    client.query("CREATE customer:repository_owner CONTENT { display_name: 'Owner', display_name_normalized: 'owner' }; CREATE vehicle:repository_vehicle CONTENT { customer: customer:repository_owner, make: 'VW', make_normalized: 'vw', model: 'Golf', model_normalized: 'golf' };").await.expect("fixtures").check().expect("fixtures valid");
+async fn technical_note_attachment_repository_maps_owner_and_stored_state() {
+    let (notes, attachments, _) = repositories().await;
+    let technical_note = notes
+        .create(&note(
+            "Stored procedure",
+            "Use the locking tool",
+            vec!["cooling"],
+        ))
+        .await
+        .expect("technical note fixture");
+    let owner = AttachmentOwner::TechnicalNote(technical_note.id);
     let input = NewAttachmentReservation::new(
         AttachmentId::parse("repository_attachment").expect("attachment id"),
         owner.clone(),

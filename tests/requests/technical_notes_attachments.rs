@@ -134,7 +134,7 @@ async fn technical_notes_api_supports_crud_search_archive_and_source_conflicts()
 }
 
 #[tokio::test]
-async fn attachments_api_supports_all_owners_and_transport_safe_patch() {
+async fn technical_note_attachments_api_supports_all_owners_and_transport_safe_patch() {
     let (router, session, csrf) = authenticated_app().await;
     let vehicle = create_vehicle(&router, &session, &csrf, "Golf").await;
     let intervention = write_json(

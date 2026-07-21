@@ -613,6 +613,28 @@ impl<'page> AttachmentFormPage<'page> {
         )
     }
 
+    #[must_use]
+    pub fn for_technical_note(
+        layout: AuthenticatedLayout<'page>,
+        note: &crate::models::technical_note::TechnicalNote,
+        attachment_id: Option<&str>,
+        form: FormState<AttachmentFormValues>,
+        conflict_message: Option<String>,
+    ) -> Self {
+        let id = note.id.as_str();
+        Self::build(
+            layout,
+            attachment_id,
+            form,
+            conflict_message,
+            note.title.clone(),
+            "technical note",
+            format!("/knowledge/{id}"),
+            format!("/knowledge/{id}/attachments"),
+            format!("/knowledge/{id}/attachments"),
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn build(
         layout: AuthenticatedLayout<'page>,
