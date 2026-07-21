@@ -105,14 +105,48 @@ Vehicle response fields are `id`, `customer_id`, `make`, `model`, `year`, `regis
 | `PATCH /api/v1/interventions/{id}/lines/{line_id}` | `200` | Intervention-line DTO | Replaces a draft line and returns recalculated totals. |
 | `DELETE /api/v1/interventions/{id}/lines/{line_id}` | `200` | `null` | Deletes a draft line and returns `{line: null, totals}`. |
 
-Intervention create requires `vehicle_id` and `service_date`; it accepts `mileage`,
-`customer_reported_problem`, `diagnostics`, `performed_work`, `recommendations`, `notes`, and
-`currency` (default `EUR`). Patch omits `vehicle_id` and makes the other fields optional. Narrative
-fields are at most 10,000 characters. Non-cancelled historical mileage cannot regress.
+Intervention create requires `vehicle_id`, exact workshop-local `service_date` in
+`YYYY-MM-DDTHH:MM` form, and `estimated_duration_minutes`. Duration must be from 30 through 1,440
+minutes and divisible by 30. It accepts `mileage`, `customer_reported_problem`, `diagnostics`,
+`performed_work`, `recommendations`, `notes`, and `currency` (default `EUR`). Patch omits
+`vehicle_id`; omitted scheduling fields retain their current values and every supplied and
+resulting value is validated. Narrative fields are at most 10,000 characters. Non-cancelled
+historical mileage cannot regress.
 
-Intervention response fields are `id`, `vehicle_id`, `service_date`, `status`, `mileage`, the five
-narrative fields, `currency`, `created_at`, `updated_at`, `completed_at`, `cancelled_at`, and
-`links.{detail,lines}`. A history entry is `{intervention, totals:{price,cost}}`.
+```json
+{
+  "vehicle_id": "opaque-vehicle-id",
+  "service_date": "2026-07-22T09:30",
+  "estimated_duration_minutes": 120,
+  "mileage": 100000
+}
+```
+
+Intervention response fields are `id`, `vehicle_id`, RFC 3339 UTC `service_date`,
+`estimated_duration_minutes`, `customer_snapshot:{id,display_name}`,
+`vehicle_snapshot:{registration,make,model}`, `status`, `mileage`, the five narrative fields,
+`currency`, `created_at`, `updated_at`, `completed_at`, `cancelled_at`, and
+`links.{detail,lines}`. Snapshot registration is `null` when the vehicle had no displayed
+registration at creation. A history entry is `{intervention, totals:{price,cost}}`.
+
+```json
+{
+  "id": "opaque-intervention-id",
+  "vehicle_id": "opaque-vehicle-id",
+  "service_date": "2026-07-22T07:30:00Z",
+  "estimated_duration_minutes": 120,
+  "customer_snapshot": {
+    "id": "opaque-customer-id",
+    "display_name": "Mario Rossi"
+  },
+  "vehicle_snapshot": {
+    "registration": "1-ABC-234",
+    "make": "Volkswagen",
+    "model": "Golf"
+  },
+  "status": "draft"
+}
+```
 
 An intervention-line request is `{category, description, quantity, unit_label,
 unit_price_minor, unit_cost_minor, position}`. Category is `labour`, `part`, `material`, or
@@ -122,29 +156,21 @@ unit_price_minor, unit_cost_minor, position}`. Category is `labour`, `part`, `ma
 State machine: `draft -> completed` or `draft -> cancelled`. Terminal interventions and their
 lines are immutable; intervention records cannot be deleted.
 
-#### Planned calendar scheduling contract
-
-The `Create a basic Calendar` milestone will replace the date-only intervention contract above.
-This subsection records the approved target and does not claim that the current routes implement it.
+#### Workshop-local scheduling contract
 
 - `settings.business.workshop_timezone` is a required valid IANA timezone, initially
   `Europe/Brussels`.
-- Create requires `service_date` as an exact workshop-local `YYYY-MM-DDTHH:MM` value and
-  `estimated_duration_minutes` from 30 through 1,440, divisible by 30. Draft patch may omit either
-  field to retain its current value; supplied and resulting values are validated.
 - The server rejects malformed, nonexistent, and ambiguous local times rather than selecting an
   offset. Read responses return `service_date` as the resolved RFC 3339 UTC instant.
 - Browser forms collect the local date and time separately; the JSON contract remains one
   workshop-local `service_date` value.
-- Creation captures immutable `customer_snapshot:{id,display_name}` and
-  `vehicle_snapshot:{registration,make,model}` values. Registration may be `null`. Snapshot fields
-  are returned but are never accepted as caller-controlled create or patch input.
+- Creation revalidates the vehicle's current customer relationship and captures immutable snapshot
+  values. Snapshot fields are returned but are never accepted as caller-controlled create or patch
+  input.
 - Service history and cursor ordering use the complete start instant, creation timestamp, and
   intervention ID, all descending. Mileage-neighbour validation uses the same order.
 - `service_date_from` and `service_date_to` remain inclusive workshop-local dates at the HTTP
   boundary and are converted to a half-open UTC interval internally.
-- Existing disposable development/test data is reset and reseeded before the tightened schema is
-  applied. No automatic backfill or destructive shared-data migration is authorized.
 
 ### Technical notes
 

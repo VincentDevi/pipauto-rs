@@ -253,6 +253,72 @@ async fn intervention_browser_validation_and_chronology_preserve_fragment_values
     assert!(invalid.1.contains("Safe submitted problem"));
     assert!(invalid.1.contains("Safe submitted notes"));
 
+    for (service_date, message) in [
+        ("2026-03-29", "does not exist"),
+        ("2026-10-25", "occurs twice"),
+    ] {
+        let dst_error = send(
+            &router,
+            form_request(
+                Method::POST,
+                &format!("/vehicles/{vehicle_id}/interventions"),
+                &session,
+                scheduled_intervention_form(
+                    &csrf,
+                    service_date,
+                    "02:30",
+                    "90",
+                    "",
+                    "Preserved DST problem",
+                    "",
+                    "",
+                    "",
+                    "Preserved DST notes",
+                ),
+                true,
+            ),
+        )
+        .await;
+        assert_eq!(dst_error.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(dst_error.1.contains(message));
+        assert!(dst_error.1.contains("id=\"start-time-error\""));
+        assert!(dst_error.1.contains("value=\"02:30\""));
+        assert!(dst_error.1.contains("value=\"90\""));
+        assert!(dst_error.1.contains("Preserved DST problem"));
+        assert!(dst_error.1.contains("Preserved DST notes"));
+    }
+
+    let invalid_duration = send(
+        &router,
+        form_request(
+            Method::POST,
+            &format!("/vehicles/{vehicle_id}/interventions"),
+            &session,
+            scheduled_intervention_form(
+                &csrf,
+                "2026-07-10",
+                "14:45",
+                "45",
+                "",
+                "Preserved duration problem",
+                "",
+                "",
+                "",
+                "Preserved duration notes",
+            ),
+            false,
+        ),
+    )
+    .await;
+    assert_eq!(invalid_duration.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(invalid_duration
+        .1
+        .contains("Choose a duration from 30 minutes through 24 hours."));
+    assert!(invalid_duration.1.contains("value=\"14:45\""));
+    assert!(invalid_duration.1.contains("value=\"45\""));
+    assert!(invalid_duration.1.contains("Preserved duration problem"));
+    assert!(invalid_duration.1.contains("Preserved duration notes"));
+
     write_json(
         &router,
         Method::POST,
@@ -593,12 +659,39 @@ fn intervention_form(
     recommendations: &str,
     notes: &str,
 ) -> String {
+    scheduled_intervention_form(
+        csrf,
+        service_date,
+        "09:00",
+        "60",
+        mileage,
+        problem,
+        diagnostics,
+        work,
+        recommendations,
+        notes,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scheduled_intervention_form(
+    csrf: &str,
+    service_date: &str,
+    start_time: &str,
+    estimated_duration_minutes: &str,
+    mileage: &str,
+    problem: &str,
+    diagnostics: &str,
+    work: &str,
+    recommendations: &str,
+    notes: &str,
+) -> String {
     let mut body = url::form_urlencoded::Serializer::new(String::new());
     for (key, value) in [
         ("_csrf", csrf),
         ("service_date", service_date),
-        ("start_time", "09:00"),
-        ("estimated_duration_minutes", "60"),
+        ("start_time", start_time),
+        ("estimated_duration_minutes", estimated_duration_minutes),
         ("mileage", mileage),
         ("customer_reported_problem", problem),
         ("diagnostics", diagnostics),

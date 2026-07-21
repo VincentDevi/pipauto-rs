@@ -439,6 +439,205 @@ async fn interventions_preserve_creation_identity_after_customer_and_vehicle_cha
     );
 }
 
+#[tokio::test]
+async fn interventions_api_enforces_complete_unambiguous_workshop_scheduling() {
+    let (router, session, csrf) = authenticated_app().await;
+    let vehicle_id = create_vehicle(&router, &session, &csrf).await;
+
+    for body in [
+        json!({
+            "vehicle_id": vehicle_id,
+            "service_date": "2026-07-22T09:30"
+        }),
+        json!({
+            "vehicle_id": vehicle_id,
+            "estimated_duration_minutes": 60
+        }),
+    ] {
+        assert_eq!(
+            write_json(
+                &router,
+                Method::POST,
+                "/api/v1/interventions",
+                &session,
+                &csrf,
+                body,
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    for (service_date, message) in [
+        ("2026-03-29T02:30", "does not exist"),
+        ("2026-10-25T02:30", "occurs twice"),
+    ] {
+        let invalid = write_json(
+            &router,
+            Method::POST,
+            "/api/v1/interventions",
+            &session,
+            &csrf,
+            json!({
+                "vehicle_id": vehicle_id,
+                "service_date": service_date,
+                "estimated_duration_minutes": 60
+            }),
+        )
+        .await;
+        assert_eq!(invalid.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(invalid.1["error"]["fields"]["service_date"][0]
+            .as_str()
+            .is_some_and(|value| value.contains(message)));
+    }
+
+    for service_date in [
+        "2026-07-22",
+        "2026-07-22T09:30:00",
+        "2026-07-22T09:30+02:00",
+    ] {
+        let invalid = write_json(
+            &router,
+            Method::POST,
+            "/api/v1/interventions",
+            &session,
+            &csrf,
+            json!({
+                "vehicle_id": vehicle_id,
+                "service_date": service_date,
+                "estimated_duration_minutes": 60
+            }),
+        )
+        .await;
+        assert_eq!(invalid.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(invalid.1["error"]["fields"]["service_date"].is_array());
+    }
+
+    for duration in [0, 45, 1470] {
+        let invalid = write_json(
+            &router,
+            Method::POST,
+            "/api/v1/interventions",
+            &session,
+            &csrf,
+            json!({
+                "vehicle_id": vehicle_id,
+                "service_date": "2026-07-22T09:30",
+                "estimated_duration_minutes": duration
+            }),
+        )
+        .await;
+        assert_eq!(invalid.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(invalid.1["error"]["fields"]["estimated_duration_minutes"].is_array());
+    }
+
+    let created = write_json(
+        &router,
+        Method::POST,
+        "/api/v1/interventions",
+        &session,
+        &csrf,
+        json!({
+            "vehicle_id": vehicle_id,
+            "service_date": "2026-07-22T09:30",
+            "estimated_duration_minutes": 120,
+            "performed_work": "Schedule verification"
+        }),
+    )
+    .await;
+    assert_eq!(created.0, StatusCode::CREATED);
+    let id = created.1["data"]["id"].as_str().expect("intervention id");
+    let preserved = write_json(
+        &router,
+        Method::PATCH,
+        &format!("/api/v1/interventions/{id}"),
+        &session,
+        &csrf,
+        json!({"notes": "Schedule retained"}),
+    )
+    .await;
+    assert_eq!(preserved.0, StatusCode::OK);
+    assert_eq!(preserved.1["data"]["service_date"], "2026-07-22T07:30:00Z");
+    assert_eq!(preserved.1["data"]["estimated_duration_minutes"], 120);
+
+    assert_eq!(
+        write_json(
+            &router,
+            Method::POST,
+            &format!("/api/v1/interventions/{id}/complete"),
+            &session,
+            &csrf,
+            Value::Null,
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        write_json(
+            &router,
+            Method::PATCH,
+            &format!("/api/v1/interventions/{id}"),
+            &session,
+            &csrf,
+            json!({
+                "service_date": "2026-07-22T10:00",
+                "estimated_duration_minutes": 60
+            }),
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
+}
+
+#[tokio::test]
+async fn intervention_local_date_filters_cover_complete_workshop_dates() {
+    let (router, session, csrf) = authenticated_app().await;
+    let vehicle_id = create_vehicle(&router, &session, &csrf).await;
+    let mut ids = Vec::new();
+    for service_date in ["2026-03-28T23:30", "2026-03-29T23:30", "2026-03-30T00:00"] {
+        let created = write_json(
+            &router,
+            Method::POST,
+            "/api/v1/interventions",
+            &session,
+            &csrf,
+            json!({
+                "vehicle_id": vehicle_id,
+                "service_date": service_date,
+                "estimated_duration_minutes": 60
+            }),
+        )
+        .await;
+        assert_eq!(created.0, StatusCode::CREATED);
+        ids.push(created.1["data"]["id"].as_str().expect("id").to_owned());
+    }
+
+    let filtered = get_json(
+        &router,
+        "/api/v1/interventions?service_date_from=2026-03-29&service_date_to=2026-03-29",
+        &session,
+    )
+    .await;
+    assert_eq!(filtered.0, StatusCode::OK);
+    let returned = filtered.1["data"].as_array().expect("interventions");
+    assert_eq!(returned.len(), 1);
+    assert_eq!(returned[0]["intervention"]["id"], ids[1]);
+    assert!(returned[0]["intervention"]["customer_snapshot"].is_object());
+    assert!(returned[0]["intervention"]["vehicle_snapshot"].is_object());
+
+    let reversed = get_json(
+        &router,
+        "/api/v1/interventions?service_date_from=2026-03-30&service_date_to=2026-03-29",
+        &session,
+    )
+    .await;
+    assert_eq!(reversed.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(reversed.1["error"]["fields"]["service_date_to"].is_array());
+}
+
 async fn authenticated_app() -> (axum::Router, String, String) {
     let boot = boot_test::<App>().await.expect("application should boot");
     boot.app_context

@@ -35,6 +35,8 @@ test('@interventions draft, lifecycle, filtering, and locked history work progre
   await page.getByRole('link', { name: 'New intervention' }).first().click();
   await expect(page.getByRole('heading', { name: 'New intervention' })).toBeVisible();
   await page.getByLabel('Service date').fill('2026-07-17');
+  await page.getByLabel('Start time').fill('09:30');
+  await page.getByLabel('Estimated duration (minutes)').fill('120');
   await page.getByLabel('Recorded mileage').fill('88200');
   await page.getByLabel('Customer-reported problem').fill('Annual service requested');
   await page.getByLabel('Diagnostics').fill('Oil due for replacement');
@@ -98,6 +100,8 @@ test('@intervention-lines @attachments ordered lines and stored attachments work
   await page.getByRole('button', { name: 'Save vehicle' }).click();
   await page.getByRole('link', { name: 'New intervention' }).first().click();
   await page.getByLabel('Service date').fill('2026-07-20');
+  await page.getByLabel('Start time').fill('13:00');
+  await page.getByLabel('Estimated duration (minutes)').fill('90');
   await page.getByLabel('Work performed').fill('Verified ordered lines and metadata');
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page).toHaveURL(/^http:\/\/localhost:5150\/interventions\/[a-z0-9_-]+$/);

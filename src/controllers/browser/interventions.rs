@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use chrono::{NaiveDate, Utc};
+use chrono::{NaiveDate, NaiveTime, Utc};
 use loco_rs::{
     controller::{
         extractor::shared_store::SharedStore, views::engines::TeraView, views::ViewEngine, Routes,
@@ -1436,9 +1436,23 @@ fn validate_form(
     settings: &BusinessSettings,
 ) -> std::result::Result<(chrono::DateTime<Utc>, u16, Option<u64>), ValidationErrors> {
     let mut errors = Vec::new();
-    let service_date = WorkshopTime::system(settings.workshop_timezone())
-        .local_to_utc(&format!("{}T{}", values.service_date, values.start_time))
-        .map_err(|error| errors.push(validation_error("service_date", &error.to_string())));
+    let date = parse_exact_form_date(&values.service_date).map_err(|()| {
+        errors.push(validation_error(
+            "service_date",
+            "Enter a valid service date.",
+        ));
+    });
+    let time = parse_exact_form_time(&values.start_time).map_err(|()| {
+        errors.push(validation_error("start_time", "Enter a valid start time."));
+    });
+    let service_date = match (date, time) {
+        (Ok(date), Ok(time)) => WorkshopTime::system(settings.workshop_timezone())
+            .local_to_utc(&format!("{date}T{}", time.format("%H:%M")))
+            .map_err(|error| {
+                errors.push(validation_error("start_time", &error.to_string()));
+            }),
+        _ => Err(()),
+    };
     let estimated_duration = values
         .estimated_duration_minutes
         .parse::<u16>()
@@ -1465,6 +1479,26 @@ fn validate_form(
         (Ok(date), Ok(duration), Ok(mileage)) => Ok((date, duration, mileage)),
         _ => Err(ValidationErrors::from_vec(errors).expect("form validation errors are non-empty")),
     }
+}
+
+fn parse_exact_form_date(value: &str) -> std::result::Result<NaiveDate, ()> {
+    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .map_err(|_| ())
+        .and_then(|date| {
+            (date.format("%Y-%m-%d").to_string() == value)
+                .then_some(date)
+                .ok_or(())
+        })
+}
+
+fn parse_exact_form_time(value: &str) -> std::result::Result<NaiveTime, ()> {
+    NaiveTime::parse_from_str(value, "%H:%M")
+        .map_err(|_| ())
+        .and_then(|time| {
+            (time.format("%H:%M").to_string() == value)
+                .then_some(time)
+                .ok_or(())
+        })
 }
 
 fn form_values(intervention: &Intervention, settings: &BusinessSettings) -> InterventionFormValues {
