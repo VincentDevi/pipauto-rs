@@ -2,12 +2,12 @@
 
 ## Status and sources
 
-This document defines the proposed presentation architecture for the calendar described in
-[`documentations/CALENDAR_PRD.md`](../documentations/CALENDAR_PRD.md). It is an implementation plan,
-not evidence that the calendar route, templates, styles, or backend query already exist.
+This document records the implemented presentation architecture for the calendar described in
+[`documentations/CALENDAR_PRD.md`](../documentations/CALENDAR_PRD.md). The registered route,
+templates, styles, and bounded backend query now exist; follow-up interaction remains unimplemented.
 
 The current implemented browser surface remains documented in [`docs/frontend.md`](frontend.md).
-The calendar must follow that guide when it is implemented: Rust and Tera own authoritative HTML,
+The calendar follows that guide: Rust and Tera own authoritative HTML,
 ordinary navigation works without JavaScript, HTMX is optional progressive enhancement, and
 `assets/static/css/app.css` remains the first-release stylesheet.
 
@@ -41,7 +41,7 @@ scope.
 
 ### Server-owned HTML
 
-Use a full page and one replaceable calendar fragment:
+The implementation uses a full page and one replaceable calendar fragment:
 
 ```text
 assets/views/pages/calendar.html
@@ -79,7 +79,7 @@ need. Visual CSS Grid placement must not replace meaningful document order.
 A simplified fragment shape is:
 
 ```html
-<section id="calendar-region" class="calendar" aria-labelledby="calendar-heading">
+<div id="calendar-region" class="calendar-page" data-calendar-view="month">
   <header class="calendar-header page-header">
     <div>
       <p class="eyebrow">Workshop schedule</p>
@@ -89,12 +89,18 @@ A simplified fragment shape is:
     <a class="button" href="/vehicles">New intervention</a>
   </header>
 
-  <nav class="calendar-controls" aria-label="Calendar period and view">
-    <!-- Real Previous, Today, Next, Month, and Week links. -->
-  </nav>
+  <div class="calendar-toolbar" aria-label="Calendar controls">
+    <nav class="calendar-period-navigation" aria-label="Calendar period">
+      <!-- Real Previous, Today, and Next links. -->
+    </nav>
+    <div class="calendar-period-heading"><!-- Period and timezone labels. --></div>
+    <nav class="calendar-view-navigation" aria-label="Calendar view">
+      <!-- Real Month and Week links. -->
+    </nav>
+  </div>
 
   <!-- Include exactly one Month or Week view for the requested representation. -->
-</section>
+</div>
 ```
 
 The vehicle-selection address is `/vehicles`, the existing vehicle-first workflow used by the
@@ -243,42 +249,41 @@ chronology or duration.
 
 ## CSS contract
 
-Add calendar rules to `assets/static/css/app.css` during implementation. Reuse existing tokens for
+Calendar rules live in `assets/static/css/app.css` and reuse existing tokens for
 color, typography, spacing, borders, radius, focus, minimum target size, and the shell. New literal
 colors or a second stylesheet are not needed.
 
-Proposed classes:
+Implemented class families:
 
 | Area | Classes |
 | --- | --- |
-| Root/header | `.calendar`, `.calendar-header`, `.calendar-controls`, `.calendar-view-switch` |
-| Shared entry | `.calendar-entry`, `--draft`, `--completed`, `.calendar-entry-meta` |
-| Month | `.month-weekdays`, `.month-days`, `.month-day`, `.month-entry-list`, `.calendar-overflow` |
-| Week | `.week-days`, `.week-day`, `.week-time-axis`, `.week-entry`, `.week-day-selector` |
-| Continuation | `.calendar-continuation` |
-| State | `.calendar-state`, `.calendar-state--empty`, `.calendar-state--error` |
+| Root/header | `.calendar-page`, `.calendar-header`, `.calendar-toolbar`, `.calendar-period-navigation`, `.calendar-view-navigation` |
+| Shared entry | `.calendar-entry`, `.calendar-entry--completed`, `.calendar-entry-status`, `.calendar-entry-continuation` |
+| Month | `.calendar-month-grid`, `.calendar-day`, `.calendar-date-selector`, `.calendar-overflow` |
+| Week | `.calendar-week-grid`, `.calendar-week-time-axis`, `.calendar-week-entry`, `.calendar-week-selector` |
+| Responsive | `.calendar-wide`, `.calendar-focused`, `.calendar-focused-timeline` |
+| State | `.calendar-loading`, `.calendar-empty`, `.calendar-selected-empty` |
 
-The implementation should begin from this layout shape and refine it against rendered browser
-fixtures rather than introducing fixed pixel coordinates for individual entries:
+The implementation follows this layout shape and is verified against rendered browser fixtures:
 
 ```css
-.month-days {
+.calendar-month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-.week-day-timeline {
-  --calendar-slot-height: 2rem;
-  position: relative;
-  min-height: calc(48 * var(--calendar-slot-height));
+.calendar-week-grid {
+  --calendar-minute-height: 0.1rem;
+  display: grid;
+  grid-template-columns: 4.5rem repeat(7, minmax(0, 1fr));
 }
 
-.week-entry {
+.calendar-week-entry-position {
   position: absolute;
-  top: calc(var(--start-minute) * var(--calendar-slot-height) / 30);
-  left: calc(var(--lane) * 100% / var(--lane-count));
-  width: calc(100% / var(--lane-count));
-  min-height: calc(var(--span-minutes) * var(--calendar-slot-height) / 30);
+  top: calc(var(--calendar-start) * var(--calendar-minute-height));
+  left: calc((100% / var(--calendar-lanes)) * var(--calendar-lane));
+  width: calc(100% / var(--calendar-lanes));
+  min-height: max(calc(var(--calendar-span) * var(--calendar-minute-height)), var(--target-size));
 }
 ```
 
@@ -292,11 +297,9 @@ status text. Today and selected date use separate borders or labels so they are 
 without relying on color. Entry text may wrap; essential customer, vehicle, time, status, and
 continuation information must not be truncated away.
 
-Breakpoints follow the existing stylesheet:
-
-- below `42rem`: focused phone Month and Week behavior;
-- `42.01rem` through `63.99rem`: seven-column Month when it fits and focused-day Week; and
-- `64rem` and above: sidebar plus full seven-day Month/Week layouts.
+Breakpoints follow the existing stylesheet: below `64rem`, Month uses the seven-date selector plus
+focused selected day and Week uses day selectors plus one focused timeline; at `64rem` and above,
+the sidebar and full seven-day Month/Week layouts appear.
 
 At 200% text zoom, switch to the focused layout whenever the remaining CSS-pixel width crosses the
 same breakpoint. Do not preserve a dense desktop grid by creating page-level horizontal scrolling.
@@ -330,17 +333,17 @@ same breakpoint. Do not preserve a dense desktop grid by creating page-level hor
 There is no calendar mutation in the MVP, so no calendar-specific `409` or CSRF form is needed.
 Intervention creation retains its own validation, chronology, lifecycle, and CSRF behavior.
 
-## Implementation sequence
+## Implemented sequence
 
-1. Deliver the time-aware intervention domain/query changes required by the PRD, including
+1. Delivered the time-aware intervention domain/query changes required by the PRD, including
    mandatory duration and captured customer/vehicle presentation values.
-2. Add the bounded overlap query and presentation model that computes workshop-local days, midnight
+2. Added the bounded overlap query and presentation model that computes workshop-local days, midnight
    segments, and overlap lanes.
-3. Register the authenticated GET route and add Calendar to the shell's active navigation mapping.
-4. Add the thin page, replaceable fragment, Month markup, and focused phone behavior.
-5. Add Week markup and server-calculated layout custom properties.
-6. Add calendar CSS using existing tokens and breakpoints, then add optional HTMX navigation.
-7. Update `docs/frontend.md` only when the route and component contracts are actually implemented.
+3. Registered the authenticated GET route and added Calendar to the shell's active navigation.
+4. Added the thin page, replaceable fragment, Month markup, and focused phone behavior.
+5. Added Week markup and server-calculated layout custom properties.
+6. Added calendar CSS using existing tokens and breakpoints, then optional HTMX navigation.
+7. Updated `docs/frontend.md` with the implemented route and component contracts.
 
 ## Verification plan
 

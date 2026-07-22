@@ -217,8 +217,8 @@ scheduler adds resource timelines and post-drop validation.
 - Resource concepts are not part of Pipauto's current product requirements and must not be inferred
   from the library's capabilities.
 
-**Fit:** Credible secondary evaluation for a genuinely resource-oriented or time-grid milestone,
-but not justified for the currently planned basic calendar.
+**Fit:** Credible secondary evaluation for a genuinely resource-oriented or interactive milestone,
+but not justified for the implemented read-only basic calendar.
 
 **License and weight:** DayPilot Lite is Apache License 2.0. It is a large dependency relative to a
 custom month grid.

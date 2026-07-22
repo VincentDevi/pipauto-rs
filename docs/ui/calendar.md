@@ -6,6 +6,9 @@ Calendar is an authenticated, read-only projection of interventions. It is not a
 appointment or generic event system. The MVP displays Month and Week views and starts new work
 through the existing active-vehicle-first intervention workflow.
 
+This page documents the implemented `GET /calendar` route. The follow-up interaction section is
+retained only to prevent informational entries and slots from being presented as active controls.
+
 Every intervention has a required start and estimated duration. Entries display the customer and
 vehicle identity captured at creation so later record edits do not rewrite historical presentation.
 
@@ -27,6 +30,10 @@ controls in these wireframes.
 | Primary action | New intervention; select an active vehicle before opening its form |
 | Navigation | Previous, Today, Next, Month, Week, and focused-day links are normal GET navigation |
 | Backend | Bounded overlap query, immutable customer/vehicle snapshots, workshop timezone, duration, midnight segments, and overlap layout |
+
+The application setting `business.workshop_timezone` must contain a valid IANA timezone (initially
+`Europe/Brussels`). It owns today, period boundaries, local labels, and intervention form parsing;
+there is no per-user timezone control.
 
 The route inventory includes the authenticated Calendar read path and responsive Month and Week
 views. Week presents all seven days together on wide screens and a normal-GET focused day on

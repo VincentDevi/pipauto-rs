@@ -27,8 +27,8 @@ The seven UI documents present and used by the expanded first-release design are
 6. [Technical knowledge](technical-knowledge.md)
 7. [Invoices and payments](invoices-payments.md)
 
-The Calendar document is approved design input for a planned route; it does not claim that the
-calendar is present in the current browser implementation.
+The Calendar document describes the implemented read-only Month/Week route. Its entry and slot
+interaction notes remain follow-up design boundaries, not current browser behavior.
 
 The implemented browser route inventory and current component/test contracts live in the
 [frontend guide](../frontend.md), which is authoritative when these preserved design documents

@@ -88,9 +88,9 @@ current mileage. Non-cancelled readings must remain non-decreasing through the d
 service-history chronology; this applies to current and backdated jobs. Changing a vehicle's
 current mileage never rewrites a historical intervention reading.
 
-The approved calendar milestone makes scheduling complete for every intervention before Pipauto is
-deployed. `service_date` becomes an unambiguous scheduled-start instant resolved from
-workshop-local input using a configured IANA timezone, initially `Europe/Brussels`. Every
+The implemented basic-calendar milestone makes scheduling complete for every intervention.
+`service_date` is an unambiguous scheduled-start instant resolved from workshop-local input using
+the required `business.workshop_timezone` IANA timezone setting, initially `Europe/Brussels`. Every
 intervention also requires an estimated duration from 30 minutes through 24 hours in 30-minute
 increments. Service-history and mileage chronology use the complete start instant, creation time,
 and intervention identifier, all descending.
@@ -213,7 +213,7 @@ The current high-level delivery sequence is:
 4. Design the application's UI wireframes.
 5. Implement a functional frontend for customers, vehicles, and interventions.
 6. Add image storage for vehicles, interventions, and technical notes.
-7. Add a basic calendar.
+7. Add a basic calendar (implemented).
 
 This sequence comes from high-level milestones, not a detailed implementation backlog. It communicates intended direction and may be refined as requirements and dependencies become clearer.
 
@@ -223,7 +223,7 @@ The following ideas are explicitly deferred and should not be included in the in
 
 - Sending invoices to customers by email.
 - Accepting contactless tap-to-pay payments through a compatible terminal.
-- Appointment reminders and broader appointment-planning capabilities beyond the planned basic calendar.
+- Appointment reminders and broader appointment-planning capabilities beyond the implemented basic calendar.
 - Inventory and parts management.
 - An AI mechanic assistant.
 

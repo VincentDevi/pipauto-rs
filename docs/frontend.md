@@ -2,8 +2,8 @@
 
 Pipauto's first-release frontend is server-rendered HTML with progressive HTMX enhancement. Every
 workshop workflow remains usable as ordinary links and URL-encoded forms when JavaScript is
-disabled. Calendar is an approved planned milestone but is not present in the current route
-inventory; this guide distinguishes its target contract from implemented browser behavior.
+disabled. The implemented Calendar is an authenticated, read-only Month/Week projection of
+interventions and follows the same server-owned navigation boundary.
 
 ## Runtime boundary
 
@@ -100,9 +100,8 @@ text zoom.
 
 ### Calendar component
 
-The authenticated `GET /calendar` route provides the server-rendered Month view and shared
-Calendar navigation. Week is a validated view target whose time geometry is delivered by the
-following calendar issue.
+The authenticated `GET /calendar` route provides server-rendered Month and Week views and shared
+Calendar navigation.
 
 - Month and Week are server-rendered from a period-bounded overlap query; Month is the default and
   weeks start Monday in the configured workshop timezone.
@@ -201,8 +200,8 @@ private-key, JWT, and Argon2-shaped values.
 ## Adding a page
 
 1. Confirm the workflow is in the initial-release scope and use the vocabulary in
-   `documentations/CONTEXT.md`. Additional Calendar behavior may become active only through its
-   owning milestone issue; do not activate export or another deferred capability incidentally.
+   `documentations/CONTEXT.md`. Additional Calendar interaction requires a later approved product
+   decision; do not activate export or another deferred capability incidentally.
 2. Add or extend a service workflow and presentation model. Keep database and API DTO types out of
    the view boundary.
 3. Add the controller route, classify it in `ROUTE_INVENTORY`, apply authentication/body-limit

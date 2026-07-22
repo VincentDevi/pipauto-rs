@@ -122,7 +122,9 @@ test('@calendar authenticated Month navigation and responsive entries work progr
     await expect(page.getByRole('heading', { name: /Tuesday 21 July 2026 · \d+ interventions/ })).toBeVisible();
     expect(await page.locator('.calendar-week-stacked-entries .calendar-entry').count()).toBeGreaterThanOrEqual(5);
     await expect(page.locator('.calendar-focused-timeline .calendar-time-row').last()).toContainText('23:30');
-    await page.getByRole('link', { name: /Wednesday 22 July 2026, \d+ interventions?/ }).click();
+    await page.getByRole('link', {
+      name: /Wednesday 22 July 2026(?:, Today)?, \d+ interventions?/,
+    }).click();
     await expect(page).toHaveURL(/view=week&date=2026-07-22$/);
     expect(await page.locator('.calendar-week-stacked-entries .calendar-entry').count()).toBeGreaterThanOrEqual(1);
     await expect(page.locator('.calendar-week-stacked-entries')).toContainText('Continues from the previous day');

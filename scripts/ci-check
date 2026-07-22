@@ -2,8 +2,8 @@
 set -euo pipefail
 
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly COMPOSE_PROJECT_NAME="pipauto-vin38-ci"
-readonly COMPOSE_FILE="$ROOT/compose.ci.yaml"
+readonly CI_COMPOSE_PROJECT_NAME="pipauto-vin38-ci"
+readonly CI_COMPOSE_FILE="$ROOT/compose.ci.yaml"
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE=(docker compose)
@@ -30,20 +30,27 @@ case "$SURREALDB_DATABASE" in
 esac
 
 cleanup() {
-  "${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
+  "${COMPOSE[@]}" --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" \
     down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+
+on_exit() {
+  local status=$?
+  trap - EXIT
+  cleanup
+  exit "$status"
+}
+trap on_exit EXIT
 
 cd "$ROOT"
 cargo fmt --check
 cargo check
 cargo clippy --all-targets --all-features -- -D warnings
 
-"${COMPOSE[@]}" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" \
+"${COMPOSE[@]}" --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" \
   up --detach --wait
 
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" COMPOSE_FILE="$COMPOSE_FILE" \
+COMPOSE_PROJECT_NAME="$CI_COMPOSE_PROJECT_NAME" COMPOSE_FILE="$CI_COMPOSE_FILE" \
   ./scripts/attachment-volume-smoke
 
 ./scripts/surrealkit test --parallel 2

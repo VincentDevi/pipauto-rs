@@ -55,11 +55,11 @@ copy to production-data operators.
 `--allow-shared-prune` as an ordinary command. If recovery ever appears to require it, stop and
 write a separate, reviewed procedure based on the specific incident and a verified backup.
 
-## Planned mandatory intervention scheduling rollout
+## Mandatory intervention scheduling rollout
 
-The calendar milestone deliberately replaces the complete date-only intervention contract before
-Pipauto is deployed. Every intervention will require one UTC scheduled-start instant resolved from
-workshop-local input, a valid estimated duration, and immutable customer and vehicle identity
+The calendar milestone replaced the complete date-only intervention contract before Pipauto was
+deployed. Every intervention requires one UTC scheduled-start instant resolved from workshop-local
+input, a valid estimated duration, and immutable customer and vehicle identity
 snapshots captured in the creation transaction. API writes accept exact local
 `YYYY-MM-DDTHH:MM` input; reads return the UTC instant and snapshots. The change is mandatory for
 all intervention workflows, not an optional field set used only by Calendar.
@@ -75,8 +75,20 @@ The reviewed artifact is
 `20260721133849__mandatory_intervention_scheduling_snapshots`. Its first manifest step asserts that
 the intervention table is empty, and the wrapper repeats that read-only preflight before rollout
 execution so operators receive explicit disposable-reset guidance. Neither path deletes records.
-After explicitly resetting a disposable development or test database, synchronize and seed it,
-then verify convergence before using it:
+For the persistent local Compose database, first confirm that every record and attachment may be
+discarded. Then use this explicit destructive reset/reseed path:
+
+```bash
+docker-compose down --volumes
+docker-compose up -d --wait surrealdb
+./scripts/surrealkit sync
+./scripts/surrealkit seed
+./scripts/surrealkit sync --dry-run
+```
+
+The reset deletes both the database and attachment volumes. Never run it for shared, staging,
+production, or otherwise valuable data. For another disposable development/test database whose
+lifecycle is managed separately, recreate it first, then synchronize, seed, and verify convergence:
 
 ```bash
 ./scripts/surrealkit sync
@@ -84,8 +96,8 @@ then verify convergence before using it:
 ./scripts/surrealkit sync --dry-run
 ```
 
-The following inventory is the handoff checklist for the schema, domain, persistence, API, and UI
-issues. A subsequent change is incomplete while any listed intervention path still treats
+The following inventory is the verification checklist for the schema, domain, persistence, API,
+and UI contract. The implementation is incomplete if any listed intervention path still treats
 `service_date` as a `NaiveDate`, converts it to UTC midnight, renders it without the configured
 workshop timezone, or seeds it without a time and duration. Invoice-only `NaiveDate` fields are not
 part of this breaking contract.
@@ -116,10 +128,25 @@ The complete date-only seed and fixture inventory is:
   `tests/requests/technical_note_browser.rs`, and
   `tests/requests/technical_notes_attachments.rs`.
 
-After those consumers and fixtures are updated, repository searches for intervention-related
+Repository searches for intervention-related
 `NaiveDate`, date-only `service_date` payloads, and UTC-midnight adapters are a required review
-check. Do not register `GET /calendar` during the data rollout; its owning browser issue must add
-the authenticated complete Calendar read path rather than a placeholder.
+check. The implemented authenticated `GET /calendar` route was registered only after the data,
+domain, query, and presentation contracts were complete; it is not a placeholder.
+
+### Calendar scheduling troubleshooting
+
+- If startup names `business.workshop_timezone`, confirm the selected configuration contains a
+  valid IANA timezone. Do not replace it with a numeric UTC offset or per-user value.
+- If intervention input is rejected, send JSON `service_date` in exact workshop-local
+  `YYYY-MM-DDTHH:MM` form and a duration from 30 through 1,440 minutes divisible by 30. DST gaps
+  and overlaps must be corrected by the user; the server does not guess an instant.
+- If the scheduling rollout or sync refuses existing intervention rows, stop. For an explicitly
+  disposable database, use the destructive reset/reseed workflow above. For any valuable data,
+  do not fabricate schedules or snapshots and do not run an automatic destructive migration;
+  obtain an approved preservation plan.
+- If Calendar is unavailable after schema verification, confirm `cargo loco routes` lists
+  `GET /calendar`, then check the ordinary application/database health paths. Calendar reads do
+  not create records, and retrying the route does not alter intervention history.
 
 ## Install the pinned tool
 

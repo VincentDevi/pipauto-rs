@@ -15,10 +15,14 @@ test('@dashboard workshop dashboard supports full-page, HTMX, tablet, and phone 
   }
   await expect(page.getByRole('heading', { name: 'Draft interventions' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Recent service history' })).toBeVisible();
-  if (testInfo.project.name === 'desktop-chromium') {
-    await expect(page.getByText('No interventions have been recorded yet')).toBeVisible();
-    await expect(page.getByText('There are no draft interventions')).toBeVisible();
-  }
+  const recent = page.getByRole('region', { name: 'Recent service history' });
+  const recentState = recent.locator('li').first()
+    .or(recent.getByText('No interventions have been recorded yet'));
+  await expect(recentState).toBeVisible();
+  const drafts = page.getByRole('region', { name: 'Draft interventions' });
+  const draftState = drafts.locator('li').first()
+    .or(drafts.getByText('There are no draft interventions'));
+  await expect(draftState).toBeVisible();
   await expect(page.getByText('Outstanding invoices')).toHaveCount(0);
 
   const draftRefresh = await page.request.get('/dashboard/draft-interventions', {

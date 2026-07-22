@@ -2,7 +2,7 @@
 
 ## 1. Summary
 
-Pipauto will provide an authenticated calendar that gives mechanics a clear view of their planned
+Pipauto provides an authenticated calendar that gives mechanics a clear view of their planned
 interventions. The calendar is a read-only projection of interventions, not a separate appointment
 or generic-event system.
 
@@ -33,7 +33,7 @@ month or week, using the intervention's scheduled start and estimated duration.
 
 ### 5.1 MVP
 
-- Add Calendar as a primary authenticated destination.
+- Provide Calendar as a primary authenticated destination.
 - Provide Month and Week views only, with Month as the default.
 - Provide Previous, Today, Next, and view-switching navigation.
 - Display every overlapping Draft and Completed intervention; exclude Cancelled interventions.
@@ -135,6 +135,7 @@ the intervention's captured values. Snapshot fields are not editable inputs.
 ### 8.1 Workshop timezone
 
 - Use a required application setting containing a valid IANA timezone.
+- The setting key is `business.workshop_timezone`; startup fails if it is missing or invalid.
 - The initial value is `Europe/Brussels`.
 - No timezone settings interface is included.
 - The workshop timezone determines today, Month and Week boundaries, form interpretation, and
@@ -177,9 +178,10 @@ The intervention model requires:
 - Immutable customer identifier and display-name snapshots.
 - Immutable optional vehicle registration plus required make and model snapshots.
 
-Pipauto has no deployed workshop data. Existing disposable development/test databases are reset
-and reseeded before adopting this contract. Schema rollout must refuse a data-bearing intervention
-table rather than delete records or invent missing values. There is no automatic backfill: a
+Pipauto had no deployed workshop data when this contract was adopted. Disposable development/test
+databases containing the pre-contract schema must be reset and reseeded before synchronization.
+Schema rollout refuses a data-bearing intervention table rather than delete records or invent
+missing values. There is no automatic backfill: a
 default time, duration, customer identity, or vehicle identity would fabricate service history.
 
 The `/api/v1` intervention create and update contracts use workshop-local `service_date` input and
@@ -222,7 +224,7 @@ half-hour axis on wide screens and one selected day's complete timeline on narro
 - **New intervention** starts the active-vehicle selection workflow.
 - Month and Week satisfy responsive, keyboard, no-JavaScript, and accessibility requirements.
 
-### Follow-up acceptance
+### Follow-up acceptance (not implemented in this milestone)
 
 - Draft entries open edit and Completed entries open immutable detail.
 - Week slots prefill date/time during creation.
