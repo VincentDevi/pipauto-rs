@@ -1,6 +1,6 @@
 # Pipauto repository instructions
 
-Before planning or implementing product work in this repository, read `documentations/CONTEXT.md` and use it as the product source of truth.
+Before planning or implementing product work in this repository, read `docs/CONTEXT.md` and use it as the product source of truth.
 
 - Keep the initial-release scope distinct from deferred ideas.
 - Prefer simple, practical workflows suitable for a mechanic using a phone, tablet, or desktop in a workshop.
@@ -8,7 +8,7 @@ Before planning or implementing product work in this repository, read `documenta
 - Use the domain terminology defined in the context document consistently.
 - Do not treat technologies mentioned during exploration as committed architecture unless a later approved decision documents them.
 - Do not invent product, billing, legal, security, deployment, API, or data-model requirements. Ask before making a consequential assumption or expanding scope.
-- When an approved product decision changes the context, update `documentations/CONTEXT.md` in the same change.
+- When an approved product decision changes the context, update `docs/CONTEXT.md` in the same change.
 
 # Rust Skills - Agent Instructions
 

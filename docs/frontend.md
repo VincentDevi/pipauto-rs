@@ -200,7 +200,7 @@ private-key, JWT, and Argon2-shaped values.
 ## Adding a page
 
 1. Confirm the workflow is in the initial-release scope and use the vocabulary in
-   `documentations/CONTEXT.md`. Additional Calendar interaction requires a later approved product
+   `docs/CONTEXT.md`. Additional Calendar interaction requires a later approved product
    decision; do not activate export or another deferred capability incidentally.
 2. Add or extend a service workflow and presentation model. Keep database and API DTO types out of
    the view boundary.

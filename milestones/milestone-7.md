@@ -741,7 +741,7 @@ documentation accurately describe the implemented calendar.
   workflow.
 - Run all domain, repository, service, API, request, rendering, route-inventory, and security tests.
 - Run all Playwright projects and representative Axe checks using the disposable browser database.
-- Update `documentations/CONTEXT.md`, `documentations/CALENDAR_PRD.md`, `docs/api-v1.md`,
+- Update `docs/CONTEXT.md`, `docs/CALENDAR_PRD.md`, `docs/api-v1.md`,
   `docs/frontend.md`, `docs/ui/calendar.md`, `docs/ui/README.md`, and the calendar UI plan to match
   implemented behavior and retain the MVP exclusions.
 - Document the timezone setting, local input format, UTC response format, duration contract,

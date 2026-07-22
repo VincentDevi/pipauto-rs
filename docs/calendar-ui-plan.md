@@ -3,7 +3,7 @@
 ## Status and sources
 
 This document records the implemented presentation architecture for the calendar described in
-[`documentations/CALENDAR_PRD.md`](../documentations/CALENDAR_PRD.md). The registered route,
+[`docs/CALENDAR_PRD.md`](CALENDAR_PRD.md). The registered route,
 templates, styles, and bounded backend query now exist; follow-up interaction remains unimplemented.
 
 The current implemented browser surface remains documented in [`docs/frontend.md`](frontend.md).

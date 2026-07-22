@@ -750,7 +750,7 @@ From a disposable database and bucket:
 - Update migration/operations documentation with the paired database-plus-volume backup and
   isolated restore rehearsal.
 - Update API documentation with multipart examples, DTOs, content headers, and safe errors.
-- Update `documentations/CONTEXT.md` to reflect the approved stored attachment lifecycle and
+- Update `docs/CONTEXT.md` to reflect the approved stored attachment lifecycle and
   deferred features.
 - Record the experimental SurrealDB dependency and the exact upgrade revalidation required before
   changing away from 3.2.1.

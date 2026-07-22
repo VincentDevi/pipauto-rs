@@ -524,4 +524,3 @@ All implementation work must preserve these rules:
 - Loco's Lightweight Service starter is used because Pipauto does not use Loco's SeaORM model stack.
 - Cargo resolves and locks compatible dependency versions during implementation; dependency declarations are never edited manually.
 - Implementation follows the current official [Loco project conventions](https://loco.rs/docs/the-app/your-project/), [Loco shared-service pattern](https://loco.rs/docs/extras/pluggability/), and [SurrealDB Rust SDK guidance](https://surrealdb.com/docs/languages/rust).
-
