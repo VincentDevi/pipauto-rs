@@ -1,32 +1,8 @@
-//! Authenticated workshop dashboard backed by existing intervention collection capabilities.
-
-use axum::{http::StatusCode, response::Response};
-use loco_rs::{
-    controller::{
-        extractor::shared_store::SharedStore, views::engines::TeraView, views::ViewEngine, Routes,
-    },
-    prelude::get,
-    Result,
-};
-
-use crate::{
-    controllers::browser::{
-        context::{BrowserRequestContext, ResponsePreference},
-        responses,
-    },
-    domain::{PageLimit, PageRequest},
-    models::intervention::{
-        InterventionFilter, InterventionModel as InterventionService, InterventionStatus,
-    },
-    views::{
-        dashboard::{DashboardPage, InterventionSection},
-        layout::AuthenticatedLayout,
-    },
-};
+use super::*;
 
 const PREVIEW_LIMIT: u16 = 5;
 
-async fn show(
+pub(super) async fn show(
     context: BrowserRequestContext,
     SharedStore(service): SharedStore<InterventionService>,
     ViewEngine(engine): ViewEngine<TeraView>,
@@ -36,11 +12,7 @@ async fn show(
         service.list(preview_request(Some(InterventionStatus::Draft))),
     );
     let page = DashboardPage::new(
-        AuthenticatedLayout::new(
-            &context.current_user,
-            context.csrf_token.expose(),
-            &context.current_path,
-        ),
+        context.layout(),
         &context.current_user.display_name,
         InterventionSection::recent(recent),
         InterventionSection::drafts(drafts),
@@ -53,7 +25,7 @@ async fn show(
     ))
 }
 
-async fn recent(
+pub(super) async fn recent(
     context: BrowserRequestContext,
     SharedStore(service): SharedStore<InterventionService>,
     ViewEngine(engine): ViewEngine<TeraView>,
@@ -65,7 +37,7 @@ async fn recent(
     )
 }
 
-async fn drafts(
+pub(super) async fn drafts(
     context: BrowserRequestContext,
     SharedStore(service): SharedStore<InterventionService>,
     ViewEngine(engine): ViewEngine<TeraView>,
@@ -81,7 +53,7 @@ async fn drafts(
     )
 }
 
-fn refresh_section(
+pub(super) fn refresh_section(
     context: BrowserRequestContext,
     section: InterventionSection,
     engine: &TeraView,
@@ -95,7 +67,9 @@ fn refresh_section(
     Ok(responses::fragment(StatusCode::OK, section.render(engine)?))
 }
 
-fn preview_request(status: Option<InterventionStatus>) -> PageRequest<InterventionFilter> {
+pub(super) fn preview_request(
+    status: Option<InterventionStatus>,
+) -> PageRequest<InterventionFilter> {
     PageRequest {
         filter: InterventionFilter {
             status,
@@ -107,14 +81,6 @@ fn preview_request(status: Option<InterventionStatus>) -> PageRequest<Interventi
 }
 
 /// Routes owned by the workshop dashboard.
-#[must_use]
-pub fn routes() -> Routes {
-    Routes::new()
-        .add("/", get(show))
-        .add("/dashboard/recent-interventions", get(recent))
-        .add("/dashboard/draft-interventions", get(drafts))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

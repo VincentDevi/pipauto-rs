@@ -16,7 +16,7 @@ use crate::{
         settings::AuthSettings,
     },
     models::auth::{AuthenticationModel as AuthService, UserId},
-    views::context::PresentationUser,
+    views::{context::PresentationUser, layout::AuthenticatedLayout},
 };
 
 /// Validated local absolute path suitable for a same-origin redirect.
@@ -78,6 +78,18 @@ pub struct BrowserRequestContext {
     pub current_path: String,
     pub return_path: Option<LocalReturnPath>,
     pub response_preference: ResponsePreference,
+}
+
+impl BrowserRequestContext {
+    /// Build the common authenticated page layout from presentation-safe request state.
+    #[must_use]
+    pub fn layout(&self) -> AuthenticatedLayout<'_> {
+        AuthenticatedLayout::new(
+            &self.current_user,
+            self.csrf_token.expose(),
+            &self.current_path,
+        )
+    }
 }
 
 impl<S> FromRequestParts<S> for BrowserRequestContext

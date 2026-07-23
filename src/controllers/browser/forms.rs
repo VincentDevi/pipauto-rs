@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::{
     auth::csrf::AuthenticatedCsrfForm,
-    domain::{FieldPath, ValidationErrors},
+    domain::{FieldPath, ValidationCode, ValidationError, ValidationErrors},
 };
 
 /// Conservative default for URL-encoded authenticated browser forms.
@@ -19,6 +19,45 @@ pub type AuthenticatedForm<T> = AuthenticatedCsrfForm<T>;
 /// Route layer required on each unsafe browser form handler.
 pub fn body_limit() -> DefaultBodyLimit {
     DefaultBodyLimit::max(DEFAULT_FORM_BODY_LIMIT)
+}
+
+/// Parse a non-negative decimal currency input into minor units.
+pub(crate) fn parse_minor_units(value: &str) -> Result<i64, ()> {
+    if value.is_empty() || value.trim() != value || value.starts_with('+') {
+        return Err(());
+    }
+    let (whole, fraction) = value.split_once('.').map_or((value, ""), |parts| parts);
+    if whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || fraction.len() > 2
+        || (value.contains('.') && fraction.is_empty())
+        || !fraction.bytes().all(|byte| byte.is_ascii_digit())
+        || value.matches('.').count() > 1
+    {
+        return Err(());
+    }
+    let whole = whole.parse::<i64>().map_err(|_| ())?;
+    let fraction = match fraction.len() {
+        0 => 0,
+        1 => fraction.parse::<i64>().map_err(|_| ())? * 10,
+        2 => fraction.parse::<i64>().map_err(|_| ())?,
+        _ => return Err(()),
+    };
+    whole
+        .checked_mul(100)
+        .and_then(|minor| minor.checked_add(fraction))
+        .ok_or(())
+}
+
+/// Preserve non-empty submitted text while treating whitespace-only input as absent.
+pub(crate) fn optional_text(value: &str) -> Option<String> {
+    (!value.trim().is_empty()).then(|| value.to_owned())
+}
+
+/// Construct a validation error for an invalid browser input format.
+pub(crate) fn invalid_format_error(field: &str, message: &str) -> ValidationError {
+    ValidationError::new(field, ValidationCode::InvalidFormat, message)
+        .expect("static validation metadata is valid")
 }
 
 /// One stable, presentation-safe field failure.
@@ -125,5 +164,14 @@ mod tests {
 
         assert_eq!(state.values.display_name, "  Filippo  ");
         assert_eq!(state.errors.for_field(&field)[0].code, "required");
+    }
+
+    #[test]
+    fn minor_unit_parser_preserves_strict_decimal_behavior() {
+        assert_eq!(parse_minor_units("12.3"), Ok(1_230));
+        assert_eq!(parse_minor_units("12.30"), Ok(1_230));
+        for invalid in ["", " 12", "+12", "12.", "12.345", "-1"] {
+            assert_eq!(parse_minor_units(invalid), Err(()));
+        }
     }
 }

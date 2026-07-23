@@ -841,7 +841,7 @@ impl Hooks for App {
 pub fn app_routes() -> AppRoutes {
     AppRoutes::with_default_routes()
         .add_routes(crate::controllers::browser::routes())
-        .add_route(crate::controllers::surrealdb_health::routes())
+        .add_route(crate::controllers::health::routes())
         .add_routes(crate::controllers::api_v1::routes())
 }
 

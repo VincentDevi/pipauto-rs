@@ -11,7 +11,7 @@ use axum::{
 };
 
 use super::context::ResponsePreference;
-use crate::auth::extractors::append_vary_hx_request;
+use crate::{auth::extractors::append_vary_hx_request, models::ModelError};
 
 #[must_use]
 pub fn full_page(status: StatusCode, html: String) -> Response {
@@ -56,6 +56,23 @@ pub fn redirect(preference: ResponsePreference, destination: &str) -> Response {
     };
     append_vary_hx_request(response.headers_mut());
     sensitive(response)
+}
+
+/// Map a model workflow failure while keeping domain-specific unavailable copy at the call site.
+#[must_use]
+pub fn workflow_error(
+    preference: ResponsePreference,
+    error: ModelError,
+    resource: &str,
+    unavailable_message: &str,
+) -> Response {
+    match error {
+        ModelError::NotFound => not_found(preference, resource),
+        ModelError::Unavailable => unavailable(preference, unavailable_message),
+        ModelError::Validation(_) | ModelError::Conflict | ModelError::Internal => {
+            unexpected(preference)
+        }
+    }
 }
 
 #[must_use]

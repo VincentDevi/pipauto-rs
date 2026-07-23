@@ -286,8 +286,8 @@ fn intervention_rollout_contains_no_data_deletion_step() {
 fn startup_health_and_readiness_paths_do_not_apply_schema_or_reset_data() {
     let read_only_paths = [
         include_str!("../../src/initializers/surrealdb.rs"),
-        include_str!("../../src/controllers/setup.rs"),
-        include_str!("../../src/controllers/surrealdb_health.rs"),
+        include_str!("../../src/controllers/browser/setup/status.rs"),
+        include_str!("../../src/controllers/health/mod.rs"),
     ];
     for source in read_only_paths {
         for forbidden in [

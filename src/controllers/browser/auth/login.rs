@@ -1,43 +1,11 @@
-//! Server-rendered login and logout browser flow.
-
-use crate::{
-    auth::{
-        cookies::AuthCookies,
-        csrf::{CsrfService, GuestLoginCsrfForm, LogoutCsrfForm},
-        extractors::{append_vary_hx_request, safe_next_destination, OptionalCurrentUser},
-    },
-    models::auth::{AuthenticationModel as AuthService, LoginCommand, LoginError},
-    views::auth::{AuthenticationUnavailableView, LoginView},
-};
-use axum::{
-    extract::{ConnectInfo, DefaultBodyLimit, Extension, Query},
-    http::{
-        header::{CACHE_CONTROL, LOCATION, RETRY_AFTER},
-        HeaderMap, HeaderValue, StatusCode,
-    },
-    response::{IntoResponse, Response},
-};
-use axum_extra::extract::cookie::CookieJar;
-use chrono::Utc;
-use loco_rs::{
-    controller::extractor::shared_store::SharedStore,
-    controller::{format, views::engines::TeraView, views::ViewEngine, Routes},
-    prelude::{get, post},
-    Result,
-};
-use serde::Deserialize;
-use std::{fmt::Write as _, net::SocketAddr};
-
-const AUTH_FORM_BODY_LIMIT: usize = 4 * 1_024;
-const MAX_RETRY_AFTER_SECONDS: i64 = 300;
-
+use super::*;
 #[derive(Default, Deserialize)]
-struct LoginQuery {
+pub(super) struct LoginQuery {
     next: Option<String>,
 }
 
 #[derive(Deserialize)]
-struct LoginForm {
+pub(super) struct LoginForm {
     #[serde(default)]
     email: String,
     #[serde(default)]
@@ -47,9 +15,9 @@ struct LoginForm {
 }
 
 #[derive(Deserialize)]
-struct LogoutForm {}
+pub(super) struct LogoutForm {}
 
-async fn show_login(
+pub(super) async fn show_login(
     optional_user: OptionalCurrentUser,
     Query(query): Query<LoginQuery>,
     headers: HeaderMap,
@@ -88,7 +56,7 @@ async fn show_login(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn login(
+pub(super) async fn login(
     headers: HeaderMap,
     jar: CookieJar,
     connect_info: Option<Extension<ConnectInfo<SocketAddr>>>,
@@ -179,34 +147,7 @@ async fn login(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn logout(
-    headers: HeaderMap,
-    jar: CookieJar,
-    SharedStore(cookies): SharedStore<AuthCookies>,
-    SharedStore(service): SharedStore<AuthService>,
-    ViewEngine(engine): ViewEngine<TeraView>,
-    validated: LogoutCsrfForm<LogoutForm>,
-) -> Result<Response> {
-    let htmx = is_htmx(&headers);
-    let outcome = service.logout(validated.encoded_jwt()).await;
-    let jar = jar.add(cookies.clear_session());
-    match outcome {
-        Ok(_) => Ok(with_no_store(
-            (jar, redirect("/login", htmx)).into_response(),
-        )),
-        Err(_) => {
-            let response = render_unavailable(
-                &engine,
-                "Your browser was signed out, but server-side logout could not be confirmed. Please try again before signing back in.",
-                htmx,
-            )?;
-            Ok(with_no_store((jar, response).into_response()))
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_login_error(
+pub(super) fn render_login_error(
     engine: &TeraView,
     email: &str,
     next: &str,
@@ -235,13 +176,13 @@ fn render_login_error(
     Ok(with_no_store(response))
 }
 
-fn is_htmx(headers: &HeaderMap) -> bool {
+pub(super) fn is_htmx(headers: &HeaderMap) -> bool {
     headers
         .get("HX-Request")
         .is_some_and(|value| value == "true")
 }
 
-fn redirect(destination: &str, htmx: bool) -> Response {
+pub(super) fn redirect(destination: &str, htmx: bool) -> Response {
     if htmx {
         let mut response = StatusCode::OK.into_response();
         if let Ok(value) = HeaderValue::from_str(destination) {
@@ -256,14 +197,14 @@ fn redirect(destination: &str, htmx: bool) -> Response {
     }
 }
 
-fn with_no_store(mut response: Response) -> Response {
+pub(super) fn with_no_store(mut response: Response) -> Response {
     response
         .headers_mut()
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
 }
 
-fn with_optional_stale_cookie(
+pub(super) fn with_optional_stale_cookie(
     response: Response,
     jar: &CookieJar,
     cookies: &AuthCookies,
@@ -276,7 +217,7 @@ fn with_optional_stale_cookie(
     }
 }
 
-fn render_unavailable(engine: &TeraView, message: &str, htmx: bool) -> Result<Response> {
+pub(super) fn render_unavailable(engine: &TeraView, message: &str, htmx: bool) -> Result<Response> {
     let correlation_id = correlation_id();
     tracing::error!(correlation_id, "authentication request unavailable");
     let view = AuthenticationUnavailableView::new(message, &correlation_id);
@@ -295,7 +236,7 @@ fn render_unavailable(engine: &TeraView, message: &str, htmx: bool) -> Result<Re
     Ok(with_no_store(response))
 }
 
-fn correlation_id() -> String {
+pub(super) fn correlation_id() -> String {
     let mut random = [0_u8; 8];
     if getrandom::fill(&mut random).is_err() {
         return "auth-unavailable".to_owned();
@@ -309,20 +250,6 @@ fn correlation_id() -> String {
 }
 
 /// Authentication routes.
-#[must_use]
-pub fn routes() -> Routes {
-    Routes::new()
-        .add("/login", get(show_login))
-        .add(
-            "/login",
-            post(login).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
-        )
-        .add(
-            "/logout",
-            post(logout).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
-        )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

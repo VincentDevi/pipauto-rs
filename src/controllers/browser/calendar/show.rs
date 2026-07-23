@@ -1,50 +1,6 @@
-//! Authenticated Calendar query parsing and server-rendered Month and Week responses.
-
-use axum::{
-    extract::RawQuery,
-    http::{HeaderValue, StatusCode},
-    response::Response,
-};
-use chrono::NaiveDate;
-use loco_rs::{
-    controller::{
-        extractor::shared_store::SharedStore, views::engines::TeraView, views::ViewEngine, Routes,
-    },
-    prelude::get,
-    Result,
-};
-
-use crate::{
-    controllers::browser::{context::BrowserRequestContext, responses},
-    models::{calendar::CalendarModel as CalendarService, ModelError as WorkflowError},
-    views::{
-        calendar::{CalendarBrowserPage, CalendarPage, CalendarState},
-        layout::AuthenticatedLayout,
-    },
-};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RequestedView {
-    Month,
-    Week,
-}
-
-impl RequestedView {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Month => "month",
-            Self::Week => "week",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct CalendarQuery {
-    view: RequestedView,
-    date: Option<NaiveDate>,
-}
-
-async fn show(
+use super::query::*;
+use super::*;
+pub(super) async fn show(
     context: BrowserRequestContext,
     SharedStore(service): SharedStore<CalendarService>,
     ViewEngine(engine): ViewEngine<TeraView>,
@@ -56,7 +12,7 @@ async fn show(
         Ok(query) => query,
         Err(()) => {
             let view = CalendarBrowserPage::state(
-                layout(&context),
+                context.layout(),
                 today,
                 today,
                 timezone,
@@ -96,8 +52,8 @@ async fn show(
         }
     };
     let view = match query.view {
-        RequestedView::Month => CalendarBrowserPage::month(layout(&context), page, today, timezone),
-        RequestedView::Week => CalendarBrowserPage::week(layout(&context), page, today, timezone),
+        RequestedView::Month => CalendarBrowserPage::month(context.layout(), page, today, timezone),
+        RequestedView::Week => CalendarBrowserPage::week(context.layout(), page, today, timezone),
     };
     let view = match view {
         Ok(view) => view,
@@ -109,7 +65,7 @@ async fn show(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_workflow_error(
+pub(super) fn render_workflow_error(
     context: &BrowserRequestContext,
     engine: &TeraView,
     service: &CalendarService,
@@ -121,7 +77,7 @@ fn render_workflow_error(
     match error {
         WorkflowError::Validation(_) => {
             let view = CalendarBrowserPage::state(
-                layout(context),
+                context.layout(),
                 anchor,
                 today,
                 service.workshop_time().timezone().to_string(),
@@ -142,7 +98,7 @@ fn render_workflow_error(
         }
         WorkflowError::Unavailable => {
             let view = CalendarBrowserPage::state(
-                layout(context),
+                context.layout(),
                 anchor,
                 today,
                 service.workshop_time().timezone().to_string(),
@@ -163,7 +119,7 @@ fn render_workflow_error(
     }
 }
 
-fn render_unexpected(
+pub(super) fn render_unexpected(
     context: &BrowserRequestContext,
     engine: &TeraView,
     service: &CalendarService,
@@ -179,7 +135,7 @@ fn render_unexpected(
         "calendar browser rendering failed"
     );
     let view = CalendarBrowserPage::state(
-        layout(context),
+        context.layout(),
         anchor,
         today,
         service.workshop_time().timezone().to_string(),
@@ -200,7 +156,7 @@ fn render_unexpected(
     Ok(response)
 }
 
-fn render(
+pub(super) fn render(
     context: &BrowserRequestContext,
     engine: &TeraView,
     view: &CalendarBrowserPage<'_>,
@@ -212,84 +168,4 @@ fn render(
         view.render_page(engine)?,
         view.render_region(engine)?,
     ))
-}
-
-fn parse_query(raw_query: Option<&str>) -> Result<CalendarQuery, ()> {
-    let mut view = None;
-    let mut date = None;
-    for (key, value) in url::form_urlencoded::parse(raw_query.unwrap_or_default().as_bytes()) {
-        match key.as_ref() {
-            "view" if view.is_none() => {
-                view = Some(match value.as_ref() {
-                    "month" => RequestedView::Month,
-                    "week" => RequestedView::Week,
-                    _ => return Err(()),
-                });
-            }
-            "date" if date.is_none() => {
-                let value = value.as_ref();
-                if value.len() != 10
-                    || value.as_bytes().get(4) != Some(&b'-')
-                    || value.as_bytes().get(7) != Some(&b'-')
-                {
-                    return Err(());
-                }
-                date = Some(NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| ())?);
-            }
-            _ => return Err(()),
-        }
-    }
-    Ok(CalendarQuery {
-        view: view.unwrap_or(RequestedView::Month),
-        date,
-    })
-}
-
-fn calendar_href(view: RequestedView, date: NaiveDate) -> String {
-    format!("/calendar?view={}&date={date}", view.as_str())
-}
-
-fn layout(context: &BrowserRequestContext) -> AuthenticatedLayout<'_> {
-    AuthenticatedLayout::new(
-        &context.current_user,
-        context.csrf_token.expose(),
-        &context.current_path,
-    )
-}
-
-#[must_use]
-pub fn routes() -> Routes {
-    Routes::new().add("/calendar", get(show))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn calendar_query_accepts_only_reproducible_view_and_date_values() {
-        assert_eq!(
-            parse_query(None),
-            Ok(CalendarQuery {
-                view: RequestedView::Month,
-                date: None,
-            })
-        );
-        assert_eq!(
-            parse_query(Some("view=week&date=2026-07-21")),
-            Ok(CalendarQuery {
-                view: RequestedView::Week,
-                date: NaiveDate::from_ymd_opt(2026, 7, 21),
-            })
-        );
-        for invalid in [
-            "view=day",
-            "date=2026-7-21",
-            "date=2026-02-30",
-            "date=2026-07-21&date=2026-07-22",
-            "view=month&cursor=opaque",
-        ] {
-            assert!(parse_query(Some(invalid)).is_err(), "accepted {invalid}");
-        }
-    }
 }

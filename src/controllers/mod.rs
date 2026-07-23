@@ -4,14 +4,6 @@
 //! business rules, issue database queries, or depend directly on persistence adapters.
 
 pub mod api_v1;
-pub mod attachments;
-pub mod auth;
 pub mod browser;
-pub mod customers;
-pub mod dashboard;
-pub mod interventions;
-pub mod invoices;
-pub mod setup;
-pub mod surrealdb_health;
-pub mod technical_notes;
-pub mod vehicles;
+pub mod health;
+pub(crate) mod shared;

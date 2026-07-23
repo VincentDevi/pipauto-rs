@@ -5,6 +5,13 @@
 
 use loco_rs::controller::Routes;
 
+mod attachments;
+mod customers;
+mod interventions;
+mod invoices;
+mod technical_notes;
+mod vehicles;
+
 pub const API_V1_PREFIX: &str = "/api/v1";
 
 /// Apply the shared API prefix and response policy to one domain controller's routes.
@@ -24,12 +31,12 @@ pub fn mount(routes: Routes) -> Routes {
 #[must_use]
 pub fn routes() -> Vec<Routes> {
     vec![
-        mount(crate::controllers::customers::routes()),
-        mount(crate::controllers::vehicles::routes()),
-        mount(crate::controllers::interventions::routes()),
-        mount(crate::controllers::technical_notes::routes()),
-        mount(crate::controllers::attachments::routes()),
-        mount(crate::controllers::invoices::routes()),
+        mount(customers::routes()),
+        mount(vehicles::routes()),
+        mount(interventions::routes()),
+        mount(technical_notes::routes()),
+        mount(attachments::routes()),
+        mount(invoices::routes()),
     ]
 }
 
