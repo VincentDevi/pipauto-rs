@@ -37,15 +37,20 @@ mod logout;
 use login::*;
 use logout::*;
 
-pub fn routes() -> Routes {
-    Routes::new()
-        .add("/login", get(show_login))
-        .add(
-            "/login",
-            post(login).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
-        )
-        .add(
-            "/logout",
-            post(logout).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
-        )
+/// Guest-only sign-in routes.
+#[must_use]
+pub fn guest_routes() -> Routes {
+    Routes::new().add("/login", get(show_login)).add(
+        "/login",
+        post(login).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
+    )
+}
+
+/// Authenticated sign-out route.
+#[must_use]
+pub fn authenticated_routes() -> Routes {
+    Routes::new().add(
+        "/logout",
+        post(logout).layer(DefaultBodyLimit::max(AUTH_FORM_BODY_LIMIT)),
+    )
 }

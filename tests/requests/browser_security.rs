@@ -1,10 +1,10 @@
 use std::{fs, path::Path};
 
-use pipauto::{app::AccessClass, controllers::browser::ROUTE_INVENTORY};
+use pipauto::{controllers::browser::route_inventory, routing::AccessClass};
 
 #[test]
 fn browser_security_requires_authentication_for_every_private_route() {
-    assert!(ROUTE_INVENTORY
+    assert!(route_inventory()
         .iter()
         .all(|route| route.path == "/login" || route.class == AccessClass::Authenticated));
 }

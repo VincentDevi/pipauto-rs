@@ -57,10 +57,11 @@ fn route_body_limits_cover_every_unsafe_non_upload_route() {
     ];
 
     for (controller, source) in controller_sources {
-        let routes = source
-            .split_once("pub fn routes()")
-            .unwrap_or_else(|| panic!("{controller} must expose a routes function"))
-            .1;
+        let route_composition = source
+            .find("pub fn routes()")
+            .or_else(|| source.find("pub fn guest_routes()"))
+            .unwrap_or_else(|| panic!("{controller} must expose route composition"));
+        let routes = &source[route_composition..];
         for route in routes.split(".add(").skip(1) {
             let unsafe_method = ["post(", "patch(", "delete(", "put("]
                 .iter()

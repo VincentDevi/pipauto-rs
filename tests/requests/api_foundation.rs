@@ -16,12 +16,13 @@ use chrono::{TimeDelta, Utc};
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     api::DataEnvelope,
-    app::{AccessClass, App, ROUTE_ACCESS_POLICY},
+    app::{route_access_inventory, App},
     auth::{
         csrf::{AuthenticatedCsrfJson, CsrfService},
         extractors::CurrentUser,
     },
     models::auth::AuthenticationModel as AuthService,
+    routing::AccessClass,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -311,11 +312,12 @@ async fn every_business_route_rejects_guests_and_unsafe_csrf_failures() {
         .expose()
         .to_owned();
 
-    for route in ROUTE_ACCESS_POLICY.iter().filter(|route| {
+    let route_inventory = route_access_inventory();
+    for route in route_inventory.iter().filter(|route| {
         route.class == AccessClass::Authenticated && route.path.starts_with("/api/v1/")
     }) {
-        let method = Method::from_bytes(route.method.as_bytes()).expect("method should be valid");
-        let uri = concrete_uri(route.path);
+        let method = route.method.clone();
+        let uri = concrete_uri(&route.path);
         let guest = axum::http::Request::builder()
             .method(method.clone())
             .uri(&uri)

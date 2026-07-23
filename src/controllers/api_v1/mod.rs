@@ -5,6 +5,8 @@
 
 use loco_rs::controller::Routes;
 
+use crate::routing::{AccessClass, ClassifiedRoutes};
+
 mod attachments;
 mod customers;
 mod interventions;
@@ -24,20 +26,26 @@ pub fn mount(routes: Routes) -> Routes {
         ))
 }
 
-/// Compose all API domain controllers.
-///
-/// VIN-45 establishes the transport boundary. Domain routes are added here by VIN-46 through
-/// VIN-49 and must also be declared authenticated in `ROUTE_ACCESS_POLICY`.
+/// Compose all API domain controllers as authenticated groups.
+#[must_use]
+pub fn route_groups() -> Vec<ClassifiedRoutes> {
+    vec![
+        ClassifiedRoutes::new(mount(customers::routes()), AccessClass::Authenticated),
+        ClassifiedRoutes::new(mount(vehicles::routes()), AccessClass::Authenticated),
+        ClassifiedRoutes::new(mount(interventions::routes()), AccessClass::Authenticated),
+        ClassifiedRoutes::new(mount(technical_notes::routes()), AccessClass::Authenticated),
+        ClassifiedRoutes::new(mount(attachments::routes()), AccessClass::Authenticated),
+        ClassifiedRoutes::new(mount(invoices::routes()), AccessClass::Authenticated),
+    ]
+}
+
+/// Return the API route registry used by Loco.
 #[must_use]
 pub fn routes() -> Vec<Routes> {
-    vec![
-        mount(customers::routes()),
-        mount(vehicles::routes()),
-        mount(interventions::routes()),
-        mount(technical_notes::routes()),
-        mount(attachments::routes()),
-        mount(invoices::routes()),
-    ]
+    route_groups()
+        .into_iter()
+        .map(ClassifiedRoutes::into_routes)
+        .collect()
 }
 
 #[cfg(test)]

@@ -1,30 +1,42 @@
 use std::{fs, path::Path};
 
+use axum::http::Method;
 use pipauto::{
-    app::{AccessClass, ROUTE_ACCESS_POLICY},
-    controllers::browser::ROUTE_INVENTORY,
+    app::route_access_inventory,
+    controllers::browser::route_inventory,
+    routing::{AccessClass, RouteAccess},
 };
 
 #[test]
 fn browser_foundation_has_an_auditable_authenticated_route_inventory() {
-    assert!(ROUTE_INVENTORY
+    let browser_inventory = route_inventory();
+    let login_routes = browser_inventory
+        .iter()
+        .filter(|route| route.path == "/login")
+        .collect::<Vec<_>>();
+    assert_eq!(login_routes.len(), 2);
+    assert!(login_routes
+        .iter()
+        .all(|route| route.class == AccessClass::GuestOnly));
+    assert!(browser_inventory
         .iter()
         .filter(|route| route.path != "/login")
         .all(|route| route.class == AccessClass::Authenticated));
-    for browser_route in ROUTE_INVENTORY {
-        assert!(ROUTE_ACCESS_POLICY.contains(browser_route));
+    let complete_inventory = route_access_inventory();
+    for browser_route in browser_inventory {
+        assert!(complete_inventory.contains(&browser_route));
     }
 }
 
 #[test]
 fn browser_route_inventory_includes_the_authenticated_calendar_read_path() {
-    let calendar = pipauto::app::RouteAccess {
-        method: "GET",
-        path: "/calendar",
+    let calendar = RouteAccess {
+        method: Method::GET,
+        path: "/calendar".to_owned(),
         class: AccessClass::Authenticated,
     };
-    assert!(ROUTE_INVENTORY.contains(&calendar));
-    assert!(ROUTE_ACCESS_POLICY.contains(&calendar));
+    assert!(route_inventory().contains(&calendar));
+    assert!(route_access_inventory().contains(&calendar));
 }
 
 #[test]

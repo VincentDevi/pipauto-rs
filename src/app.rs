@@ -12,765 +12,13 @@ use loco_rs::{
     Result,
 };
 
-/// Server-enforced access class declared for every registered application route.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AccessClass {
-    /// Non-sensitive infrastructure response available without a session.
-    Public,
-    /// Sign-in workflow available only before authentication.
-    GuestOnly,
-    /// Workshop workflow requiring an active session.
-    Authenticated,
-}
+use crate::routing::{AccessClass, ClassifiedRoutes, RouteAccess};
 
-/// Auditable route declaration paired with its access class.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct RouteAccess {
-    /// HTTP method emitted by Loco's route registry.
-    pub method: &'static str,
-    /// Exact registered path.
-    pub path: &'static str,
-    /// Required access boundary.
-    pub class: AccessClass,
-}
-
-/// Complete access policy for Loco-managed routes. Static assets are middleware-managed and public.
-pub const ROUTE_ACCESS_POLICY: &[RouteAccess] = &[
-    RouteAccess {
-        method: "GET",
-        path: "/",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/dashboard/recent-interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/dashboard/draft-interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/calendar",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/_health",
-        class: AccessClass::Public,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/_health/surrealdb",
-        class: AccessClass::Public,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/_ping",
-        class: AccessClass::Public,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/_readiness",
-        class: AccessClass::Public,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/login",
-        class: AccessClass::GuestOnly,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/login",
-        class: AccessClass::GuestOnly,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/logout",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/setup/status",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/customers",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/customers",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/customers/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/customers/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/customers/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/customers/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/customers/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/customers/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/customers/{id}/vehicles/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}/reassign",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/reassign",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}/history",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}/interventions/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/vehicles/{id}/attachments/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/vehicles/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/attachments/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/attachments/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/attachments/{id}/delete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/attachments/{id}/content",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/attachments/{id}/download",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/lines/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/lines/{line_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/lines/{line_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/lines/{line_id}/delete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/lines/{line_id}/move-up",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/lines/{line_id}/move-down",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/attachments/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/attachments/{attachment_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/attachments/{attachment_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/attachments/{attachment_id}/delete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/complete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/complete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/interventions/{id}/cancel",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/interventions/{id}/cancel",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge/{id}/attachments/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/knowledge/{id}/attachments/{attachment_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/attachments/{attachment_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/knowledge/{id}/attachments/{attachment_id}/delete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/issue",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/issue",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/payments/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/payments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/void",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/void",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/lines/new",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/invoices/{id}/lines/{line_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/lines/{line_id}/edit",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/lines/{line_id}/delete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/lines/{line_id}/move-up",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/invoices/{id}/lines/{line_id}/move-down",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/customers",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/customers",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/customers/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/customers/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/customers/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/customers/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/customers/{id}/vehicles",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/vehicles",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/vehicles",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/vehicles/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/vehicles/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/vehicles/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/vehicles/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/vehicles/{id}/service-history",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/interventions",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/interventions/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/interventions/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/interventions/{id}/complete",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/interventions/{id}/cancel",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/interventions/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/interventions/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/interventions/{id}/lines/{line_id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "DELETE",
-        path: "/api/v1/interventions/{id}/lines/{line_id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/technical-notes",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/technical-notes",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/technical-notes/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/technical-notes/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/technical-notes/{id}/archive",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/technical-notes/{id}/restore",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/vehicles/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/vehicles/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/interventions/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/interventions/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/technical-notes/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/technical-notes/{id}/attachments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/attachments/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/attachments/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "DELETE",
-        path: "/api/v1/attachments/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/attachments/{id}/content",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/attachments/{id}/download",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/invoices",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/invoices",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/invoices/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/invoices/{id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/invoices/{id}/issue",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/invoices/{id}/void",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/invoices/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/invoices/{id}/lines",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "PATCH",
-        path: "/api/v1/invoices/{id}/lines/{line_id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "DELETE",
-        path: "/api/v1/invoices/{id}/lines/{line_id}",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/invoices/{id}/payments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "POST",
-        path: "/api/v1/invoices/{id}/payments",
-        class: AccessClass::Authenticated,
-    },
-    RouteAccess {
-        method: "GET",
-        path: "/api/v1/payments/{id}",
-        class: AccessClass::Authenticated,
-    },
+#[cfg(test)]
+const PINNED_FRAMEWORK_DEFAULT_ROUTES: &[(&str, &str)] = &[
+    ("GET", "/_health"),
+    ("GET", "/_ping"),
+    ("GET", "/_readiness"),
 ];
 
 /// Pipauto's Loco application definition.
@@ -836,23 +84,71 @@ impl Hooks for App {
     }
 }
 
-/// Compose the route registry used by both Loco and the access-policy regression test.
+fn application_route_groups() -> Vec<ClassifiedRoutes> {
+    let mut groups = crate::controllers::browser::route_groups();
+    groups.push(ClassifiedRoutes::new(
+        crate::controllers::health::routes(),
+        AccessClass::Public,
+    ));
+    groups.extend(crate::controllers::api_v1::route_groups());
+    groups
+}
+
+fn framework_default_route_inventory() -> Vec<RouteAccess> {
+    crate::routing::inventory_for(AppRoutes::with_default_routes(), AccessClass::Public)
+}
+
+/// Compose the route registry used by Loco.
 #[must_use]
 pub fn app_routes() -> AppRoutes {
-    AppRoutes::with_default_routes()
-        .add_routes(crate::controllers::browser::routes())
-        .add_route(crate::controllers::health::routes())
-        .add_routes(crate::controllers::api_v1::routes())
+    application_route_groups()
+        .into_iter()
+        .fold(AppRoutes::with_default_routes(), |routes, group| {
+            routes.add_route(group.into_routes())
+        })
+}
+
+/// Generate the access-policy inventory for every Loco-managed route.
+#[must_use]
+pub fn route_access_inventory() -> Vec<RouteAccess> {
+    let mut inventory = framework_default_route_inventory();
+    inventory.extend(
+        application_route_groups()
+            .iter()
+            .flat_map(ClassifiedRoutes::inventory),
+    );
+    inventory
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
 
+    fn signatures(routes: &[RouteAccess]) -> BTreeSet<(String, String)> {
+        routes
+            .iter()
+            .map(|route| (route.method.to_string(), route.path.clone()))
+            .collect()
+    }
+
     #[test]
-    fn protected_routes_require_an_access_class_for_every_registered_route() {
+    fn framework_default_routes_are_explicitly_pinned() {
+        let actual = signatures(&framework_default_route_inventory());
+        let expected = PINNED_FRAMEWORK_DEFAULT_ROUTES
+            .iter()
+            .map(|(method, path)| ((*method).to_owned(), (*path).to_owned()))
+            .collect();
+
+        assert_eq!(
+            actual, expected,
+            "review Loco framework route changes before classifying them as public"
+        );
+    }
+
+    #[test]
+    fn generated_policy_matches_every_registered_route_once() {
         let registered = app_routes()
             .collect()
             .into_iter()
@@ -863,19 +159,49 @@ mod tests {
                     .map(move |method| (method.to_string(), route.uri.clone()))
             })
             .collect::<BTreeSet<_>>();
-        let declared = ROUTE_ACCESS_POLICY
-            .iter()
-            .map(|route| (route.method.to_owned(), route.path.to_owned()))
-            .collect::<BTreeSet<_>>();
+        let inventory = route_access_inventory();
+        let mut classifications = BTreeMap::new();
 
-        assert_eq!(
-            registered, declared,
-            "update ROUTE_ACCESS_POLICY for every route"
-        );
+        for route in &inventory {
+            let signature = (route.method.to_string(), route.path.clone());
+            if let Some(existing) = classifications.insert(signature.clone(), route.class) {
+                assert_eq!(
+                    existing, route.class,
+                    "conflicting access classes for {} {}",
+                    signature.0, signature.1
+                );
+                panic!(
+                    "duplicate route classification for {} {}",
+                    signature.0, signature.1
+                );
+            }
+        }
+
+        assert_eq!(registered, signatures(&inventory));
+    }
+
+    #[test]
+    fn generated_policy_preserves_access_and_documentation_boundaries() {
+        let inventory = route_access_inventory();
+        let public = inventory
+            .iter()
+            .filter(|route| route.class == AccessClass::Public)
+            .map(|route| (route.method.to_string(), route.path.clone()))
+            .collect::<BTreeSet<_>>();
+        let expected_public = [
+            ("GET".to_owned(), "/_health".to_owned()),
+            ("GET".to_owned(), "/_health/surrealdb".to_owned()),
+            ("GET".to_owned(), "/_ping".to_owned()),
+            ("GET".to_owned(), "/_readiness".to_owned()),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(public, expected_public);
 
         let authentication_documentation = include_str!("../docs/authentication.md");
         let api_documentation = include_str!("../docs/api-v1.md");
-        for route in ROUTE_ACCESS_POLICY {
+        for route in &inventory {
             if route.path == "/api/v1" || route.path.starts_with("/api/v1/") {
                 assert_eq!(
                     route.class,

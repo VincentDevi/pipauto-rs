@@ -9,6 +9,7 @@ pub mod domain;
 pub mod errors;
 pub mod initializers;
 pub mod models;
+pub mod routing;
 pub mod settings;
 pub mod tasks;
 #[doc(hidden)]
