@@ -15,8 +15,7 @@ use loco_rs::app::AppContext;
 use crate::{
     auth::{cookies::AuthCookies, settings::AuthSettings},
     errors::AppError,
-    models::auth::AuthenticatedUser,
-    services::auth::{AuthError, AuthService},
+    models::auth::{AuthError, AuthenticatedUser, AuthenticationModel as AuthService},
 };
 
 /// Required authenticated user, safe for controller and view consumption.

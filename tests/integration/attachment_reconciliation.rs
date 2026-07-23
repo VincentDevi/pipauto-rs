@@ -4,17 +4,16 @@ use pipauto::{
     domain::{AttachmentId, VehicleId},
     models::attachment::{
         AttachmentDigest, AttachmentFilePointer, AttachmentMediaType, AttachmentOwner,
-        AttachmentStorageState, NewAttachmentReservation, ATTACHMENT_BUCKET_NAME,
+        AttachmentReconciliation as AttachmentReconciler, AttachmentReconciliationError,
+        AttachmentStorageState, NewAttachmentReservation, ReconciliationMode,
+        ATTACHMENT_BUCKET_NAME,
     },
-    repositories::attachment::{
+    testing::persistence::attachment::{
         memory::{
             FileOperation, InMemoryAttachmentFileStore, InMemoryAttachmentRepository,
             RepositoryOperation,
         },
         AttachmentFileStore, AttachmentFileStoreError, AttachmentRepository,
-    },
-    services::attachment_reconciliation::{
-        AttachmentReconciler, AttachmentReconciliationError, ReconciliationMode,
     },
 };
 
@@ -151,7 +150,7 @@ async fn attachment_failure_injection_keeps_interrupted_apply_retryable() {
         .await;
     fixture.records.fail_next(
         RepositoryOperation::Finalize,
-        pipauto::repositories::RepositoryError::Unavailable,
+        pipauto::testing::persistence::RepositoryError::Unavailable,
     );
 
     assert_eq!(

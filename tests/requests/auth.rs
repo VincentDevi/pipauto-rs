@@ -3,7 +3,7 @@ use axum::{
     http::{header, Request, StatusCode},
 };
 use loco_rs::testing::request::boot_test;
-use pipauto::{app::App, services::auth::AuthService};
+use pipauto::{app::App, models::auth::AuthenticationModel as AuthService};
 use tower::ServiceExt;
 
 const ORIGIN: &str = "http://localhost:5150";

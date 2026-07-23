@@ -42,7 +42,7 @@ pub trait CollectionFilter {
     fn fingerprint_bytes(&self) -> Vec<u8>;
 }
 
-/// Typed page input passed from services to repositories.
+/// Typed page input passed from model operations to private persistence.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PageRequest<F> {
     pub filter: F,

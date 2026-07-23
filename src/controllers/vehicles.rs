@@ -18,9 +18,12 @@ use crate::{
         PageLimit, PageRequest, ValidationCode, ValidationError, ValidationErrors, VehicleId,
     },
     errors::AppError,
-    models::vehicle::Vehicle,
-    repositories::{customer::ArchiveFilter, vehicle::VehicleFilter},
-    services::vehicle::{CreateVehicle, UpdateVehicle, VehicleService},
+    models::{
+        customer::ArchiveFilter,
+        vehicle::{
+            CreateVehicle, UpdateVehicle, Vehicle, VehicleFilter, VehicleModel as VehicleService,
+        },
+    },
     settings::BusinessSettings,
 };
 

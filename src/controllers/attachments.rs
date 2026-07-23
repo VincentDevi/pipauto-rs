@@ -30,9 +30,9 @@ use crate::{
         ValidationErrors, VehicleId,
     },
     errors::AppError,
-    models::attachment::{AttachmentMediaType, AttachmentOwner, StoredAttachment},
-    services::attachment::{
-        AttachmentContent, AttachmentService, UploadAttachment, WriteAttachmentMetadata,
+    models::attachment::{
+        AttachmentContent, AttachmentMediaType, AttachmentModel as AttachmentService,
+        AttachmentOwner, StoredAttachment, UploadAttachment, WriteAttachmentMetadata,
     },
     settings::MULTIPART_ENVELOPE_BYTES,
 };

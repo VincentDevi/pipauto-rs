@@ -3,14 +3,15 @@ use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
     domain::{CurrencyCode, InvoiceId, Quantity},
-    models::{auth::UserId, invoice::PaymentStatus, payment::PaymentMethod},
-    services::{
-        auth::AuthService,
-        customer::{CreateCustomer, CustomerService},
+    models::{
+        auth::{AuthenticationModel as AuthService, UserId},
+        customer::{CreateCustomer, CustomerModel as CustomerService},
         invoice::{
-            CreateInvoice, InvoiceService, IssueInvoiceCommand, RecordPayment, WriteInvoiceLine,
+            CreateInvoice, InvoiceModel as InvoiceService, IssueInvoiceCommand, PaymentStatus,
+            RecordPayment, WriteInvoiceLine,
         },
-        WorkflowError,
+        payment::PaymentMethod,
+        ModelError as WorkflowError,
     },
 };
 

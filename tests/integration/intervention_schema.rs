@@ -288,7 +288,6 @@ fn startup_health_and_readiness_paths_do_not_apply_schema_or_reset_data() {
         include_str!("../../src/initializers/surrealdb.rs"),
         include_str!("../../src/controllers/setup.rs"),
         include_str!("../../src/controllers/surrealdb_health.rs"),
-        include_str!("../../src/services/health.rs"),
     ];
     for source in read_only_paths {
         for forbidden in [

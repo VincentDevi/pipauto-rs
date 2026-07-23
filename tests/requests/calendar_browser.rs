@@ -6,9 +6,11 @@ use axum::{
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
-    models::calendar::{CalendarEntry, CalendarRange},
-    repositories::{calendar::CalendarRepository, RepositoryError},
-    services::{auth::AuthService, calendar::CalendarService},
+    models::{
+        auth::AuthenticationModel as AuthService,
+        calendar::{CalendarEntry, CalendarModel as CalendarService, CalendarRange},
+    },
+    testing::persistence::{calendar::CalendarRepository, RepositoryError},
 };
 use serde_json::{json, Value};
 use std::sync::Arc;

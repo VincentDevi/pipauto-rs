@@ -3,7 +3,7 @@ use axum::{
     http::{header, Method, Request, StatusCode},
 };
 use loco_rs::testing::request::boot_test;
-use pipauto::{app::App, services::auth::AuthService};
+use pipauto::{app::App, models::auth::AuthenticationModel as AuthService};
 use serde_json::{json, Value};
 use tower::ServiceExt;
 

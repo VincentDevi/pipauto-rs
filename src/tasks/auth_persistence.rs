@@ -7,7 +7,7 @@ use loco_rs::{
     Error, Result,
 };
 
-use crate::{database::client::AppDatabase, services::auth::AuthService};
+use crate::{database::client::AppDatabase, models::auth::AuthenticationModel as AuthService};
 
 /// Delete only registry sessions whose fixed expiry is in the past.
 pub struct PurgeExpiredAuthSessions;

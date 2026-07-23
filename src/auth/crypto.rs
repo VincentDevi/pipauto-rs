@@ -11,11 +11,8 @@ use serde::{
 };
 use serde_json::{Map, Value};
 
-use crate::{
-    models::auth::UserId,
-    services::auth::{
-        AuthError, Clock, IssuedJwt, JwtCodec, PasswordEngine, RandomSource, ValidatedJwt,
-    },
+use crate::models::auth::{
+    AuthError, Clock, IssuedJwt, JwtCodec, PasswordEngine, RandomSource, UserId, ValidatedJwt,
 };
 
 /// System UTC clock.

@@ -5,8 +5,14 @@ use pipauto::{
     app::App,
     database::client::AppDatabase,
     domain::{AttachmentId, VehicleId},
-    models::attachment::{AttachmentFilePointer, AttachmentOwner, AttachmentStorageState},
-    repositories::{
+    models::{
+        attachment::{
+            AttachmentFilePointer, AttachmentIdentitySource, AttachmentModel as AttachmentService,
+            AttachmentOwner, AttachmentStorageState, UploadAttachment, WriteAttachmentMetadata,
+        },
+        ModelError as WorkflowError,
+    },
+    testing::persistence::{
         attachment::{
             memory::{
                 FileOperation, InMemoryAttachmentFileStore, InMemoryAttachmentRepository,
@@ -19,12 +25,6 @@ use pipauto::{
             technical_note::SurrealTechnicalNoteRepository, vehicle::SurrealVehicleRepository,
         },
         RepositoryError,
-    },
-    services::{
-        attachment::{
-            AttachmentIdentitySource, AttachmentService, UploadAttachment, WriteAttachmentMetadata,
-        },
-        WorkflowError,
     },
 };
 
@@ -180,7 +180,7 @@ async fn attachment_failure_injection_collision_never_overwrites_existing_bytes(
     let (service, records, files) = service("attachment_collision", key).await;
     let pointer = AttachmentFilePointer::new("pipauto_attachments", key).expect("pointer");
     let existing = b"%PDF-1.7\nexisting private bytes".to_vec();
-    pipauto::repositories::attachment::AttachmentFileStore::put_if_absent(
+    pipauto::testing::persistence::attachment::AttachmentFileStore::put_if_absent(
         files.as_ref(),
         &pointer,
         &existing,
@@ -204,9 +204,12 @@ async fn attachment_failure_injection_collision_never_overwrites_existing_bytes(
     );
     assert!(records.snapshot().expect("compensated record").is_empty());
     assert_eq!(
-        pipauto::repositories::attachment::AttachmentFileStore::get(files.as_ref(), &pointer)
-            .await
-            .expect("existing bytes retained"),
+        pipauto::testing::persistence::attachment::AttachmentFileStore::get(
+            files.as_ref(),
+            &pointer
+        )
+        .await
+        .expect("existing bytes retained"),
         existing
     );
 }

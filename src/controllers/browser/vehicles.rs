@@ -30,25 +30,19 @@ use crate::{
     errors::AppError,
     models::{
         attachment::{
-            AttachmentMetadata, AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
+            AttachmentMetadata, AttachmentModel as AttachmentService, AttachmentOwner,
+            UploadAttachment, WriteAttachmentMetadata, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
         },
-        intervention::InterventionStatus,
+        customer::{ArchiveFilter, CustomerFilter, CustomerModel as CustomerService},
+        intervention::{
+            InterventionFilter, InterventionModel as InterventionService, InterventionStatus,
+        },
         vehicle::{
+            CreateVehicle, UpdateVehicle, VehicleFilter, VehicleModel as VehicleService,
             EARLIEST_VEHICLE_YEAR, ENGINE_TYPE_MAX_CHARS, MAKE_MAX_CHARS, MODEL_MAX_CHARS,
             NOTES_MAX_CHARS, REGISTRATION_MAX_CHARS, VIN_DISPLAY_MAX_CHARS,
         },
-    },
-    repositories::{
-        customer::{ArchiveFilter, CustomerFilter},
-        intervention::InterventionFilter,
-        vehicle::VehicleFilter,
-    },
-    services::{
-        attachment::{AttachmentService, UploadAttachment, WriteAttachmentMetadata},
-        customer::CustomerService,
-        intervention::InterventionService,
-        vehicle::{CreateVehicle, UpdateVehicle, VehicleService},
-        WorkflowError,
+        ModelError as WorkflowError,
     },
     settings::{BusinessSettings, MULTIPART_ENVELOPE_BYTES},
     views::{

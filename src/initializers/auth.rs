@@ -13,8 +13,7 @@ use crate::{
     },
     database::client::AppDatabase,
     domain::CursorCodec,
-    repositories::surreal::auth::SurrealAuthRepository,
-    services::auth::{AuthService, PasswordEngine},
+    models::auth::{AuthenticationModel, PasswordEngine},
 };
 
 /// Validate settings and install one shared authentication service.
@@ -47,18 +46,15 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
             .map_err(|_| Error::string("test authentication schema application failed"))?;
     }
 
-    let repository = Arc::new(SurrealAuthRepository::new(client));
     let passwords: Arc<dyn PasswordEngine> = Arc::new(LocoPasswordEngine);
     let dummy_password_hash = passwords
         .hash("pipauto dummy verification password")
         .await
         .map_err(Error::msg)?;
     let (clock, random, jwt) = adapters(settings.jwt_secret());
-    let service = AuthService::new(
+    let model = AuthenticationModel::from_infrastructure(
         settings.clone(),
-        repository.clone(),
-        repository.clone(),
-        repository,
+        client,
         passwords,
         jwt,
         clock,
@@ -70,6 +66,6 @@ pub async fn install(ctx: &AppContext) -> Result<()> {
     ctx.shared_store.insert(cursor_codec);
     ctx.shared_store.insert(CsrfService::new(settings.clone()));
     ctx.shared_store.insert(AuthCookies::new(settings));
-    ctx.shared_store.insert(service);
+    ctx.shared_store.insert(model);
     Ok(())
 }

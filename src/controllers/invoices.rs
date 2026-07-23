@@ -23,14 +23,13 @@ use crate::{
     },
     errors::AppError,
     models::{
-        invoice::{BillingAddressSnapshot, InvoiceStatus, InvoiceView, PaymentStatus},
+        invoice::{
+            BillingAddressSnapshot, CreateInvoice, InvoiceFilter, InvoiceLineMutationResult,
+            InvoiceModel as InvoiceService, InvoiceStatus, InvoiceView, IssueInvoiceCommand,
+            PaymentMutationResult, PaymentStatus, RecordPayment, UpdateInvoice, WriteInvoiceLine,
+        },
         invoice_line::InvoiceLineRecord,
         payment::{PaymentMethod, PaymentRecord},
-    },
-    repositories::invoice::{InvoiceFilter, InvoiceLineMutationResult, PaymentMutationResult},
-    services::invoice::{
-        CreateInvoice, InvoiceService, IssueInvoiceCommand, RecordPayment, UpdateInvoice,
-        WriteInvoiceLine,
     },
     settings::BusinessSettings,
 };

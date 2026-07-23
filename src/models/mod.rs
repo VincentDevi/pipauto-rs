@@ -1,16 +1,21 @@
-//! Database-independent domain values and invariants.
+//! Cohesive business models, their workflows, and private persistence implementations.
 //!
-//! Models may depend on the Rust standard library and domain-focused utility crates. They must not
-//! depend on Loco, Axum, Tera, `SurrealDB`, controllers, views, or concrete repositories.
+//! HTTP and presentation concerns stay outside this module. SurrealDB-specific query and row
+//! details are private to the model that owns them.
 
 pub mod attachment;
 pub mod auth;
 pub mod calendar;
+pub mod context;
 pub mod customer;
+pub mod error;
 pub mod intervention;
-pub mod intervention_line;
 pub mod invoice;
-pub mod invoice_line;
-pub mod payment;
+pub(crate) mod persistence_error;
 pub mod technical_note;
 pub mod vehicle;
+
+pub use context::ModelContext;
+pub use error::ModelError;
+pub use intervention::line as intervention_line;
+pub use invoice::{line as invoice_line, payment};

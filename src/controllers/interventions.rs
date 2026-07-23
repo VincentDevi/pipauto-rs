@@ -20,13 +20,11 @@ use crate::{
     errors::AppError,
     models::{
         intervention::{
-            Intervention, InterventionStatus, InterventionTotals, ServiceHistorySummary,
+            CreateIntervention, Intervention, InterventionFilter,
+            InterventionModel as InterventionService, InterventionStatus, InterventionTotals,
+            LineMutationResult, ServiceHistorySummary, UpdateIntervention, WriteLine,
         },
         intervention_line::{InterventionLine, InterventionLineCategory},
-    },
-    repositories::intervention::{InterventionFilter, LineMutationResult},
-    services::intervention::{
-        CreateIntervention, InterventionService, UpdateIntervention, WriteLine,
     },
     settings::BusinessSettings,
 };

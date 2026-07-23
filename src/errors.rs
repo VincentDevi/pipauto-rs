@@ -12,7 +12,7 @@ use axum::{
 };
 use thiserror::Error;
 
-use crate::{api::ErrorEnvelope, services::WorkflowError};
+use crate::{api::ErrorEnvelope, models::ModelError};
 
 /// Errors that can cross Pipauto's JSON HTTP boundary.
 #[derive(Debug, Error)]
@@ -41,14 +41,14 @@ pub enum AppError {
     Internal,
 }
 
-impl From<WorkflowError> for AppError {
-    fn from(value: WorkflowError) -> Self {
+impl From<ModelError> for AppError {
+    fn from(value: ModelError) -> Self {
         match value {
-            WorkflowError::Validation(errors) => Self::Validation(errors),
-            WorkflowError::NotFound => Self::NotFound,
-            WorkflowError::Conflict => Self::Conflict,
-            WorkflowError::Unavailable => Self::Unavailable,
-            WorkflowError::Internal => Self::Internal,
+            ModelError::Validation(errors) => Self::Validation(errors),
+            ModelError::NotFound => Self::NotFound,
+            ModelError::Conflict => Self::Conflict,
+            ModelError::Unavailable => Self::Unavailable,
+            ModelError::Internal => Self::Internal,
         }
     }
 }

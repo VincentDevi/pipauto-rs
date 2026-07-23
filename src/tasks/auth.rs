@@ -9,7 +9,7 @@ use loco_rs::{
     Error, Result,
 };
 
-use crate::services::auth::AuthService;
+use crate::models::auth::AuthenticationModel as AuthService;
 
 /// Password prompt seam that keeps task tests independent of a real terminal.
 pub trait PasswordReader: Send {

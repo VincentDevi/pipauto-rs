@@ -20,18 +20,15 @@ use crate::{
         CustomerId, OpaqueCursor, Page, PageRequest, ValidationCode, ValidationError,
         ValidationErrors,
     },
-    models::customer::{
-        ADDRESS_LINE_MAX_CHARS, CITY_MAX_CHARS, DISPLAY_NAME_MAX_CHARS, EMAIL_MAX_CHARS,
-        NOTES_MAX_CHARS, PHONE_MAX_CHARS, POSTAL_CODE_MAX_CHARS,
-    },
-    repositories::{
-        customer::{ArchiveFilter, CustomerFilter},
-        vehicle::VehicleFilter,
-    },
-    services::{
-        customer::{CreateCustomer, CustomerAddressInput, CustomerService, UpdateCustomer},
-        vehicle::VehicleService,
-        WorkflowError,
+    models::{
+        customer::{
+            ArchiveFilter, CreateCustomer, CustomerAddressInput, CustomerFilter,
+            CustomerModel as CustomerService, UpdateCustomer, ADDRESS_LINE_MAX_CHARS,
+            CITY_MAX_CHARS, DISPLAY_NAME_MAX_CHARS, EMAIL_MAX_CHARS, NOTES_MAX_CHARS,
+            PHONE_MAX_CHARS, POSTAL_CODE_MAX_CHARS,
+        },
+        vehicle::{VehicleFilter, VehicleModel as VehicleService},
+        ModelError as WorkflowError,
     },
     settings::BusinessSettings,
     views::{

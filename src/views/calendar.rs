@@ -13,10 +13,9 @@ use thiserror::Error;
 use crate::{
     domain::WorkshopTime,
     models::{
-        calendar::{CalendarEntry, CalendarView},
+        calendar::{CalendarEntry, CalendarSchedule, CalendarView},
         intervention::InterventionStatus,
     },
-    services::calendar::CalendarSchedule,
 };
 
 use super::layout::AuthenticatedLayout;

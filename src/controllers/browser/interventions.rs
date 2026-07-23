@@ -28,25 +28,20 @@ use crate::{
     },
     models::{
         attachment::{
-            AttachmentMetadata, AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
+            AttachmentMetadata, AttachmentModel as AttachmentService, AttachmentOwner,
+            UploadAttachment, WriteAttachmentMetadata, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
         },
-        intervention::{Intervention, InterventionStatus},
+        customer::{ArchiveFilter, CustomerModel as CustomerService},
+        intervention::{
+            CreateIntervention, Intervention, InterventionFilter,
+            InterventionModel as InterventionService, InterventionStatus, LineMoveDirection,
+            LineMutationResult, UpdateIntervention, WriteLine,
+        },
         intervention_line::{
             InterventionLine, InterventionLineCategory, DESCRIPTION_MAX_CHARS, UNIT_LABEL_MAX_CHARS,
         },
-        vehicle::Vehicle,
-    },
-    repositories::{
-        customer::ArchiveFilter,
-        intervention::{InterventionFilter, LineMoveDirection, LineMutationResult},
-        vehicle::VehicleFilter,
-    },
-    services::{
-        attachment::{AttachmentService, UploadAttachment, WriteAttachmentMetadata},
-        customer::CustomerService,
-        intervention::{CreateIntervention, InterventionService, UpdateIntervention, WriteLine},
-        vehicle::VehicleService,
-        WorkflowError,
+        vehicle::{Vehicle, VehicleFilter, VehicleModel as VehicleService},
+        ModelError as WorkflowError,
     },
     settings::{BusinessSettings, MULTIPART_ENVELOPE_BYTES},
     views::{

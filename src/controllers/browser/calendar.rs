@@ -16,7 +16,7 @@ use loco_rs::{
 
 use crate::{
     controllers::browser::{context::BrowserRequestContext, responses},
-    services::{calendar::CalendarService, WorkflowError},
+    models::{calendar::CalendarModel as CalendarService, ModelError as WorkflowError},
     views::{
         calendar::{CalendarBrowserPage, CalendarPage, CalendarState},
         layout::AuthenticatedLayout,

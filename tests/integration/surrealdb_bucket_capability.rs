@@ -3,7 +3,7 @@ use pipauto::{
     app::App,
     database::client::{AppDatabase, AttachmentBucketStatus, ATTACHMENT_BUCKET_NAME},
     models::attachment::AttachmentFilePointer,
-    repositories::{
+    testing::persistence::{
         attachment::AttachmentFileStore, surreal::attachment::SurrealAttachmentFileStore,
     },
 };

@@ -10,7 +10,7 @@ use pipauto::{
         },
         technical_note::NewTechnicalNote,
     },
-    repositories::{
+    testing::persistence::{
         attachment::{AttachmentFileStore, AttachmentRepository},
         surreal::{
             attachment::{SurrealAttachmentFileStore, SurrealAttachmentRepository},

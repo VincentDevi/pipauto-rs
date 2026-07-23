@@ -28,8 +28,10 @@ use crate::{
         extractors::{append_vary_hx_request, CurrentUser},
     },
     errors::AppError,
-    models::attachment::{CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
-    services::auth::{AuthError, AuthService},
+    models::{
+        attachment::{CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS},
+        auth::{AuthError, AuthenticationModel as AuthService},
+    },
     settings::AttachmentSettings,
 };
 

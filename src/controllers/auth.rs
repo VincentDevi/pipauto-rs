@@ -6,7 +6,7 @@ use crate::{
         csrf::{CsrfService, GuestLoginCsrfForm, LogoutCsrfForm},
         extractors::{append_vary_hx_request, safe_next_destination, OptionalCurrentUser},
     },
-    services::auth::{AuthService, LoginCommand, LoginError},
+    models::auth::{AuthenticationModel as AuthService, LoginCommand, LoginError},
     views::auth::{AuthenticationUnavailableView, LoginView},
 };
 use axum::{

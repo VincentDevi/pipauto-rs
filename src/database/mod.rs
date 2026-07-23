@@ -6,3 +6,4 @@
 pub mod client;
 pub mod migrations;
 pub mod settings;
+pub(crate) mod surreal_support;

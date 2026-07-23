@@ -23,28 +23,19 @@ use crate::{
         ValidationErrors, VehicleId,
     },
     models::{
-        customer::Customer,
-        intervention::Intervention,
-        invoice::{InvoiceStatus, InvoiceView, NOTES_MAX_CHARS},
+        customer::{ArchiveFilter, Customer, CustomerFilter, CustomerModel as CustomerService},
+        intervention::{
+            Intervention, InterventionFilter, InterventionModel as InterventionService,
+        },
+        invoice::{
+            CreateInvoice, InvoiceFilter, InvoiceLineMoveDirection, InvoiceModel as InvoiceService,
+            InvoiceStatus, InvoiceView, IssueInvoiceCommand, RecordPayment, UpdateInvoice,
+            WriteInvoiceLine, NOTES_MAX_CHARS,
+        },
         invoice_line::{DESCRIPTION_MAX_CHARS, UNIT_LABEL_MAX_CHARS},
         payment::PaymentMethod,
-        vehicle::Vehicle,
-    },
-    repositories::{
-        customer::{ArchiveFilter, CustomerFilter},
-        intervention::InterventionFilter,
-        invoice::{InvoiceFilter, InvoiceLineMoveDirection},
-        vehicle::VehicleFilter,
-    },
-    services::{
-        customer::CustomerService,
-        intervention::InterventionService,
-        invoice::{
-            CreateInvoice, InvoiceService, IssueInvoiceCommand, RecordPayment, UpdateInvoice,
-            WriteInvoiceLine,
-        },
-        vehicle::VehicleService,
-        WorkflowError,
+        vehicle::{Vehicle, VehicleFilter, VehicleModel as VehicleService},
+        ModelError as WorkflowError,
     },
     settings::BusinessSettings,
     views::{

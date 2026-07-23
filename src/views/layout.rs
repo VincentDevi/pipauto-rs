@@ -33,6 +33,7 @@ impl<'layout> AuthenticatedLayout<'layout> {
     }
 }
 
+// TODO: match is probably a better option than else if
 fn navigation_area(path: &str) -> (&'static str, &'static str) {
     if path.starts_with("/customers") {
         ("customers", "Customers")

@@ -21,7 +21,7 @@ use pipauto::{
         csrf::{AuthenticatedCsrfJson, CsrfService},
         extractors::CurrentUser,
     },
-    services::auth::AuthService,
+    models::auth::AuthenticationModel as AuthService,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

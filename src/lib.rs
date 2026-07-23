@@ -9,8 +9,8 @@ pub mod domain;
 pub mod errors;
 pub mod initializers;
 pub mod models;
-pub mod repositories;
-pub mod services;
 pub mod settings;
 pub mod tasks;
+#[doc(hidden)]
+pub mod testing;
 pub mod views;

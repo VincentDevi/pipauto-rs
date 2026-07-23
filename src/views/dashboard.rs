@@ -8,8 +8,10 @@ use serde::Serialize;
 
 use crate::{
     domain::Page,
-    models::intervention::{InterventionStatus, ServiceHistorySummary},
-    services::WorkflowError,
+    models::{
+        intervention::{InterventionStatus, ServiceHistorySummary},
+        ModelError as WorkflowError,
+    },
 };
 
 use super::layout::AuthenticatedLayout;

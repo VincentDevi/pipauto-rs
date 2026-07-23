@@ -4,7 +4,7 @@ use axum::{
 };
 use loco_rs::testing::request::boot_test;
 use pipauto::{
-    app::App, database::client::AppDatabase, services::auth::AuthService,
+    app::App, database::client::AppDatabase, models::auth::AuthenticationModel as AuthService,
     settings::MAX_ATTACHMENT_FILE_BYTES,
 };
 use serde_json::{json, Value};

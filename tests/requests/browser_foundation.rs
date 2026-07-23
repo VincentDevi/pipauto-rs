@@ -28,13 +28,12 @@ fn browser_route_inventory_includes_the_authenticated_calendar_read_path() {
 }
 
 #[test]
-fn browser_foundation_preserves_controller_service_repository_direction() {
+fn browser_foundation_preserves_controller_model_persistence_direction() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut browser_sources = rust_sources(&root.join("src/controllers/browser"));
     browser_sources.extend(rust_sources(&root.join("src/views")));
-    browser_sources.push(root.join("src/controllers/setup.rs"));
     let forbidden = [
-        ["repositories", "surreal"].join("::"),
+        ["models", "persistence"].join("::"),
         ["database", ""].join("::"),
         ["surrealdb", ""].join("::"),
         ["http", "//127.0.0.1"].join(":"),

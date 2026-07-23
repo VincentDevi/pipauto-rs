@@ -18,9 +18,13 @@ use crate::{
         ValidationError, ValidationErrors, VehicleId,
     },
     errors::AppError,
-    models::technical_note::{TechnicalNote, TechnicalNoteContext},
-    repositories::{customer::ArchiveFilter, technical_note::TechnicalNoteFilter},
-    services::technical_note::{validate_write, TechnicalNoteService},
+    models::{
+        customer::ArchiveFilter,
+        technical_note::{
+            validate_write, TechnicalNote, TechnicalNoteContext, TechnicalNoteFilter,
+            TechnicalNoteModel as TechnicalNoteService,
+        },
+    },
     settings::BusinessSettings,
 };
 

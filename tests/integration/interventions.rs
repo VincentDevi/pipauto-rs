@@ -7,6 +7,7 @@ use pipauto::{
     database::client::AppDatabase,
     domain::{CurrencyCode, Money, PageLimit, Quantity, WorkshopTime},
     models::{
+        calendar::CalendarModel as CalendarService,
         customer::NewCustomer,
         intervention::{
             EstimatedDuration, InterventionIdentitySnapshot, InterventionStatus, NewIntervention,
@@ -14,7 +15,7 @@ use pipauto::{
         intervention_line::{InterventionLineCategory, NewInterventionLine},
         vehicle::NewVehicle,
     },
-    repositories::{
+    testing::persistence::{
         calendar::CalendarRepository,
         customer::CustomerRepository,
         intervention::{InterventionFilter, InterventionRepository, LineMutation},
@@ -25,7 +26,6 @@ use pipauto::{
         vehicle::VehicleRepository,
         RepositoryError,
     },
-    services::calendar::CalendarService,
 };
 
 #[tokio::test]

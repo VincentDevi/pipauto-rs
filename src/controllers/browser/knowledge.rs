@@ -27,25 +27,20 @@ use crate::{
     },
     models::{
         attachment::{
-            AttachmentMetadata, AttachmentOwner, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
+            AttachmentMetadata, AttachmentModel as AttachmentService, AttachmentOwner,
+            UploadAttachment, WriteAttachmentMetadata, CAPTION_MAX_CHARS, DISPLAY_NAME_MAX_CHARS,
         },
-        intervention::Intervention,
+        customer::ArchiveFilter,
+        intervention::{
+            Intervention, InterventionFilter, InterventionModel as InterventionService,
+        },
         technical_note::{
-            NewTechnicalNote, BODY_MAX_CHARS, ENGINE_MAX_CHARS, MAKE_MAX_CHARS, MODEL_MAX_CHARS,
-            TAG_MAX_CHARS, TAG_MAX_COUNT, TITLE_MAX_CHARS,
+            validate_write, NewTechnicalNote, TechnicalNoteFilter,
+            TechnicalNoteModel as TechnicalNoteService, BODY_MAX_CHARS, ENGINE_MAX_CHARS,
+            MAKE_MAX_CHARS, MODEL_MAX_CHARS, TAG_MAX_CHARS, TAG_MAX_COUNT, TITLE_MAX_CHARS,
         },
-        vehicle::Vehicle,
-    },
-    repositories::{
-        customer::ArchiveFilter, intervention::InterventionFilter,
-        technical_note::TechnicalNoteFilter, vehicle::VehicleFilter,
-    },
-    services::{
-        attachment::{AttachmentService, UploadAttachment, WriteAttachmentMetadata},
-        intervention::InterventionService,
-        technical_note::{validate_write, TechnicalNoteService},
-        vehicle::VehicleService,
-        WorkflowError,
+        vehicle::{Vehicle, VehicleFilter, VehicleModel as VehicleService},
+        ModelError as WorkflowError,
     },
     settings::{BusinessSettings, MULTIPART_ENVELOPE_BYTES},
     views::{

@@ -15,9 +15,9 @@ use crate::{
         responses,
     },
     domain::{PageLimit, PageRequest},
-    models::intervention::InterventionStatus,
-    repositories::intervention::InterventionFilter,
-    services::intervention::InterventionService,
+    models::intervention::{
+        InterventionFilter, InterventionModel as InterventionService, InterventionStatus,
+    },
     views::{
         dashboard::{DashboardPage, InterventionSection},
         layout::AuthenticatedLayout,

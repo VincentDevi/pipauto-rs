@@ -6,7 +6,7 @@ use pipauto::{
     database::client::AppDatabase,
     domain::{NormalizedRegistration, PageLimit},
     models::{customer::NewCustomer, vehicle::NewVehicle},
-    repositories::{
+    testing::persistence::{
         customer::{CustomerFilter, CustomerRepository},
         surreal::{customer::SurrealCustomerRepository, vehicle::SurrealVehicleRepository},
         vehicle::{VehicleFilter, VehicleRepository},

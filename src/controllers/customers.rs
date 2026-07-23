@@ -12,11 +12,12 @@ use crate::{
     auth::{csrf::AuthenticatedCsrfJson, extractors::CurrentUser},
     domain::{CustomerId, PageRequest, ValidationCode, ValidationError, ValidationErrors},
     errors::AppError,
-    models::customer::{Address, Customer},
-    repositories::customer::{ArchiveFilter, CustomerFilter},
-    services::{
-        customer::{CreateCustomer, CustomerAddressInput, CustomerService, UpdateCustomer},
-        vehicle::VehicleService,
+    models::{
+        customer::{
+            Address, ArchiveFilter, CreateCustomer, Customer, CustomerAddressInput, CustomerFilter,
+            CustomerModel as CustomerService, UpdateCustomer,
+        },
+        vehicle::VehicleModel as VehicleService,
     },
     settings::BusinessSettings,
 };

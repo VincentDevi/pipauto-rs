@@ -109,7 +109,7 @@ impl AppDatabase {
         }
     }
 
-    /// Clone the selected application client for repository composition.
+    /// Clone the selected application client for model persistence composition.
     ///
     /// # Errors
     ///
@@ -280,7 +280,7 @@ pub enum DatabaseStartupError {
 #[error("SurrealDB is unavailable")]
 pub struct DatabaseHealthError;
 
-/// The database value is a health-only test seam and cannot serve repositories.
+/// The database value is a health-only test seam and cannot serve model persistence.
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 #[error("application database client is unavailable")]
 pub struct DatabaseAccessError;

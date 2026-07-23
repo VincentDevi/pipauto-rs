@@ -15,15 +15,15 @@ use loco_rs::{
 };
 
 use crate::{
-    auth::extractors::CurrentUser, services::health::HealthService, views::setup::SetupStatus,
+    auth::extractors::CurrentUser, database::client::AppDatabase, views::setup::SetupStatus,
 };
 
 async fn status(
     CurrentUser(_user): CurrentUser,
-    SharedStore(service): SharedStore<HealthService>,
+    SharedStore(database): SharedStore<AppDatabase>,
     ViewEngine(engine): ViewEngine<TeraView>,
 ) -> Result<Response> {
-    let status = if service.available().await {
+    let status = if database.health().await.is_ok() {
         SetupStatus::connected()
     } else {
         SetupStatus::unavailable()

@@ -5,16 +5,18 @@ use loco_rs::task::Vars;
 use loco_rs::testing::request::boot_test;
 use pipauto::{
     app::App,
-    models::auth::{NewAuthSession, NewUserRecord, NormalizedEmail, SessionDigest, ThrottleDigest},
-    repositories::{
+    models::auth::{
+        AuthError, AuthenticationModel as AuthService, LoginCommand, NewAuthSession, NewUserRecord,
+        NormalizedEmail, SessionDigest, ThrottleDigest,
+    },
+    tasks::auth::{CreateUser, PasswordReader},
+    testing::persistence::{
         auth::{
             AuthSessionRepository, LoginThrottleRepository, RepositoryError, RevokeOutcome,
             ThrottleState, UserRepository,
         },
         surreal::auth::SurrealAuthRepository,
     },
-    services::auth::{AuthError, AuthService, LoginCommand},
-    tasks::auth::{CreateUser, PasswordReader},
 };
 use surrealdb::engine::any;
 

@@ -7,7 +7,9 @@ use loco_rs::{
     Error, Result,
 };
 
-use crate::services::attachment_reconciliation::{AttachmentReconciler, ReconciliationMode};
+use crate::models::attachment::{
+    AttachmentReconciliation as AttachmentReconciler, ReconciliationMode,
+};
 
 pub struct ReconcileAttachments;
 

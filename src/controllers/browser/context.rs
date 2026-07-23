@@ -15,8 +15,7 @@ use crate::{
         extractors::CurrentUser,
         settings::AuthSettings,
     },
-    models::auth::UserId,
-    services::auth::AuthService,
+    models::auth::{AuthenticationModel as AuthService, UserId},
     views::context::PresentationUser,
 };
 

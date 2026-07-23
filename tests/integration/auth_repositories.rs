@@ -1,7 +1,7 @@
 use chrono::{TimeDelta, Utc};
 use pipauto::{
     models::auth::{NewAuthSession, NewUserRecord, NormalizedEmail, SessionDigest, ThrottleDigest},
-    repositories::{
+    testing::persistence::{
         auth::{
             AuthSessionRepository, LoginThrottleRepository, RepositoryError, RevokeOutcome,
             ThrottleState, UserRepository,
