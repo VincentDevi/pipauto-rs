@@ -7,10 +7,11 @@ interventions and follows the same server-owned navigation boundary.
 
 ## Runtime boundary
 
-Browser controllers live in `src/controllers/browser` (with authentication, dashboard, and setup
-controllers composed alongside them). They parse browser input, call application services
-directly, map results into types under `src/views`, and select a complete page or fragment. They
-never call Pipauto's `/api/v1` JSON routes over loopback HTTP.
+All browser controllers, including authentication, dashboard, and setup, live below
+`src/controllers/browser`. Each route area has a composition-only `mod.rs` and workflow-oriented
+handler modules. Controllers parse browser input, call model APIs directly, map results into types
+under `src/views`, and select a complete page or fragment. They never call Pipauto's `/api/v1`
+JSON routes over loopback HTTP.
 
 All HTML routes pass through the browser `no-store` layer. Except for guest-only login, routes are
 authenticated on the server. Unsafe forms use `application/x-www-form-urlencoded`, include the
@@ -21,8 +22,10 @@ infrastructure errors.
 
 ## Browser route inventory
 
-`src/controllers/browser/mod.rs::ROUTE_INVENTORY` is the executable source of truth. Its unit test
-must match every registered browser method and path. `cargo loco routes` prints both this HTML
+`controllers::browser::route_groups()` pairs each homogeneous Loco route group with its access
+class. `controllers::browser::route_inventory()` derives methods and normalized paths from those
+registered groups, so controller registration remains the executable source of truth. The global
+inventory and its tests verify exact registration parity. `cargo loco routes` prints both this HTML
 surface and the separately mounted `/api/v1` JSON surface.
 
 | Area | Read routes | Unsafe routes |
@@ -204,8 +207,9 @@ private-key, JWT, and Argon2-shaped values.
    decision; do not activate export or another deferred capability incidentally.
 2. Add or extend a service workflow and presentation model. Keep database and API DTO types out of
    the view boundary.
-3. Add the controller route, classify it in `ROUTE_INVENTORY`, apply authentication/body-limit
-   conventions, and map service outcomes to the established HTML states.
+3. Add the controller route to the owning area's `mod.rs`. It inherits that homogeneous group's
+   access class; a genuine access exception requires a separate classified group. Apply
+   authentication/body-limit conventions and map model outcomes to the established HTML states.
 4. Add a fragment and a thin full-page template that includes it. Provide ordinary links/forms
    first, then optional HTMX attributes targeting a stable root.
 5. Reuse design tokens and component classes. Check keyboard order, focus after validation and

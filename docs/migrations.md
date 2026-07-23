@@ -106,8 +106,8 @@ part of this breaking contract.
 | --- | --- |
 | Domain and service chronology | `src/models/intervention.rs`, `src/services/intervention.rs` |
 | Repository filters, cursors, midnight conversion, ordering, and mileage neighbours | `src/repositories/intervention.rs`, `src/repositories/surreal/intervention.rs`, `src/domain/pagination.rs` |
-| JSON request/response and local-date filters | `src/controllers/interventions.rs` |
-| Browser defaults, forms, validation, and history filters | `src/controllers/browser/interventions.rs`, `src/controllers/browser/vehicles.rs` |
+| JSON request/response and local-date filters | `src/controllers/api_v1/interventions.rs` |
+| Browser defaults, forms, validation, and history filters | `src/controllers/browser/interventions/`, `src/controllers/browser/vehicles/` |
 | Presentation and dependent selectors | `src/views/dashboard.rs`, `src/views/intervention.rs`, `src/views/invoice.rs`, `src/views/knowledge.rs`, `src/views/vehicle.rs` |
 | Browser templates | `assets/views/fragments/intervention_detail.html`, `assets/views/fragments/intervention_form.html`, `assets/views/fragments/intervention_preview.html`, `assets/views/fragments/intervention_transition.html` |
 | Schema, indexes, and migration catalog history | `database/schema/business/intervention.surql`, `database/rollouts/20260719182632__initial_core_domain.toml`, `database/snapshots/catalog_snapshot.json` |

@@ -1,143 +1,130 @@
 # Pipauto architecture
 
-Pipauto is a single Loco application serving HTTP directly. Shared domain, persistence, service,
-and API contracts keep later business areas consistent without coupling them to Loco or SurrealDB.
+Pipauto is one Loco application serving JSON and server-rendered workshop workflows. It uses
+cohesive model modules, slim delivery adapters, explicit runtime capabilities, SurrealDB, and
+reviewed SurrealKit schema operations.
 
 ## Dependency direction
 
 ```text
-JSON controllers → API DTOs
-        ↓
-      services → domain ← repository contracts
-        ↑                         ↑
-HTML controllers          SurrealDB adapters
-        ↓
-presentation models → views/templates
-app/initializers → compose all infrastructure
+JSON controllers ─┐
+                  ├─> model API ─> private model persistence ─> SurrealDB
+HTML controllers ─┘       │
+                          └─> shared domain values
+
+model values ─> API DTOs / presentation models ─> JSON / templates
+initializers ─> ModelContext and explicit infrastructure capabilities
 ```
 
-Dependencies point inward toward workflows, persistence contracts, and database-independent domain
-models. Composition code is the exception: `app` and `initializers` know concrete infrastructure so
-the rest of the application does not need to.
+Controllers parse and authorize requests, convert delivery DTOs to model inputs, invoke one model
+operation, and select a response. They do not import persistence modules, SurrealDB types, or
+query text.
 
 ## Module boundaries
 
 | Module | Owns | Must not own |
 | --- | --- | --- |
-| `app` | Route, initializer, middleware, and shared-service composition | Business rules or persistence behavior |
-| `controllers` | HTTP input parsing and response selection | Business rules or database queries |
-| `domain` | Shared IDs, money, quantity, normalization, archive chronology, validation, and pagination invariants | Loco, Axum, Tera, SurrealDB, HTTP query strings, or row structs |
-| `models` | Database-independent authentication, customer, vehicle, intervention, line, technical-note, attachment, invoice, and payment models | Loco, Axum, Tera, or SurrealDB concerns |
-| `api` | Explicit IDs, timestamps, money, quantity, pagination, and error DTOs | SurrealDB rows, repository errors, or business decisions |
-| `services` | Application workflows across models and repository contracts | HTTP, templates, or concrete databases |
-| `repositories` | Persistence-neutral record and attachment-file contracts, errors, typed domain filters, and cursors | HTTP query strings, SurrealDB types, templates, or workflow policy |
-| `repositories::surreal` | SurrealDB adapters and centralized record-ID, response, query-error, and cursor-tuple mechanics | HTTP or template behavior |
-| `database` | Settings, connection, authentication, database selection, and health checks | Domain persistence contracts or workflows |
-| `initializers` | Loco lifecycle wiring and shared-store registration | Business workflows or HTTP behavior |
-| `views` | Typed presentation data and Tera rendering | HTTP parsing, business rules, or persistence |
-| `settings` | Validated business defaults and collection bounds | Secrets or feature-specific workflow policy |
-| `errors` | Workflow-to-HTTP status and safe error-envelope mapping | Repository errors or raw infrastructure details in client responses |
+| `app` | Loco lifecycle and top-level route composition | Business or persistence rules |
+| `routing` | Access classes, classified route groups, generated route inventory | Runtime authentication or handlers |
+| `controllers` | HTTP parsing, authentication/CSRF extraction, response selection | SurrealQL, cross-record invariants, totals |
+| `domain` | Shared IDs, money, quantity, normalization, validation, pagination, workshop time | HTTP, templates, database rows |
+| `models` | Persisted types, inputs, validation, queries, associations, lifecycle operations | HTTP requests, response DTOs, templates |
+| `models::<aggregate>::persistence` | Bound SurrealQL, implementation-only `Db*` rows, atomic mutations | HTTP and presentation behavior |
+| `database` | Connection, health, migrations, shared SurrealDB safety mechanics | Business workflows |
+| `api` | Explicit public JSON DTOs and envelopes | Stored rows or persistence errors |
+| `views` | Typed presentation data and Tera rendering | Request parsing or persistence |
+| `auth` | Cookies, CSRF, settings, crypto adapters | User/session persistence |
+| `initializers` | Runtime composition and shared-store registration | Business decisions |
+| `testing` | Hidden persistence-integrity compatibility exports | Production controller dependencies |
 
-Business-domain repository contracts live in `repositories` when their workflows are defined.
-Absence uses `Option`; conditional mutation absence may use `RepositoryError::NotFound`.
-`Unavailable` and `CorruptData` remain distinct repository failures and are never converted to
-not-found. Services translate repository results to `WorkflowError`; controllers alone translate
-workflow outcomes into HTTP statuses and `api::ErrorEnvelope` values.
+The former top-level public `services` and `repositories` modules do not exist. Aggregate
+operations and persistence live behind their public model entry points. Persistence modules are
+crate-private except for the documentation-hidden customer persistence and repository compatibility
+surface used by integration tests. Ordered line and payment modules, attachment file contracts, and
+reconciliation types remain public where callers need those model-owned interfaces.
 
-Collection contracts take `PageRequest<F>` with a typed `CollectionFilter`, `PageLimit`, and
-`OpaqueCursor`. Cursor signatures bind a version, API resource kind, deterministic final sort
-tuple, and every filter affecting membership or order. A purpose-separated HMAC key derived from
-the CSRF secret authenticates cursors without reusing the raw JWT or CSRF key. Cursor entity keys
-exclude SurrealDB's serialized `table:id` representation. SurrealDB rows stay private to adapters
-and are explicitly converted into domain models before DTO conversion.
+### Controller organization
 
-Business controllers contribute ordinary Loco routes through `controllers::api_v1`, which applies
-the `/api/v1` prefix and `no-store` response policy. Every handler explicitly extracts
-`CurrentUser`; unsafe JSON handlers additionally use `AuthenticatedCsrfJson<T>`, with a per-route
-`DefaultBodyLimit`. Controllers parse DTOs and select responses only.
+Controllers are transport-first:
 
-Server-rendered controllers are composed separately through `controllers::browser`. HTML
-controllers call application services directly; they do not call the JSON API over loopback HTTP.
-Their shared request context contains only a display-safe user, CSRF token, current path, validated
-local return path, and full-page/HTMX preference. URL-encoded unsafe forms use the typed
-`AuthenticatedForm<T>` extractor and an explicit body limit; JSON routes keep their existing JSON
-extractor. Browser views receive typed presentation models, never database rows, credentials, or
-session records.
+- `controllers/api_v1/` contains versioned JSON composition and domain controllers.
+- `controllers/browser/` contains every HTML/HTMX route area and browser-only shared behavior.
+- `controllers/health/` contains infrastructure health routes.
+- `controllers/shared/` contains HTTP behavior only when JSON and browser adapters use identical
+  semantics.
 
-This no-loopback rule is explicit: `/api/v1` is a sibling delivery adapter, not an internal client
-boundary. HTML controllers may share services, domain types, and repository contracts with JSON
-controllers, but must not send HTTP requests to Pipauto itself or deserialize API DTOs to render a
-page. Mapping flows one way from service results into presentation models and then templates;
-templates and presentation models do not depend on controllers, API DTOs, or persistence rows.
+Every browser route area is a directory. Its `mod.rs` declares workflow modules and composes routes;
+request handlers, parsing, validation mapping, and rendering live in workflow-named files such as
+`payments.rs`, `history.rs`, or `transitions.rs`. Code uses the domain name `technical_notes` while
+retaining `/knowledge` and the visible Knowledge label. Neither delivery adapter imports the other.
 
-Money is stored as checked, non-negative minor units plus an assigned uppercase ISO 4217 code.
-Multiplication by a three-decimal positive quantity rounds half-up once to the nearest minor unit.
-Business settings default to EUR, 25 records per collection, and a hard maximum of 200 records.
-Attachment settings enforce one file up to 25 MiB plus a bounded multipart envelope. Startup
-rejects invalid settings before serving requests.
+## Model context and errors
 
-## Domain modules and workflow dependencies
+`ModelContext` is cheap to clone and is constructed once from `AppDatabase`, the cursor codec, and
+workshop time. It owns the customer, vehicle, intervention, technical-note, invoice, and attachment
+persistence adapters plus the attachment file gateway, so business model handles share dependencies
+instead of rebuilding graphs. Calendar projections use intervention persistence; authentication is
+composed separately with its cryptographic and time capabilities.
 
-Each business area follows the same inward dependency direction:
+Public model operations return `ModelError`:
 
-```text
-HTTP controller -> service -> repository contract <- SurrealDB adapter
-                         -> domain/model invariants
-HTTP DTOs       <- controller mapping <- domain/model values
-```
+- field-oriented validation;
+- not found;
+- conflict;
+- temporary unavailability; or
+- internal/corrupt-data failure.
 
-Customer and vehicle services own archive and current-owner workflows. Intervention services own
-draft transitions, mileage chronology, line mutations, totals, and deterministic service history.
-Technical-note services own reusable-knowledge validation. The shared attachment service owns
-vehicle, intervention, and technical-note ownership checks plus the `pending` → `stored` and
-`stored` → `deleting` workflows. It coordinates `AttachmentRepository` records with an
-`AttachmentFileStore` without pretending those two side effects are one transaction. Invoice
-services own draft lines, atomic totals, issued
-snapshots and numbering, and append-only payments. Cross-feature checks call repository contracts;
-controllers never join records or encode workflow policy.
+Private persistence errors and raw SurrealDB failures do not cross the model boundary.
+Controllers map `ModelError` to stable `AppError` HTTP responses.
 
-## Transaction boundary
+## Aggregate ownership
 
-A service method is the application workflow boundary. When a command must validate related rows
-and mutate state atomically, its repository adapter executes one SurrealQL transaction. This
-includes intervention-line totals, terminal intervention transitions, invoice-line totals,
-issuance and number allocation, and payment balance checks. Controllers perform parsing and DTO
-mapping outside that transaction. A workflow never holds a transaction open across an HTTP
-response, template render, or another external system.
+- `customer` owns customer validation, search, archive behavior, and `customer.vehicles`.
+- `vehicle` owns identifiers, reassignment, searches, archive behavior, `vehicle.customer`, and
+  `vehicle.interventions`.
+- `intervention` owns scheduling, immutable identity snapshots, mileage chronology, terminal
+  transitions, service-history queries, calendar projections, ordered lines, and totals.
+- `technical_note` owns reusable-knowledge validation, search scopes, source checks, and archive
+  behavior.
+- `invoice` owns drafts, ordered snapshot lines, totals, issue numbering, immutable issuance,
+  void restrictions, append-only payments, and derived balances.
+- `attachment` owns metadata and coordinates the recoverable database-row/bucket-object lifecycle.
+- `auth` owns users, session registry rows, login throttles, login/logout, and administrative
+  account operations while consuming explicit cryptographic and time capabilities.
 
-SurrealDB attachment records and bucket objects are a deliberate non-atomic boundary. Upload first
-reserves a `pending` record with an opaque pointer, writes bytes without overwrite, verifies the
-object, then exposes it by marking the row `stored`. Delete first marks the row `deleting`, removes
-or confirms absence of the object, then removes the row. Ordinary reads expose only `stored` rows.
-The explicit dry-run-first reconciliation task reports and safely resumes interrupted states;
-startup, readiness, and ordinary requests never perform storage repair.
+API DTOs and presentation models remain separate from these aggregates so private fields never
+become output accidentally.
 
-The one `pipauto_attachments` bucket uses a memory backend only in isolated tests and a mounted
-disk backend in Compose. It has `PERMISSIONS NONE`; all content flows through authenticated
-application routes. Attachment records, checksums, and opaque file pointers are private persistence
-data. A logical database export does not contain the separately mounted bucket bytes, so recovery
-always pairs both artifacts. The complete contract is documented in the
-[attachment storage guide](attachment-storage.md).
+## Transactions and external side effects
+
+A public model operation is the application operation boundary. Private persistence uses one
+SurrealDB transaction whenever the postcondition spans records, including intervention
+transitions and line totals, invoice issuance and number allocation, and payment balance checks.
+
+Attachment metadata and bucket bytes are intentionally non-atomic. Upload reserves a pending row,
+writes without overwrite, verifies bytes, then finalizes. Deletion marks the row, removes or
+confirms absence of the object, then removes the row. The explicit reconciliation task reports and
+repairs interrupted states; startup and readiness never do so.
+
+Password hashing, JWT signing, clocks, secure randomness, cookies, CSRF, and attachment file
+objects remain explicit capabilities rather than hidden callbacks.
 
 ## Schema and SurrealKit ownership
 
-Committed desired definitions under `database/schema/` are the schema source of truth. SurrealKit
-owns schema diffing, catalog snapshots, rollout manifests and state, linting, synchronization of
-disposable databases, and phased rollout execution for preserved databases. The application owns
-runtime queries through repository adapters but does not execute schema changes during boot,
-health checks, or ordinary requests. `scripts/surrealkit` owns the secret-safe environment mapping,
-authentication-baseline gate, deployment gate, sanitized reports, and rollout lock. Operational
-ownership and recovery are defined in [the migration runbook](migrations.md).
+Committed definitions under `database/schema/` are the schema source of truth. SurrealKit owns
+schema inspection, snapshots, rollout manifests, linting, disposable synchronization, and phased
+rollout execution. Application startup, health checks, and normal requests do not change shared or
+production schema. Isolated Loco test startup applies the committed schema only to disposable
+in-memory databases.
 
-## Assets and tests
+## Delivery and tests
 
-- `assets/views/layouts` contains reusable complete-page layouts.
-- `assets/views/pages` contains full server-rendered pages.
-- `assets/views/fragments` contains partial HTML returned to HTMX requests.
-- `assets/static/css`, `assets/static/js`, and `assets/static/vendor` contain self-hosted browser assets.
-- `tests/requests` verifies public HTTP behavior.
-- `tests/integration` verifies infrastructure behavior such as database connectivity.
-- `tests/support` contains reusable test bootstrapping, settings, and fixtures.
-- `tests/browser` contains Playwright/Axe smoke coverage against a disposable isolated database;
-  screenshots, traces, and video are disabled so authentication values are not retained as
-  artifacts.
+JSON routes remain under `/api/v1`; browser routes render typed presentation models directly from
+model results and never call the JSON API over loopback HTTP. Authentication, CSRF, request body
+limits, response envelopes, and public route contracts are delivery concerns and remain unchanged
+by the model migration.
+
+Request tests verify public JSON and HTML behavior. Model tests verify validation and lifecycle
+rules. Integration tests verify transactions, concurrency, SurrealDB mappings, authentication,
+attachment recovery, and migration behavior; their hidden persistence access is not a production
+application boundary.

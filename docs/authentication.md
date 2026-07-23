@@ -159,7 +159,7 @@ sessions. Restore `active = true` only after the account is safe.
 | `POST /interventions/{id}/complete` | Authenticated + session CSRF | Complete and lock a Draft with performed work. |
 | `GET /interventions/{id}/cancel` | Authenticated | Review irreversible cancellation details without a reason field. |
 | `POST /interventions/{id}/cancel` | Authenticated + session CSRF | Cancel and retain a Draft in service history. |
-| `GET /calendar` | Authenticated | Read the bounded Calendar Month view; accepts only `view=month\|week` and `date=YYYY-MM-DD`. |
+| `GET /calendar` | Authenticated | Read the bounded Month or complete Week calendar view; accepts only `view=month\|week` and `date=YYYY-MM-DD`. |
 | `GET /knowledge` | Authenticated | Search and page through active or archived technical notes. |
 | `POST /knowledge` | Authenticated + session CSRF | Create a technical note with validated reusable and source context. |
 | `GET /knowledge/new` | Authenticated | Create a technical note, optionally prefilling vehicle or intervention context. |
@@ -176,8 +176,8 @@ sessions. Restore `active = true` only after the account is safe.
 | `GET /invoices` | Authenticated | Filter and page through invoices by lifecycle using opaque cursors. |
 | `POST /invoices` | Authenticated + session CSRF | Create an unnumbered invoice draft from an authoritative relationship and currency. |
 | `GET /invoices/new` | Authenticated | Draft-invoice creation form with optional relationship prefill. |
-| `GET /invoices/{id}` | Authenticated | Read an invoice draft and its service-calculated ordered lines and totals. |
-| `GET /invoices/{id}/edit` | Authenticated | Edit fields supported by the draft invoice service command. |
+| `GET /invoices/{id}` | Authenticated | Read an invoice draft and its model-calculated ordered lines and totals. |
+| `GET /invoices/{id}/edit` | Authenticated | Edit fields supported by the draft invoice model operation. |
 | `POST /invoices/{id}/edit` | Authenticated + session CSRF | Save a valid draft header without predicting an issue number. |
 | `GET /invoices/{id}/issue` | Authenticated | Review the authoritative draft snapshot before issuance. |
 | `POST /invoices/{id}/issue` | Authenticated + session CSRF | Issue, number, snapshot, and lock an eligible draft. |
@@ -237,10 +237,11 @@ unsafe requests, while forms remain fully usable without JavaScript.
 Business JSON routes use the same authenticated session boundary below `/api/v1`. Every handler
 extracts `CurrentUser`; unsafe JSON handlers additionally extract `AuthenticatedCsrfJson<T>`, which
 checks the single `X-CSRF-Token` against the session `jti`, canonical origin, unsafe action, and
-expiry before the handler can invoke a service. Multipart attachment uploads authenticate before
-consuming the body and accept the action-bound token in the header or one `_csrf` part; if both are
-present they must match. Each unsafe route sets an explicit body limit. Stale credentials receive
-a JSON `401 unauthenticated` response and the same expired session cookie used by the browser flow.
+expiry before the handler can invoke a model operation. Multipart attachment uploads authenticate
+before consuming the body and accept the action-bound token in the header or one `_csrf` part; if
+both are present they must match. Each unsafe route sets an explicit body limit. Stale credentials
+receive a JSON `401 unauthenticated` response and the same expired session cookie used by the
+browser flow.
 
 Successful single-resource responses use `{ "data": ... }`; collections use
 `{ "data": [...], "next_cursor": null }`. Errors use a stable `error` envelope with public field
@@ -260,8 +261,8 @@ Authentication routes and authenticated application routes apply `Cache-Control:
 route layer, so handler, extractor, body-limit, and media-type errors inherit the same policy.
 Responses use a restrictive same-origin CSP, same-origin referrer policy,
 anti-framing, MIME-sniffing protection, and disabled camera, microphone, and geolocation policies.
-Only implemented browser routes appear in active navigation. Every route is registered for
-access-policy auditing when its owning frontend issue delivers the complete read path.
+Only implemented browser routes appear in active navigation. Every registered Loco route is
+included in the generated access-policy inventory.
 
 ## Production deployment
 
@@ -344,6 +345,12 @@ be `__Host-pipauto_session` and `__Host-pipauto_login_csrf`, and both cookies mu
 `Secure`.
 
 ## Automated verification
+
+The auditable access inventory is generated from registered Loco route groups and their
+composition-time `Public`, `GuestOnly`, or `Authenticated` classification. It verifies the
+registered surface and documentation but does not enforce authentication; handlers continue to
+enforce sessions and CSRF through their extractors. Framework-provided public routes are pinned so
+a Loco upgrade cannot silently broaden that boundary.
 
 The authenticated JSON route inventory includes `GET /api/v1/vehicles/{id}/service-history`,
 `GET /api/v1/interventions`, `POST /api/v1/interventions`,

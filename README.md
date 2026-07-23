@@ -3,10 +3,12 @@
 Pipauto is a workshop-oriented Loco application for managing customers, vehicles, and accurate
 vehicle service histories.
 
-The initial core backend is implemented: password authentication, customers, vehicles,
+The initial-release application includes password authentication, customers, vehicles,
 interventions and deterministic service history, searchable technical notes, private stored
-attachments, invoices, and append-only payments. See the [architecture](docs/architecture.md),
-[JSON API v1](docs/api-v1.md), [authentication guide](docs/authentication.md), and
+attachments, invoices, and append-only payments. Responsive server-rendered workshop workflows
+cover those areas, with an authenticated read-only Month/Week calendar for scheduled interventions.
+See the [architecture](docs/architecture.md), [JSON API v1](docs/api-v1.md),
+[authentication guide](docs/authentication.md), and
 [migration and recovery runbook](docs/migrations.md). For a concise local workflow, see the
 [local development quick start](docs/local-development.md). Frontend maintainers should also read
 the [frontend guide](docs/frontend.md). Attachment developers and operators must also read the
